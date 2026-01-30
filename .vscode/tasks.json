@@ -6,8 +6,8 @@
 		{
             "label": "watch",
             "dependsOn": [
-                "npm: watch:tsc",
-                "npm: watch:esbuild"
+                "bun: watch:tsc",
+                "bun: watch:esbuild"
             ],
             "presentation": {
                 "reveal": "never"
@@ -18,45 +18,46 @@
             }
         },
         {
-            "type": "npm",
-            "script": "watch:esbuild",
+            "type": "shell",
+            "command": "bun run watch:esbuild",
             "group": "build",
             "problemMatcher": "$esbuild-watch",
             "isBackground": true,
-            "label": "npm: watch:esbuild",
+            "label": "bun: watch:esbuild",
             "presentation": {
                 "group": "watch",
                 "reveal": "never"
             }
         },
 		{
-            "type": "npm",
-            "script": "watch:tsc",
+            "type": "shell",
+            "command": "bun run watch:tsc",
             "group": "build",
             "problemMatcher": "$tsc-watch",
             "isBackground": true,
-            "label": "npm: watch:tsc",
+            "label": "bun: watch:tsc",
             "presentation": {
                 "group": "watch",
                 "reveal": "never"
             }
         },
 		{
-			"type": "npm",
-			"script": "watch-tests",
+			"type": "shell",
+			"command": "bun run watch-tests",
 			"problemMatcher": "$tsc-watch",
 			"isBackground": true,
 			"presentation": {
 				"reveal": "never",
 				"group": "watchers"
 			},
-			"group": "build"
+			"group": "build",
+            "label": "bun: watch-tests"
 		},
 		{
 			"label": "tasks: watch-tests",
 			"dependsOn": [
-				"npm: watch",
-				"npm: watch-tests"
+				"bun: watch",
+				"bun: watch-tests"
 			],
 			"problemMatcher": []
 		}
