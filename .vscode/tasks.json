@@ -54,6 +54,15 @@
             "label": "bun: watch-tests"
 		},
 		{
+			"label": "bun: compile",
+			"type": "shell",
+			"command": "bun run compile",
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			}
+		},
+		{
 			"label": "tasks: watch-tests",
 			"dependsOn": [
 				"bun: watch",
