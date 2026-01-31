@@ -10,7 +10,7 @@ import * as fs from "fs";
 export function activate(context: vscode.ExtensionContext) {
   const createNoteDisposable = vscode.commands.registerCommand("notes.createNote", async () => {
     const config = vscode.workspace.getConfiguration("notes");
-    let notesDir = config.get<string>("notes.notesDirectory");
+    let notesDir = config.get<string>("notesDirectory");
 
     if (!notesDir) {
       const selected = await vscode.window.showOpenDialog({
@@ -53,23 +53,34 @@ export function activate(context: vscode.ExtensionContext) {
       return;
     }
 
-    const template = `---
+    // Create empty file first
+    try {
+      fs.writeFileSync(filePath, "", "utf8");
+    } catch (err) {
+      vscode.window.showErrorMessage(`Failed to create note: ${err}`);
+      return;
+    }
+
+    // Open the file and insert snippet with tab stops
+    const doc = await vscode.workspace.openTextDocument(filePath);
+    const editor = await vscode.window.showTextDocument(doc);
+
+    // SnippetString with tab stops for quick navigation:
+    // $1 = tag, $2 = heading content, $0 = final cursor position (body)
+    const snippet = new vscode.SnippetString(
+      `---
 tags:
-    - 
+    - \${1:tag}
 title: ${title}
 date: ${dateIso}
 ---
 
-## 
-`;
+## \${2:heading}
 
-    try {
-      fs.writeFileSync(filePath, template, "utf8");
-      const doc = await vscode.workspace.openTextDocument(filePath);
-      await vscode.window.showTextDocument(doc);
-    } catch (err) {
-      vscode.window.showErrorMessage(`Failed to create note: ${err}`);
-    }
+\$0`,
+    );
+
+    await editor.insertSnippet(snippet, new vscode.Position(0, 0));
   });
 
   context.subscriptions.push(createNoteDisposable);
