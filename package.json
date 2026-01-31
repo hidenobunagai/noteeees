@@ -2,7 +2,7 @@
   "name": "notes",
   "displayName": "Notes",
   "description": "AI-powered memory notes extension",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "engines": {
     "vscode": "^1.108.1"
   },
@@ -26,8 +26,17 @@
         "title": "Notes: Open Memory"
       },
       {
+        "command": "notes.search",
+        "title": "Notes: Search"
+      },
+      {
         "command": "notes.runSetup",
         "title": "Notes: Run Setup"
+      },
+      {
+        "command": "notes.refreshSidebar",
+        "title": "Notes: Refresh Sidebar",
+        "icon": "$(refresh)"
       }
     ],
     "keybindings": [
@@ -40,8 +49,33 @@
         "command": "notes.addEntry",
         "key": "ctrl+shift+m",
         "mac": "cmd+shift+m"
+      },
+      {
+        "command": "notes.search",
+        "key": "ctrl+shift+f",
+        "mac": "cmd+shift+f",
+        "when": "editorTextFocus && resourceFilename == memory.md"
       }
     ],
+    "views": {
+      "explorer": [
+        {
+          "id": "notesExplorer",
+          "name": "Notes",
+          "icon": "$(notebook)",
+          "contextualTitle": "Memory Notes"
+        }
+      ]
+    },
+    "menus": {
+      "view/title": [
+        {
+          "command": "notes.refreshSidebar",
+          "when": "view == notesExplorer",
+          "group": "navigation"
+        }
+      ]
+    },
     "configuration": {
       "title": "Notes",
       "properties": {

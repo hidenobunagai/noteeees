@@ -1,6 +1,9 @@
 import * as vscode from "vscode";
 import * as path from "path";
 import * as fs from "fs";
+import { TagCompletionProvider } from "./tagCompletion";
+import { showSearchQuickPick } from "./searchCommand";
+import { NotesTreeProvider, registerGoToLineCommand } from "./sidebarProvider";
 
 const MEMORY_FILE_NAME = "memory.md";
 const MEMORY_HEADER = "# Memory Log\n\n";
@@ -75,12 +78,35 @@ async function ensureNotesDirectory(): Promise<string | undefined> {
 }
 
 export function activate(context: vscode.ExtensionContext) {
+  // Register tag completion provider
+  const tagCompletionProvider = new TagCompletionProvider(getMemoryFilePath);
+  context.subscriptions.push(
+    vscode.languages.registerCompletionItemProvider(
+      { language: "markdown" },
+      tagCompletionProvider,
+      "#"
+    )
+  );
+
+  // Register sidebar tree view
+  const notesTreeProvider = new NotesTreeProvider(getMemoryFilePath);
+  vscode.window.registerTreeDataProvider("notesExplorer", notesTreeProvider);
+  registerGoToLineCommand(context, getMemoryFilePath);
+
+  // Refresh tree when memory file changes
+  const watcher = vscode.workspace.createFileSystemWatcher("**/memory.md");
+  watcher.onDidChange(() => notesTreeProvider.refresh());
+  watcher.onDidCreate(() => notesTreeProvider.refresh());
+  watcher.onDidDelete(() => notesTreeProvider.refresh());
+  context.subscriptions.push(watcher);
+
   // Run Setup command
   const runSetupDisposable = vscode.commands.registerCommand("notes.runSetup", async () => {
     const notesDir = await selectNotesDirectory();
     if (notesDir) {
       const memoryPath = path.join(notesDir, MEMORY_FILE_NAME);
       ensureMemoryFile(memoryPath);
+      notesTreeProvider.refresh();
       vscode.window.showInformationMessage(`Notes directory set to: ${notesDir}`);
     }
   });
@@ -98,7 +124,7 @@ export function activate(context: vscode.ExtensionContext) {
     await vscode.window.showTextDocument(doc);
   });
 
-  // Add Entry command - full entry with snippet navigation
+  // Add Entry command
   const addEntryDisposable = vscode.commands.registerCommand("notes.addEntry", async () => {
     const notesDir = await ensureNotesDirectory();
     if (!notesDir) {
@@ -115,20 +141,15 @@ export function activate(context: vscode.ExtensionContext) {
     const dateTime = formatDateTime(now);
     const position = getEntryPosition();
 
-    // Determine insertion point
     let insertPosition: vscode.Position;
     if (position === "top") {
-      // After header
       const text = doc.getText();
       const headerMatch = text.match(/^# Memory Log\n\n/);
       insertPosition = new vscode.Position(headerMatch ? 2 : 0, 0);
     } else {
-      // At end of file
       insertPosition = new vscode.Position(doc.lineCount, 0);
     }
 
-    // Insert snippet with tab stops:
-    // $1 = first tag, $2 = optional second tag (can be left empty), $3 = content, $0 = final
     const snippet = new vscode.SnippetString(
       `## ${dateTime} #\${1:tag}\${2: #optional}\n\${3:content}\n\n\$0`
     );
@@ -136,7 +157,7 @@ export function activate(context: vscode.ExtensionContext) {
     await editor.insertSnippet(snippet, insertPosition);
   });
 
-  // Quick Add command - one-liner from input box
+  // Quick Add command
   const quickAddDisposable = vscode.commands.registerCommand("notes.quickAdd", async () => {
     const notesDir = await ensureNotesDirectory();
     if (!notesDir) {
@@ -152,7 +173,6 @@ export function activate(context: vscode.ExtensionContext) {
       return;
     }
 
-    // Extract tags from input
     const tagMatches = input.match(/#\w+/g) || [];
     const tags = tagMatches.join(" ");
     const content = input.replace(/#\w+\s*/g, "").trim();
@@ -164,14 +184,11 @@ export function activate(context: vscode.ExtensionContext) {
     const dateTime = formatDateTime(now);
     const position = getEntryPosition();
 
-    // Read existing content
     let existingContent = fs.readFileSync(memoryPath, "utf8");
 
-    // Prepare new entry
     const tagSection = tags ? ` ${tags}` : "";
     const newEntry = `## ${dateTime}${tagSection}\n${content}\n\n`;
 
-    // Insert based on position setting
     if (position === "top") {
       if (existingContent.startsWith(MEMORY_HEADER)) {
         existingContent = MEMORY_HEADER + newEntry + existingContent.slice(MEMORY_HEADER.length);
@@ -183,14 +200,33 @@ export function activate(context: vscode.ExtensionContext) {
     }
 
     fs.writeFileSync(memoryPath, existingContent, "utf8");
+    notesTreeProvider.refresh();
     vscode.window.showInformationMessage("Entry added to memory.");
+  });
+
+  // Search command
+  const searchDisposable = vscode.commands.registerCommand("notes.search", async () => {
+    const memoryPath = getMemoryFilePath();
+    if (!memoryPath) {
+      vscode.window.showErrorMessage("Notes directory is not configured. Run 'Notes: Run Setup' first.");
+      return;
+    }
+
+    await showSearchQuickPick(memoryPath);
+  });
+
+  // Refresh sidebar command
+  const refreshDisposable = vscode.commands.registerCommand("notes.refreshSidebar", () => {
+    notesTreeProvider.refresh();
   });
 
   context.subscriptions.push(
     runSetupDisposable,
     openMemoryDisposable,
     addEntryDisposable,
-    quickAddDisposable
+    quickAddDisposable,
+    searchDisposable,
+    refreshDisposable
   );
 }
 
