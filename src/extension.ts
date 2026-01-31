@@ -1,11 +1,33 @@
-// The module 'vscode' contains the VS Code extensibility API
-// Import the module and reference it with the alias vscode in your code below
 import * as vscode from "vscode";
-
-// This method is called when your extension is activated
-// Your extension is activated the very first time the command is executed
 import * as path from "path";
 import * as fs from "fs";
+
+const MEMORY_FILE_NAME = "memory.md";
+const MEMORY_HEADER = "# Memory Log\n\n";
+
+function getMemoryFilePath(): string | undefined {
+  const config = vscode.workspace.getConfiguration("notes");
+  const notesDir = config.get<string>("notesDirectory");
+  if (!notesDir) {
+    return undefined;
+  }
+  return path.join(notesDir, MEMORY_FILE_NAME);
+}
+
+function ensureMemoryFile(filePath: string): void {
+  if (!fs.existsSync(filePath)) {
+    fs.writeFileSync(filePath, MEMORY_HEADER, "utf8");
+  }
+}
+
+function formatDateTime(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  const hours = String(date.getHours()).padStart(2, "0");
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+  return `${year}-${month}-${day} ${hours}:${minutes}`;
+}
 
 async function selectNotesDirectory(): Promise<string | undefined> {
   const selected = await vscode.window.showOpenDialog({
@@ -24,84 +46,127 @@ async function selectNotesDirectory(): Promise<string | undefined> {
   return undefined;
 }
 
+async function ensureNotesDirectory(): Promise<string | undefined> {
+  const config = vscode.workspace.getConfiguration("notes");
+  let notesDir = config.get<string>("notesDirectory");
+
+  if (!notesDir) {
+    notesDir = await selectNotesDirectory();
+    if (!notesDir) {
+      vscode.window.showErrorMessage("Notes directory is not configured. Run 'Notes: Run Setup' first.");
+      return undefined;
+    }
+  }
+  return notesDir;
+}
+
 export function activate(context: vscode.ExtensionContext) {
-  // Run Setup command - allows changing the notes directory at any time
+  // Run Setup command
   const runSetupDisposable = vscode.commands.registerCommand("notes.runSetup", async () => {
     const notesDir = await selectNotesDirectory();
     if (notesDir) {
+      const memoryPath = path.join(notesDir, MEMORY_FILE_NAME);
+      ensureMemoryFile(memoryPath);
       vscode.window.showInformationMessage(`Notes directory set to: ${notesDir}`);
     }
   });
 
-  // Create Note command
-  const createNoteDisposable = vscode.commands.registerCommand("notes.createNote", async () => {
-    const config = vscode.workspace.getConfiguration("notes");
-    let notesDir = config.get<string>("notesDirectory");
-
-    if (!notesDir) {
-      notesDir = await selectNotesDirectory();
-      if (!notesDir) {
-        vscode.window.showErrorMessage("Notes directory is not configured. Run 'Notes: Run Setup' first.");
-        return;
-      }
-    }
-
-    const title = await vscode.window.showInputBox({
-      prompt: "Enter note title",
-      placeHolder: "Test",
-    });
-
-    if (title === undefined) {
+  // Open Memory command
+  const openMemoryDisposable = vscode.commands.registerCommand("notes.openMemory", async () => {
+    const memoryPath = getMemoryFilePath();
+    if (!memoryPath) {
+      vscode.window.showErrorMessage("Notes directory is not configured. Run 'Notes: Run Setup' first.");
       return;
     }
 
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, "0");
-    const day = String(now.getDate()).padStart(2, "0");
-    const dateStr = `${year}_${month}_${day}`;
-    const dateIso = `${year}-${month}-${day}`;
-
-    const fileName = `${dateStr}_${title.replace(/\s+/g, "_")}.md`;
-    const filePath = path.join(notesDir, fileName);
-
-    if (fs.existsSync(filePath)) {
-      vscode.window.showErrorMessage(`File already exists: ${fileName}`);
-      return;
-    }
-
-    // Create empty file first
-    try {
-      fs.writeFileSync(filePath, "", "utf8");
-    } catch (err) {
-      vscode.window.showErrorMessage(`Failed to create note: ${err}`);
-      return;
-    }
-
-    // Open the file and insert snippet with tab stops
-    const doc = await vscode.workspace.openTextDocument(filePath);
-    const editor = await vscode.window.showTextDocument(doc);
-
-    // SnippetString with tab stops for quick navigation:
-    // $1 = tag, $2 = heading content, $0 = final cursor position (body)
-    const snippet = new vscode.SnippetString(
-      `---
-tags:
-    - \${1:tag}
-title: ${title}
-date: ${dateIso}
----
-
-## \${2:heading}
-
-\$0`
-    );
-
-    await editor.insertSnippet(snippet, new vscode.Position(0, 0));
+    ensureMemoryFile(memoryPath);
+    const doc = await vscode.workspace.openTextDocument(memoryPath);
+    await vscode.window.showTextDocument(doc);
   });
 
-  context.subscriptions.push(runSetupDisposable, createNoteDisposable);
+  // Add Entry command - full entry with snippet navigation
+  const addEntryDisposable = vscode.commands.registerCommand("notes.addEntry", async () => {
+    const notesDir = await ensureNotesDirectory();
+    if (!notesDir) {
+      return;
+    }
+
+    const memoryPath = path.join(notesDir, MEMORY_FILE_NAME);
+    ensureMemoryFile(memoryPath);
+
+    const doc = await vscode.workspace.openTextDocument(memoryPath);
+    const editor = await vscode.window.showTextDocument(doc);
+
+    const now = new Date();
+    const dateTime = formatDateTime(now);
+
+    // Find insertion point (after header)
+    let insertLine = 0;
+    const text = doc.getText();
+    const headerMatch = text.match(/^# Memory Log\n\n/);
+    if (headerMatch) {
+      insertLine = 2; // After "# Memory Log\n\n"
+    }
+
+    // Insert snippet with tab stops: $1 = tags, $2 = content, $0 = final position
+    const snippet = new vscode.SnippetString(
+      `## ${dateTime} \${1:#tag}\n\${2:content}\n\n\$0`
+    );
+
+    await editor.insertSnippet(snippet, new vscode.Position(insertLine, 0));
+  });
+
+  // Quick Add command - one-liner from input box
+  const quickAddDisposable = vscode.commands.registerCommand("notes.quickAdd", async () => {
+    const notesDir = await ensureNotesDirectory();
+    if (!notesDir) {
+      return;
+    }
+
+    const input = await vscode.window.showInputBox({
+      prompt: "Quick note (use #tag for tags)",
+      placeHolder: "#todo 経費精算の期限は2/5まで",
+    });
+
+    if (!input) {
+      return;
+    }
+
+    // Extract tags from input
+    const tagMatches = input.match(/#\w+/g) || [];
+    const tags = tagMatches.join(" ");
+    const content = input.replace(/#\w+\s*/g, "").trim();
+
+    const memoryPath = path.join(notesDir, MEMORY_FILE_NAME);
+    ensureMemoryFile(memoryPath);
+
+    const now = new Date();
+    const dateTime = formatDateTime(now);
+
+    // Read existing content
+    let existingContent = fs.readFileSync(memoryPath, "utf8");
+
+    // Prepare new entry
+    const tagSection = tags ? ` ${tags}` : "";
+    const newEntry = `## ${dateTime}${tagSection}\n${content}\n\n`;
+
+    // Insert after header
+    if (existingContent.startsWith(MEMORY_HEADER)) {
+      existingContent = MEMORY_HEADER + newEntry + existingContent.slice(MEMORY_HEADER.length);
+    } else {
+      existingContent = MEMORY_HEADER + newEntry + existingContent;
+    }
+
+    fs.writeFileSync(memoryPath, existingContent, "utf8");
+    vscode.window.showInformationMessage("Entry added to memory.");
+  });
+
+  context.subscriptions.push(
+    runSetupDisposable,
+    openMemoryDisposable,
+    addEntryDisposable,
+    quickAddDisposable
+  );
 }
 
-// This method is called when your extension is deactivated
 export function deactivate() {}

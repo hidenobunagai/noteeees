@@ -14,8 +14,16 @@
   "contributes": {
     "commands": [
       {
-        "command": "notes.createNote",
-        "title": "Notes: Create New Note"
+        "command": "notes.addEntry",
+        "title": "Notes: Add Entry"
+      },
+      {
+        "command": "notes.quickAdd",
+        "title": "Notes: Quick Add"
+      },
+      {
+        "command": "notes.openMemory",
+        "title": "Notes: Open Memory"
       },
       {
         "command": "notes.runSetup",
