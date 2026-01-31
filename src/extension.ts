@@ -21,12 +21,26 @@ function ensureMemoryFile(filePath: string): void {
 }
 
 function formatDateTime(date: Date): string {
+  const config = vscode.workspace.getConfiguration("notes");
+  const format = config.get<string>("dateFormat") || "YYYY-MM-DD HH:mm";
+
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
   const hours = String(date.getHours()).padStart(2, "0");
   const minutes = String(date.getMinutes()).padStart(2, "0");
-  return `${year}-${month}-${day} ${hours}:${minutes}`;
+
+  return format
+    .replace("YYYY", String(year))
+    .replace("MM", month)
+    .replace("DD", day)
+    .replace("HH", hours)
+    .replace("mm", minutes);
+}
+
+function getEntryPosition(): "top" | "bottom" {
+  const config = vscode.workspace.getConfiguration("notes");
+  return config.get<"top" | "bottom">("entryPosition") || "top";
 }
 
 async function selectNotesDirectory(): Promise<string | undefined> {
@@ -99,21 +113,27 @@ export function activate(context: vscode.ExtensionContext) {
 
     const now = new Date();
     const dateTime = formatDateTime(now);
+    const position = getEntryPosition();
 
-    // Find insertion point (after header)
-    let insertLine = 0;
-    const text = doc.getText();
-    const headerMatch = text.match(/^# Memory Log\n\n/);
-    if (headerMatch) {
-      insertLine = 2; // After "# Memory Log\n\n"
+    // Determine insertion point
+    let insertPosition: vscode.Position;
+    if (position === "top") {
+      // After header
+      const text = doc.getText();
+      const headerMatch = text.match(/^# Memory Log\n\n/);
+      insertPosition = new vscode.Position(headerMatch ? 2 : 0, 0);
+    } else {
+      // At end of file
+      insertPosition = new vscode.Position(doc.lineCount, 0);
     }
 
-    // Insert snippet with tab stops: $1 = tag name (after #), $2 = content, $0 = final position
+    // Insert snippet with tab stops:
+    // $1 = first tag, $2 = optional second tag (can be left empty), $3 = content, $0 = final
     const snippet = new vscode.SnippetString(
-      `## ${dateTime} #\${1:tag}\n\${2:content}\n\n\$0`
+      `## ${dateTime} #\${1:tag}\${2: #optional}\n\${3:content}\n\n\$0`
     );
 
-    await editor.insertSnippet(snippet, new vscode.Position(insertLine, 0));
+    await editor.insertSnippet(snippet, insertPosition);
   });
 
   // Quick Add command - one-liner from input box
@@ -142,6 +162,7 @@ export function activate(context: vscode.ExtensionContext) {
 
     const now = new Date();
     const dateTime = formatDateTime(now);
+    const position = getEntryPosition();
 
     // Read existing content
     let existingContent = fs.readFileSync(memoryPath, "utf8");
@@ -150,11 +171,15 @@ export function activate(context: vscode.ExtensionContext) {
     const tagSection = tags ? ` ${tags}` : "";
     const newEntry = `## ${dateTime}${tagSection}\n${content}\n\n`;
 
-    // Insert after header
-    if (existingContent.startsWith(MEMORY_HEADER)) {
-      existingContent = MEMORY_HEADER + newEntry + existingContent.slice(MEMORY_HEADER.length);
+    // Insert based on position setting
+    if (position === "top") {
+      if (existingContent.startsWith(MEMORY_HEADER)) {
+        existingContent = MEMORY_HEADER + newEntry + existingContent.slice(MEMORY_HEADER.length);
+      } else {
+        existingContent = MEMORY_HEADER + newEntry + existingContent;
+      }
     } else {
-      existingContent = MEMORY_HEADER + newEntry + existingContent;
+      existingContent = existingContent + newEntry;
     }
 
     fs.writeFileSync(memoryPath, existingContent, "utf8");

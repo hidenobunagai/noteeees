@@ -1,8 +1,8 @@
 {
   "name": "notes",
   "displayName": "Notes",
-  "description": "Simple markdown notes extension",
-  "version": "0.0.1",
+  "description": "AI-powered memory notes extension",
+  "version": "0.0.2",
   "engines": {
     "vscode": "^1.108.1"
   },
@@ -30,6 +30,18 @@
         "title": "Notes: Run Setup"
       }
     ],
+    "keybindings": [
+      {
+        "command": "notes.quickAdd",
+        "key": "ctrl+shift+n",
+        "mac": "cmd+shift+n"
+      },
+      {
+        "command": "notes.addEntry",
+        "key": "ctrl+shift+m",
+        "mac": "cmd+shift+m"
+      }
+    ],
     "configuration": {
       "title": "Notes",
       "properties": {
@@ -37,6 +49,26 @@
           "type": "string",
           "default": "",
           "description": "Directory where notes are stored. If empty, the extension will prompt to select a folder on first use."
+        },
+        "notes.dateFormat": {
+          "type": "string",
+          "default": "YYYY-MM-DD HH:mm",
+          "enum": [
+            "YYYY-MM-DD HH:mm",
+            "YYYY-MM-DD",
+            "MM/DD/YYYY HH:mm",
+            "DD.MM.YYYY HH:mm"
+          ],
+          "description": "Date format for new entries."
+        },
+        "notes.entryPosition": {
+          "type": "string",
+          "default": "top",
+          "enum": [
+            "top",
+            "bottom"
+          ],
+          "description": "Where to insert new entries in the memory file."
         }
       }
     }
