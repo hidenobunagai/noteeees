@@ -1,8 +1,13 @@
 {
   "name": "notes",
-  "displayName": "Notes",
+  "displayName": "Memory Notes",
   "description": "AI-powered memory notes extension",
   "version": "0.0.3",
+  "publisher": "HidenobuNagai",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hidenobunagai/notes"
+  },
   "engines": {
     "vscode": "^1.108.1"
   },
