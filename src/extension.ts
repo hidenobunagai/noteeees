@@ -108,9 +108,9 @@ export function activate(context: vscode.ExtensionContext) {
       insertLine = 2; // After "# Memory Log\n\n"
     }
 
-    // Insert snippet with tab stops: $1 = tags, $2 = content, $0 = final position
+    // Insert snippet with tab stops: $1 = tag name (after #), $2 = content, $0 = final position
     const snippet = new vscode.SnippetString(
-      `## ${dateTime} \${1:#tag}\n\${2:content}\n\n\$0`
+      `## ${dateTime} #\${1:tag}\n\${2:content}\n\n\$0`
     );
 
     await editor.insertSnippet(snippet, new vscode.Position(insertLine, 0));
