@@ -1,26 +1,26 @@
 # <img src="assets/icon.png" width="50" vertical-align="middle" /> Noteeees
 
-シンプルな単一ファイル型 Markdown ノート拡張。タグ、検索、リマインダー機能を備えています。
+Simple single-file Markdown notes extension with tags, search, and reminders.
 
-## 機能
+## Features
 
-- **Quick Add** (`Cmd+Shift+N`): ワンライナーで素早くメモを追加
-- **Add Entry** (`Cmd+Shift+M`): スニペット付きでエントリを追加
-- **タグ補完**: 過去に使ったタグをサジェスト
-- **検索**: タグ・日付でフィルタ
-- **サイドバー**: タグ別にエントリを一覧表示
-- **リマインダー**: `@YYYY-MM-DD` で期限を設定
+- **Quick Add** (`Cmd+Shift+N`): Quickly add a one-line note
+- **Add Entry** (`Cmd+Shift+M`): Add a note entry with a snippet
+- **Tag Autocomplete**: Suggests previously used tags
+- **Search**: Filter by tags and dates
+- **Sidebar**: View entries grouped by tags
+- **Reminders**: Set due dates with `@YYYY-MM-DD`
 
-## 使い方
+## Usage
 
-1. `Notes: Run Setup` で保存先フォルダを設定
-2. `Cmd+Shift+N` でメモを追加
-3. サイドバーからタグ別にエントリを確認
+1. Run `Notes: Run Setup` to configure the storage directory
+2. Press `Cmd+Shift+N` to add a note
+3. Check entries grouped by tags in the Sidebar
 
-## 設定
+## Settings
 
-| 設定 | 説明 |
+| Setting | Description |
 |-----|------|
-| `notes.notesDirectory` | メモの保存先 |
-| `notes.dateFormat` | 日付フォーマット |
-| `notes.entryPosition` | 新規エントリの挿入位置 (top/bottom) |
+| `notes.notesDirectory` | Directory where notes are stored |
+| `notes.dateFormat` | Date format |
+| `notes.entryPosition` | Insertion position for new entries (top/bottom) |
