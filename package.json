@@ -2,8 +2,9 @@
   "name": "noteeees",
   "displayName": "Noteeees",
   "description": "Simple markdown notes extension",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "publisher": "HidenobuNagai",
+  "icon": "assets/icon.png",
   "repository": {
     "type": "git",
     "url": "https://github.com/hidenobunagai/noteeees.git"

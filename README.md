@@ -1,4 +1,4 @@
-# Noteeees
+# <img src="assets/icon.png" width="50" vertical-align="middle" /> Noteeees
 
 シンプルな単一ファイル型 Markdown ノート拡張。タグ、検索、リマインダー機能を備えています。
 
