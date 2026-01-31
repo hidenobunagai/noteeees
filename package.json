@@ -1,8 +1,8 @@
 {
   "name": "noteeees",
   "displayName": "Memory Notes",
-  "description": "AI-powered memory notes extension",
-  "version": "0.0.4",
+  "description": "Simple markdown notes extension",
+  "version": "0.0.5",
   "publisher": "HidenobuNagai",
   "repository": {
     "type": "git",
