@@ -30,6 +30,10 @@
         "title": "Notes: Search"
       },
       {
+        "command": "notes.showReminders",
+        "title": "Notes: Show Reminders"
+      },
+      {
         "command": "notes.runSetup",
         "title": "Notes: Run Setup"
       },

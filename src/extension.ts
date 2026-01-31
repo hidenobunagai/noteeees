@@ -4,6 +4,7 @@ import * as fs from "fs";
 import { TagCompletionProvider } from "./tagCompletion";
 import { showSearchQuickPick } from "./searchCommand";
 import { NotesTreeProvider, registerGoToLineCommand } from "./sidebarProvider";
+import { showReminders } from "./reminderCommand";
 
 const MEMORY_FILE_NAME = "memory.md";
 const MEMORY_HEADER = "# Memory Log\n\n";
@@ -215,6 +216,17 @@ export function activate(context: vscode.ExtensionContext) {
     await showSearchQuickPick(memoryPath);
   });
 
+  // Reminders command
+  const remindersDisposable = vscode.commands.registerCommand("notes.showReminders", async () => {
+    const memoryPath = getMemoryFilePath();
+    if (!memoryPath) {
+      vscode.window.showErrorMessage("Notes directory is not configured. Run 'Notes: Run Setup' first.");
+      return;
+    }
+
+    await showReminders(memoryPath);
+  });
+
   // Refresh sidebar command
   const refreshDisposable = vscode.commands.registerCommand("notes.refreshSidebar", () => {
     notesTreeProvider.refresh();
@@ -226,6 +238,7 @@ export function activate(context: vscode.ExtensionContext) {
     addEntryDisposable,
     quickAddDisposable,
     searchDisposable,
+    remindersDisposable,
     refreshDisposable
   );
 }
