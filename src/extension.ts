@@ -7,24 +7,41 @@ import * as vscode from "vscode";
 import * as path from "path";
 import * as fs from "fs";
 
+async function selectNotesDirectory(): Promise<string | undefined> {
+  const selected = await vscode.window.showOpenDialog({
+    canSelectFiles: false,
+    canSelectFolders: true,
+    canSelectMany: false,
+    openLabel: "Select Notes Directory",
+  });
+
+  if (selected && selected[0]) {
+    const notesDir = selected[0].fsPath;
+    const config = vscode.workspace.getConfiguration("notes");
+    await config.update("notesDirectory", notesDir, vscode.ConfigurationTarget.Global);
+    return notesDir;
+  }
+  return undefined;
+}
+
 export function activate(context: vscode.ExtensionContext) {
+  // Run Setup command - allows changing the notes directory at any time
+  const runSetupDisposable = vscode.commands.registerCommand("notes.runSetup", async () => {
+    const notesDir = await selectNotesDirectory();
+    if (notesDir) {
+      vscode.window.showInformationMessage(`Notes directory set to: ${notesDir}`);
+    }
+  });
+
+  // Create Note command
   const createNoteDisposable = vscode.commands.registerCommand("notes.createNote", async () => {
     const config = vscode.workspace.getConfiguration("notes");
     let notesDir = config.get<string>("notesDirectory");
 
     if (!notesDir) {
-      const selected = await vscode.window.showOpenDialog({
-        canSelectFiles: false,
-        canSelectFolders: true,
-        canSelectMany: false,
-        openLabel: "Select Notes Directory",
-      });
-
-      if (selected && selected[0]) {
-        notesDir = selected[0].fsPath;
-        await config.update("notesDirectory", notesDir, vscode.ConfigurationTarget.Global);
-      } else {
-        vscode.window.showErrorMessage("Notes directory is not configured.");
+      notesDir = await selectNotesDirectory();
+      if (!notesDir) {
+        vscode.window.showErrorMessage("Notes directory is not configured. Run 'Notes: Run Setup' first.");
         return;
       }
     }
@@ -77,13 +94,13 @@ date: ${dateIso}
 
 ## \${2:heading}
 
-\$0`,
+\$0`
     );
 
     await editor.insertSnippet(snippet, new vscode.Position(0, 0));
   });
 
-  context.subscriptions.push(createNoteDisposable);
+  context.subscriptions.push(runSetupDisposable, createNoteDisposable);
 }
 
 // This method is called when your extension is deactivated

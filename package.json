@@ -16,6 +16,10 @@
       {
         "command": "notes.createNote",
         "title": "Notes: Create New Note"
+      },
+      {
+        "command": "notes.runSetup",
+        "title": "Notes: Run Setup"
       }
     ],
     "configuration": {
