@@ -1,6 +1,6 @@
-# Memory Notes
+# Noteeees
 
-AI メモリーとして機能する単一ファイル型ノートシステム。GitHub Copilot、Claude Code、Codex など複数の AI ツールで利用可能。
+シンプルな単一ファイル型 Markdown ノート拡張。タグ、検索、リマインダー機能を備えています。
 
 ## 機能
 
@@ -15,7 +15,7 @@ AI メモリーとして機能する単一ファイル型ノートシステム�
 
 1. `Notes: Run Setup` で保存先フォルダを設定
 2. `Cmd+Shift+N` でメモを追加
-3. AI に質問: `#file:memory.md 来週の予定は？`
+3. サイドバーからタグ別にエントリを確認
 
 ## 設定
 
