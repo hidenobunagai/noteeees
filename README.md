@@ -44,7 +44,7 @@ Since Noteeees manages everything in a single `memory.md` file, you can easily e
 {
   "mcpServers": {
     "filesystem": {
-      "command": "npx",
+      "command": "bunx",
       "args": [
         "-y",
         "@modelcontextprotocol/server-filesystem",
@@ -54,6 +54,8 @@ Since Noteeees manages everything in a single `memory.md` file, you can easily e
   }
 }
 ```
+
+> **Note**: If you are using Node.js instead of Bun, replace `bunx` with `npx`.
 
 ### What You Can Do
 
