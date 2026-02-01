@@ -21,31 +21,31 @@
     "commands": [
       {
         "command": "notes.addEntry",
-        "title": "Notes: Add Entry"
+        "title": "Noteeees: Add Entry"
       },
       {
         "command": "notes.quickAdd",
-        "title": "Notes: Quick Add"
+        "title": "Noteeees: Quick Add"
       },
       {
         "command": "notes.openMemory",
-        "title": "Notes: Open Memory"
+        "title": "Noteeees: Open Memory"
       },
       {
         "command": "notes.search",
-        "title": "Notes: Search"
+        "title": "Noteeees: Search"
       },
       {
         "command": "notes.showReminders",
-        "title": "Notes: Show Reminders"
+        "title": "Noteeees: Show Reminders"
       },
       {
         "command": "notes.runSetup",
-        "title": "Notes: Run Setup"
+        "title": "Noteeees: Run Setup"
       },
       {
         "command": "notes.refreshSidebar",
-        "title": "Notes: Refresh Sidebar",
+        "title": "Noteeees: Refresh Sidebar",
         "icon": "$(refresh)"
       }
     ],
@@ -71,7 +71,7 @@
       "explorer": [
         {
           "id": "notesExplorer",
-          "name": "Notes",
+          "name": "Noteeees",
           "icon": "$(notebook)",
           "contextualTitle": "Memory Notes"
         }
@@ -87,7 +87,7 @@
       ]
     },
     "configuration": {
-      "title": "Notes",
+      "title": "Noteeees",
       "properties": {
         "notes.notesDirectory": {
           "type": "string",
