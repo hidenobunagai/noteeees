@@ -31,23 +31,28 @@ Simple single-file Markdown notes extension with tags, search, and reminders.
 
 Turn Noteeees into an external memory for your AI agents (like GitHub Copilot, Claude Desktop, Cursor, etc.) by using the **Model Context Protocol (MCP)**.
 
-Use the [notes-mcp](https://github.com/hidenobunagai/notes-mcp) server to expose your notes to AI agents.
+This repository includes `notes-mcp/`, an MCP server that exposes your notes to AI agents.
 
 ### Setup
 
-**Example (GitHub Copilot `settings.json`)**:
+1. Build the MCP server:
+   ```bash
+   cd notes-mcp && bun install && bun run build
+   ```
+
+2. Add to your MCP configuration:
+
+**Example (GitHub Copilot `.vscode/mcp.json`)**:
 
 ```json
 {
-  "mcp": {
-    "servers": {
-      "notes-mcp": {
-        "type": "stdio",
-        "command": "bun",
-        "args": ["/path/to/notes-mcp/dist/index.js"],
-        "env": {
-          "NOTES_DIRECTORY": "/path/to/your/notes/directory"
-        }
+  "servers": {
+    "notes-mcp": {
+      "type": "stdio",
+      "command": "bun",
+      "args": ["/path/to/noteeees/notes-mcp/dist/index.js"],
+      "env": {
+        "NOTES_DIRECTORY": "/path/to/your/notes/directory"
       }
     }
   }
