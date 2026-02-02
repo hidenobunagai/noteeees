@@ -152,7 +152,7 @@ export function activate(context: vscode.ExtensionContext) {
     }
 
     const snippet = new vscode.SnippetString(
-      `## ${dateTime} #\${1:tag}\${2: #optional}\n\${3:content}\n\n\$0`
+      `\n## ${dateTime} #\${1:tag}\n\${2:content}\n\n\$0`
     );
 
     await editor.insertSnippet(snippet, insertPosition);
@@ -188,7 +188,7 @@ export function activate(context: vscode.ExtensionContext) {
     let existingContent = fs.readFileSync(memoryPath, "utf8");
 
     const tagSection = tags ? ` ${tags}` : "";
-    const newEntry = `## ${dateTime}${tagSection}\n${content}\n\n`;
+    const newEntry = `\n## ${dateTime}${tagSection}\n${content}\n\n`;
 
     if (position === "top") {
       if (existingContent.startsWith(MEMORY_HEADER)) {
