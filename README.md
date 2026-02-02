@@ -29,33 +29,30 @@ Simple single-file Markdown notes extension with tags, search, and reminders.
 
 ## Supercharge with MCP
 
-Turn Noteeees into an external memory for your AI agents (like Claude Desktop, Cursor, etc.) by using the **Model Context Protocol (MCP)**.
+Turn Noteeees into an external memory for your AI agents (like GitHub Copilot, Claude Desktop, Cursor, etc.) by using the **Model Context Protocol (MCP)**.
 
-Since Noteeees manages everything in a single `memory.md` file, you can easily expose it to AI agents using the [Filesystem MCP Server](https://github.com/modelcontextprotocol/servers/tree/main/src/filesystem).
+Use the [notes-mcp](https://github.com/hidenobunagai/notes-mcp) server to expose your notes to AI agents.
 
 ### Setup
 
-1. Install the `@modelcontextprotocol/server-filesystem`.
-2. Add your notes directory to the server configuration.
-
-**Example (`claude_desktop_config.json`)**:
+**Example (GitHub Copilot `settings.json`)**:
 
 ```json
 {
-  "mcpServers": {
-    "filesystem": {
-      "command": "bunx",
-      "args": [
-        "-y",
-        "@modelcontextprotocol/server-filesystem",
-        "/path/to/your/notes/directory"
-      ]
+  "mcp": {
+    "servers": {
+      "notes-mcp": {
+        "type": "stdio",
+        "command": "bun",
+        "args": ["/path/to/notes-mcp/dist/index.js"],
+        "env": {
+          "NOTES_DIRECTORY": "/path/to/your/notes/directory"
+        }
+      }
     }
   }
 }
 ```
-
-> **Note**: If you are using Node.js instead of Bun, replace `bunx` with `npx`.
 
 ### What You Can Do
 
