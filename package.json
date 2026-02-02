@@ -92,6 +92,7 @@
         "notes.notesDirectory": {
           "type": "string",
           "default": "",
+          "scope": "machine",
           "description": "Directory where notes are stored. If empty, the extension will prompt to select a folder on first use."
         },
         "notes.dateFormat": {
