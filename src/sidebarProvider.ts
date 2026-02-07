@@ -3,7 +3,7 @@ import { parseMemoryFile } from "./searchCommand";
 import { extractTagsFromMemory } from "./tagCompletion";
 
 interface TagTreeItem extends vscode.TreeItem {
-  kind: "root" | "tagsRoot" | "structureRoot" | "tag" | "month" | "entry";
+  kind: "root" | "tagsRoot" | "structureRoot" | "tag" | "month" | "monthTag" | "entry";
   tag?: string;
   month?: string;
   entryLine?: number;
@@ -21,6 +21,22 @@ export class NotesTreeProvider implements vscode.TreeDataProvider<TagTreeItem> {
 
   getTreeItem(element: TagTreeItem): vscode.TreeItem {
     return element;
+  }
+
+  private createEntryTreeItem(entry: ReturnType<typeof parseMemoryFile>[number], description: string): TagTreeItem {
+    return {
+      label: entry.dateTime,
+      description,
+      kind: "entry",
+      entryLine: entry.line,
+      collapsibleState: vscode.TreeItemCollapsibleState.None,
+      iconPath: new vscode.ThemeIcon("note"),
+      command: {
+        command: "notes.goToLine",
+        title: "Go to Entry",
+        arguments: [entry.line],
+      },
+    };
   }
 
   getChildren(element?: TagTreeItem): TagTreeItem[] {
@@ -75,22 +91,30 @@ export class NotesTreeProvider implements vscode.TreeDataProvider<TagTreeItem> {
     }
 
     if (element.kind === "month" && element.month) {
+      const month = element.month;
       const entries = parseMemoryFile(memoryPath);
-      const filtered = entries.filter((entry) => entry.dateTime.startsWith(element.month!));
+      const filtered = entries.filter((entry) => entry.dateTime.startsWith(month));
+      const tags = [...new Set(filtered.flatMap((entry) => entry.tags))].sort();
 
-      return filtered.map((entry) => ({
-        label: entry.dateTime,
-        description: entry.tags.join(" "),
-        kind: "entry",
-        entryLine: entry.line,
-        collapsibleState: vscode.TreeItemCollapsibleState.None,
-        iconPath: new vscode.ThemeIcon("note"),
-        command: {
-          command: "notes.goToLine",
-          title: "Go to Entry",
-          arguments: [entry.line],
-        },
+      return tags.map((tag) => ({
+        label: tag,
+        kind: "monthTag",
+        month,
+        tag,
+        collapsibleState: vscode.TreeItemCollapsibleState.Collapsed,
+        iconPath: new vscode.ThemeIcon("tag"),
       }));
+    }
+
+    if (element.kind === "monthTag" && element.month && element.tag) {
+      const month = element.month;
+      const tag = element.tag;
+      const entries = parseMemoryFile(memoryPath);
+      const filtered = entries
+        .filter((entry) => entry.dateTime.startsWith(month) && entry.tags.includes(tag))
+        .sort((a, b) => b.dateTime.localeCompare(a.dateTime));
+
+      return filtered.map((entry) => this.createEntryTreeItem(entry, entry.content.substring(0, 40).replace(/\n/g, " ")));
     }
 
     // Child level: show entries for this tag
@@ -99,20 +123,7 @@ export class NotesTreeProvider implements vscode.TreeDataProvider<TagTreeItem> {
       const filtered = entries.filter((e) => e.tags.includes(element.tag!));
 
       return filtered.map((entry) => {
-        const item: TagTreeItem = {
-          label: entry.dateTime,
-          description: entry.content.substring(0, 40).replace(/\n/g, " "),
-          kind: "entry",
-          entryLine: entry.line,
-          collapsibleState: vscode.TreeItemCollapsibleState.None,
-          iconPath: new vscode.ThemeIcon("note"),
-          command: {
-            command: "notes.goToLine",
-            title: "Go to Entry",
-            arguments: [entry.line],
-          },
-        };
-        return item;
+        return this.createEntryTreeItem(entry, entry.content.substring(0, 40).replace(/\n/g, " "));
       });
     }
 

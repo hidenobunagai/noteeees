@@ -12,7 +12,7 @@ Simple single-file Markdown notes extension with tags, search, and reminders.
 - **Search**: Filter by tags and dates
 - **Structure Search** (`Cmd+Shift+G`): Rank entries by query relevance (tags/date/month/keywords)
 - **Sidebar**: View entries grouped by tags
-- **Structure Sidebar**: Navigate notes by month (`YYYY-MM`) like a lightweight TOC
+- **Structure Sidebar**: Navigate notes by month and tag (`YYYY-MM -> #tag -> entries`) like a lightweight TOC
 - **Reminders**: Set due dates with `@YYYY-MM-DD`
 
 ## Usage
