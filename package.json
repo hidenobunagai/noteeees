@@ -36,6 +36,10 @@
         "title": "Noteeees: Search"
       },
       {
+        "command": "notes.structureSearch",
+        "title": "Noteeees: Structure Search"
+      },
+      {
         "command": "notes.showReminders",
         "title": "Noteeees: Show Reminders"
       },

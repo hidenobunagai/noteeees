@@ -2,7 +2,7 @@ import * as vscode from "vscode";
 import * as fs from "fs";
 import { extractTagsFromMemory } from "./tagCompletion";
 
-interface MemoryEntry {
+export interface MemoryEntry {
   line: number;
   dateTime: string;
   tags: string[];
