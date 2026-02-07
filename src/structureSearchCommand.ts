@@ -72,6 +72,15 @@ function createResultItem(scored: ScoredEntry): vscode.QuickPickItem {
   };
 }
 
+function getMaxResults(): number {
+  const config = vscode.workspace.getConfiguration("notes");
+  const configured = config.get<number>("structureSearchMaxResults", 50);
+  if (!Number.isFinite(configured)) {
+    return 50;
+  }
+  return Math.min(Math.max(Math.floor(configured), 10), 200);
+}
+
 export async function showStructureSearch(memoryPath: string): Promise<void> {
   const entries = parseMemoryFile(memoryPath);
 
@@ -105,7 +114,7 @@ export async function showStructureSearch(memoryPath: string): Promise<void> {
     return;
   }
 
-  const topRanked = ranked.slice(0, 50);
+  const topRanked = ranked.slice(0, getMaxResults());
   const items = topRanked.map((scored) => createResultItem(scored));
 
   const selected = await vscode.window.showQuickPick(items, {

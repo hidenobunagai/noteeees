@@ -10,7 +10,9 @@ Simple single-file Markdown notes extension with tags, search, and reminders.
 - **Add Entry** (`Cmd+Shift+M`): Add a note entry with a snippet
 - **Tag Autocomplete**: Suggests previously used tags
 - **Search**: Filter by tags and dates
+- **Structure Search** (`Cmd+Shift+G`): Rank entries by query relevance (tags/date/month/keywords)
 - **Sidebar**: View entries grouped by tags
+- **Structure Sidebar**: Navigate notes by month (`YYYY-MM`) like a lightweight TOC
 - **Reminders**: Set due dates with `@YYYY-MM-DD`
 
 ## Usage
@@ -26,6 +28,7 @@ Simple single-file Markdown notes extension with tags, search, and reminders.
 | `notes.notesDirectory` | Directory where notes are stored |
 | `notes.dateFormat` | Date format |
 | `notes.entryPosition` | Insertion position for new entries (top/bottom) |
+| `notes.structureSearchMaxResults` | Maximum Structure Search results (10-200) |
 
 ## Supercharge with MCP
 

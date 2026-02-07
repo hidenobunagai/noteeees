@@ -69,6 +69,12 @@
         "key": "ctrl+shift+f",
         "mac": "cmd+shift+f",
         "when": "editorTextFocus && resourceFilename == memory.md"
+      },
+      {
+        "command": "notes.structureSearch",
+        "key": "ctrl+shift+g",
+        "mac": "cmd+shift+g",
+        "when": "editorTextFocus && resourceFilename == memory.md"
       }
     ],
     "views": {
@@ -118,6 +124,13 @@
             "bottom"
           ],
           "description": "Where to insert new entries in the memory file."
+        },
+        "notes.structureSearchMaxResults": {
+          "type": "number",
+          "default": 50,
+          "minimum": 10,
+          "maximum": 200,
+          "description": "Maximum number of Structure Search results to show (10-200)."
         }
       }
     }
