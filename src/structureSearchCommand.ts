@@ -5,6 +5,7 @@ interface ScoredEntry {
   entry: MemoryEntry;
   score: number;
   reasons: string[];
+  matchedTokenCount: number;
 }
 
 function normalize(text: string): string {
@@ -19,55 +20,114 @@ function tokenizeQuery(query: string): string[] {
     .filter((token) => token.length > 0);
 }
 
+function parseEntryDate(dateTime: string): Date | null {
+  const isoLike = dateTime.includes(" ") ? dateTime.replace(" ", "T") : `${dateTime}T00:00`;
+  const parsed = new Date(isoLike);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function getRecencyBonus(dateTime: string): number {
+  const parsed = parseEntryDate(dateTime);
+  if (!parsed) {
+    return 0;
+  }
+
+  const now = new Date();
+  const days = (now.getTime() - parsed.getTime()) / (1000 * 60 * 60 * 24);
+
+  if (days <= 7) {
+    return 4;
+  }
+  if (days <= 30) {
+    return 3;
+  }
+  if (days <= 90) {
+    return 2;
+  }
+  if (days <= 180) {
+    return 1;
+  }
+
+  return 0;
+}
+
 function scoreEntry(entry: MemoryEntry, tokens: string[]): ScoredEntry {
   const dateText = normalize(entry.dateTime);
-  const tagText = normalize(entry.tags.join(" "));
+  const normalizedTags = entry.tags.map((tag) => normalize(tag));
+  const tagText = normalizedTags.join(" ");
   const contentText = normalize(entry.content);
   const monthText = entry.dateTime.slice(0, 7);
 
   let score = 0;
   const reasons: string[] = [];
+  let matchedTokenCount = 0;
 
   for (const token of tokens) {
+    let tokenMatched = false;
     const tagToken = token.startsWith("#") ? token : `#${token}`;
 
-    if (entry.tags.map((tag) => normalize(tag)).includes(tagToken)) {
+    if (normalizedTags.includes(tagToken)) {
       score += 6;
-      reasons.push(`tag:${tagToken}`);
+      reasons.push(`🎯 tag exact: ${tagToken}`);
+      tokenMatched = true;
       continue;
     }
 
     if (dateText.includes(token)) {
       score += 4;
-      reasons.push(`date:${token}`);
+      reasons.push(`📅 date: ${token}`);
+      tokenMatched = true;
     }
 
     if (monthText.includes(token)) {
       score += 3;
-      reasons.push(`month:${token}`);
+      reasons.push(`🗓 month: ${token}`);
+      tokenMatched = true;
     }
 
     if (tagText.includes(token)) {
       score += 3;
-      reasons.push(`tag-part:${token}`);
+      reasons.push(`🏷 tag partial: ${token}`);
+      tokenMatched = true;
     }
 
     if (contentText.includes(token)) {
       score += 2;
-      reasons.push(`content:${token}`);
+      reasons.push(`📝 content: ${token}`);
+      tokenMatched = true;
+    }
+
+    if (tokenMatched) {
+      matchedTokenCount += 1;
     }
   }
 
-  return { entry, score, reasons };
+  if (matchedTokenCount >= 2) {
+    score += 3;
+    reasons.push("🔗 multi-token match");
+  }
+
+  if (matchedTokenCount === tokens.length) {
+    score += 4;
+    reasons.push("✅ all tokens matched");
+  }
+
+  const recencyBonus = getRecencyBonus(entry.dateTime);
+  if (recencyBonus > 0) {
+    score += recencyBonus;
+    reasons.push(`⏱ recent +${recencyBonus}`);
+  }
+
+  return { entry, score, reasons, matchedTokenCount };
 }
 
 function createResultItem(scored: ScoredEntry): vscode.QuickPickItem {
   const preview = scored.entry.content.substring(0, 80).replace(/\n/g, " ");
-  const reasons = [...new Set(scored.reasons)].slice(0, 3).join(", ");
+  const reasons = [...new Set(scored.reasons)].slice(0, 2).join(" / ");
 
   return {
     label: `${scored.entry.dateTime} ${scored.entry.tags.join(" ")}`,
-    description: `score: ${scored.score} | ${preview}`,
+    description: `score:${scored.score} matched:${scored.matchedTokenCount} | ${preview}`,
     detail: `${reasons || "matched by context"} | Line ${scored.entry.line + 1}`,
   };
 }
