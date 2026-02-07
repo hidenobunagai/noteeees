@@ -74,3 +74,4 @@ This repository includes `notes-mcp/`, an MCP server that exposes your notes to 
 
 - **Context Awareness**: "Read my `memory.md` and summarize what I did last week."
 - **Auto-Journaling**: "Save the summary of this conversation to my `memory.md`."
+- **Structure-aware Retrieval**: Use `structure_search_notes` to get scored results with reasons, synonym expansion, and tunable weights.
