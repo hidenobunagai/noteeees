@@ -93,6 +93,11 @@
           "command": "notes.refreshSidebar",
           "when": "view == notesExplorer",
           "group": "navigation"
+        },
+        {
+          "command": "notes.structureSearch",
+          "when": "view == notesExplorer",
+          "group": "navigation@1"
         }
       ]
     },
