@@ -136,6 +136,63 @@
           "minimum": 10,
           "maximum": 200,
           "description": "Maximum number of Structure Search results to show (10-200)."
+        },
+        "notes.structureSearchWeightTagExact": {
+          "type": "number",
+          "default": 6,
+          "minimum": 1,
+          "maximum": 20,
+          "description": "Score weight for exact tag matches in Structure Search."
+        },
+        "notes.structureSearchWeightDate": {
+          "type": "number",
+          "default": 4,
+          "minimum": 1,
+          "maximum": 20,
+          "description": "Score weight for date matches in Structure Search."
+        },
+        "notes.structureSearchWeightMonth": {
+          "type": "number",
+          "default": 3,
+          "minimum": 1,
+          "maximum": 20,
+          "description": "Score weight for month matches in Structure Search."
+        },
+        "notes.structureSearchWeightTagPartial": {
+          "type": "number",
+          "default": 3,
+          "minimum": 1,
+          "maximum": 20,
+          "description": "Score weight for partial tag matches in Structure Search."
+        },
+        "notes.structureSearchWeightContent": {
+          "type": "number",
+          "default": 2,
+          "minimum": 1,
+          "maximum": 20,
+          "description": "Score weight for content matches in Structure Search."
+        },
+        "notes.structureSearchBonusMultiToken": {
+          "type": "number",
+          "default": 3,
+          "minimum": 0,
+          "maximum": 20,
+          "description": "Bonus score when multiple tokens match in Structure Search."
+        },
+        "notes.structureSearchBonusAllTokens": {
+          "type": "number",
+          "default": 4,
+          "minimum": 0,
+          "maximum": 20,
+          "description": "Bonus score when all tokens match in Structure Search."
+        },
+        "notes.structureSearchSynonyms": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "description": "Custom synonym rules for Structure Search. Format: key:syn1,syn2"
         }
       }
     }

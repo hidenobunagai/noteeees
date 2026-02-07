@@ -29,6 +29,14 @@ Simple single-file Markdown notes extension with tags, search, and reminders.
 | `notes.dateFormat` | Date format |
 | `notes.entryPosition` | Insertion position for new entries (top/bottom) |
 | `notes.structureSearchMaxResults` | Maximum Structure Search results (10-200) |
+| `notes.structureSearchWeightTagExact` | Weight for exact tag match |
+| `notes.structureSearchWeightDate` | Weight for date match |
+| `notes.structureSearchWeightMonth` | Weight for month match |
+| `notes.structureSearchWeightTagPartial` | Weight for partial tag match |
+| `notes.structureSearchWeightContent` | Weight for content keyword match |
+| `notes.structureSearchBonusMultiToken` | Bonus when multiple tokens match |
+| `notes.structureSearchBonusAllTokens` | Bonus when all tokens match |
+| `notes.structureSearchSynonyms` | Synonym rules (`key:syn1,syn2`) |
 
 ## Supercharge with MCP
 
