@@ -6,6 +6,7 @@ import { showSearchQuickPick } from "./searchCommand";
 import { NotesTreeProvider, registerGoToLineCommand } from "./sidebarProvider";
 import { showReminders } from "./reminderCommand";
 import { showStructureSearch } from "./structureSearchCommand";
+import { createNewNote, createTemplate, listTemplates, listNotes } from "./noteCommands";
 
 const MEMORY_FILE_NAME = "memory.md";
 const MEMORY_HEADER = "# Memory Log\n\n";
@@ -17,6 +18,11 @@ function getMemoryFilePath(): string | undefined {
     return undefined;
   }
   return path.join(notesDir, MEMORY_FILE_NAME);
+}
+
+function getNotesDir(): string | undefined {
+  const config = vscode.workspace.getConfiguration("notes");
+  return config.get<string>("notesDirectory") || undefined;
 }
 
 function ensureMemoryFile(filePath: string): void {
@@ -91,16 +97,22 @@ export function activate(context: vscode.ExtensionContext) {
   );
 
   // Register sidebar tree view
-  const notesTreeProvider = new NotesTreeProvider(getMemoryFilePath);
+  const notesTreeProvider = new NotesTreeProvider(getMemoryFilePath, getNotesDir);
   vscode.window.registerTreeDataProvider("notesExplorer", notesTreeProvider);
   registerGoToLineCommand(context, getMemoryFilePath);
 
-  // Refresh tree when memory file changes
-  const watcher = vscode.workspace.createFileSystemWatcher("**/memory.md");
-  watcher.onDidChange(() => notesTreeProvider.refresh());
-  watcher.onDidCreate(() => notesTreeProvider.refresh());
-  watcher.onDidDelete(() => notesTreeProvider.refresh());
-  context.subscriptions.push(watcher);
+  // Refresh tree when files change
+  const memoryWatcher = vscode.workspace.createFileSystemWatcher("**/memory.md");
+  memoryWatcher.onDidChange(() => notesTreeProvider.refresh());
+  memoryWatcher.onDidCreate(() => notesTreeProvider.refresh());
+  memoryWatcher.onDidDelete(() => notesTreeProvider.refresh());
+  context.subscriptions.push(memoryWatcher);
+
+  // Watch for new/deleted .md files for sidebar refresh
+  const mdWatcher = vscode.workspace.createFileSystemWatcher("**/*.md");
+  mdWatcher.onDidCreate(() => notesTreeProvider.refresh());
+  mdWatcher.onDidDelete(() => notesTreeProvider.refresh());
+  context.subscriptions.push(mdWatcher);
 
   // Run Setup command
   const runSetupDisposable = vscode.commands.registerCommand("notes.runSetup", async () => {
@@ -244,6 +256,52 @@ export function activate(context: vscode.ExtensionContext) {
     notesTreeProvider.refresh();
   });
 
+  // New Note command
+  const newNoteDisposable = vscode.commands.registerCommand("notes.newNote", async () => {
+    const notesDir = await ensureNotesDirectory();
+    if (!notesDir) {
+      return;
+    }
+    await createNewNote(notesDir);
+    notesTreeProvider.refresh();
+  });
+
+  // Create Template command
+  const createTemplateDisposable = vscode.commands.registerCommand("notes.createTemplate", async () => {
+    const notesDir = await ensureNotesDirectory();
+    if (!notesDir) {
+      return;
+    }
+    await createTemplate(notesDir);
+  });
+
+  // List Templates command
+  const listTemplatesDisposable = vscode.commands.registerCommand("notes.listTemplates", async () => {
+    const notesDir = await ensureNotesDirectory();
+    if (!notesDir) {
+      return;
+    }
+    await listTemplates(notesDir);
+  });
+
+  // List Notes command
+  const listNotesDisposable = vscode.commands.registerCommand("notes.listNotes", async () => {
+    const notesDir = await ensureNotesDirectory();
+    if (!notesDir) {
+      return;
+    }
+    await listNotes(notesDir);
+  });
+
+  // Open Note File command (used by sidebar)
+  const openNoteFileDisposable = vscode.commands.registerCommand("notes.openNoteFile", async (filePath: string) => {
+    if (!filePath || !fs.existsSync(filePath)) {
+      return;
+    }
+    const doc = await vscode.workspace.openTextDocument(filePath);
+    await vscode.window.showTextDocument(doc);
+  });
+
   context.subscriptions.push(
     runSetupDisposable,
     openMemoryDisposable,
@@ -252,7 +310,12 @@ export function activate(context: vscode.ExtensionContext) {
     searchDisposable,
     structureSearchDisposable,
     remindersDisposable,
-    refreshDisposable
+    refreshDisposable,
+    newNoteDisposable,
+    createTemplateDisposable,
+    listTemplatesDisposable,
+    listNotesDisposable,
+    openNoteFileDisposable
   );
 }
 
