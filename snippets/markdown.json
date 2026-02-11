@@ -1,11 +1,15 @@
 {
   "noteeees_template_note": {
     "prefix": "noteeees_note",
-    "description": "Default Noteeees note template",
+    "description": "Generic Note Template",
     "body": [
-      "# ${1:${TM_FILENAME_BASE/^\\d{4}[-_]\\d{2}[-_]\\d{2}[-_]?\\d{0,2}[-_]?\\d{0,2}[-_]?\\d{0,2}[-_ ]?(.*)/$1/}}",
-      "",
-      "${0}"
+      "---",
+      "tags:",
+      "\t- $1",
+      "title: $2",
+      "date: $3",
+      "---\n",
+      "## $4\n"
     ]
   }
 }
