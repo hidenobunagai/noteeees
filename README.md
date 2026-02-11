@@ -2,32 +2,76 @@
 
 [![GitHub](https://img.shields.io/badge/github-%23121011.svg?style=for-the-badge&logo=github&logoColor=white)](https://github.com/hidenobunagai/noteeees)
 
-Simple single-file Markdown notes extension with tags, search, and reminders.
+Simple markdown notes extension with two-tier note management: individual notes with templates and a unified memory log.
 
 ## Features
 
-- **Quick Add** (`Cmd+Shift+N`): Quickly add a one-line note
+### Individual Notes (VSNotes-style)
+- **New Note** (`Cmd+Alt+N`): Create a new markdown note with configurable filename tokens
+- **Templates**: Create and use custom templates with variable substitution (`{{title}}`, `{{date}}`, `{{datetime}}`)
+- **Subfolder Support**: Use `/` in title to auto-create subfolders (e.g., `projects/MyNote`)
+- **List Notes**: Browse all notes sorted by modification date
+
+### Memory Log
+- **Quick Add** (`Cmd+Shift+N`): Quickly add a one-line note to `memory.md`
 - **Add Entry** (`Cmd+Shift+M`): Add a note entry with a snippet
 - **Tag Autocomplete**: Suggests previously used tags
 - **Search**: Filter by tags and dates
 - **Structure Search** (`Cmd+Shift+G`): Rank entries by query relevance (tags/date/month/keywords)
-- **Sidebar**: View entries grouped by tags
-- **Structure Sidebar**: Navigate notes by month and tag (`YYYY-MM -> #tag -> entries`) like a lightweight TOC
 - **Reminders**: Set due dates with `@YYYY-MM-DD`
+
+### Sidebar
+- **Notes**: Browse individual note files
+- **Tags**: View memory entries grouped by tags
+- **Structure**: Navigate notes by month and tag (`YYYY-MM → #tag → entries`)
 
 ## Usage
 
-1. Run `Notes: Run Setup` to configure the storage directory
-2. Press `Cmd+Shift+N` to add a note
-3. Check entries grouped by tags in the Sidebar
+1. Run `Noteeees: Run Setup` to configure the storage directory
+2. Press `Cmd+Alt+N` to create a new individual note
+3. Press `Cmd+Shift+N` to quickly add to memory log
+4. Check entries and notes in the Sidebar
+
+## Templates
+
+Create templates with `Noteeees: Create Template`. Templates are stored in `.noteeees/templates/` and support these variables:
+
+| Variable | Replaced with |
+|---|---|
+| `{{title}}` | Note title |
+| `{{date}}` | Current date (YYYY-MM-DD) |
+| `{{datetime}}` | Current date and time (YYYY-MM-DD HH:mm) |
+
+Example template:
+```markdown
+---
+tags:
+  - meeting
+title: "{{title}}"
+date: "{{date}}"
+---
+
+# {{title}}
+
+## Attendees
+
+## Agenda
+
+## Notes
+
+## Action Items
+```
 
 ## Settings
 
 | Setting | Description |
 |-----|------|
 | `notes.notesDirectory` | Directory where notes are stored |
-| `notes.dateFormat` | Date format |
-| `notes.entryPosition` | Insertion position for new entries (top/bottom) |
+| `notes.defaultNoteTitle` | Filename format (`{dt}_{title}.{ext}`) |
+| `notes.noteTitleConvertSpaces` | Character to replace spaces (default: `_`) |
+| `notes.defaultTemplate` | Default template name (empty = show picker) |
+| `notes.dateFormat` | Date format for memory entries |
+| `notes.entryPosition` | Insertion position for new memory entries (top/bottom) |
 | `notes.structureSearchMaxResults` | Maximum Structure Search results (10-200) |
 | `notes.structureSearchWeightTagExact` | Weight for exact tag match |
 | `notes.structureSearchWeightDate` | Weight for date match |
