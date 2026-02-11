@@ -51,6 +51,22 @@
         "command": "notes.refreshSidebar",
         "title": "Noteeees: Refresh Sidebar",
         "icon": "$(refresh)"
+      },
+      {
+        "command": "notes.newNote",
+        "title": "Noteeees: New Note"
+      },
+      {
+        "command": "notes.createTemplate",
+        "title": "Noteeees: Create Template"
+      },
+      {
+        "command": "notes.listTemplates",
+        "title": "Noteeees: List Templates"
+      },
+      {
+        "command": "notes.listNotes",
+        "title": "Noteeees: List Notes"
       }
     ],
     "keybindings": [
@@ -75,6 +91,11 @@
         "key": "ctrl+shift+g",
         "mac": "cmd+shift+g",
         "when": "editorTextFocus && resourceFilename == memory.md"
+      },
+      {
+        "command": "notes.newNote",
+        "key": "ctrl+alt+n",
+        "mac": "cmd+alt+n"
       }
     ],
     "views": {
@@ -193,6 +214,21 @@
             "type": "string"
           },
           "description": "Custom synonym rules for Structure Search. Format: key:syn1,syn2"
+        },
+        "notes.defaultNoteTitle": {
+          "type": "string",
+          "default": "{dt}_{title}.{ext}",
+          "description": "Filename format for new notes. Tokens: {dt} = datetime, {title} = input title, {ext} = file extension."
+        },
+        "notes.noteTitleConvertSpaces": {
+          "type": "string",
+          "default": "_",
+          "description": "Character to replace spaces in note titles. Set to empty string to keep spaces."
+        },
+        "notes.defaultTemplate": {
+          "type": "string",
+          "default": "",
+          "description": "Default template name for new notes. Leave empty to show template picker."
         }
       }
     }
