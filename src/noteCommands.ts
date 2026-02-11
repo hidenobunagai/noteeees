@@ -1,6 +1,6 @@
-import * as vscode from "vscode";
-import * as path from "path";
 import * as fs from "fs";
+import * as path from "path";
+import * as vscode from "vscode";
 
 const MEMORY_FILE_NAME = "memory.md";
 const SNIPPET_PREFIX = "noteeees_template_";
@@ -80,7 +80,11 @@ function resolveFilename(titleInput: string, now: Date): string {
   return filename;
 }
 
-async function insertSnippetByName(editor: vscode.TextEditor, langId: string, snippetName: string): Promise<boolean> {
+async function insertSnippetByName(
+  editor: vscode.TextEditor,
+  langId: string,
+  snippetName: string,
+): Promise<boolean> {
   // Try named snippet lookup first (extension-contributed or user-defined)
   try {
     const docBefore = editor.document.getText();
@@ -160,32 +164,34 @@ export async function createNewNote(notesDir: string): Promise<void> {
   const defaultSnippet = config.get<{ langId: string; name: string }>("defaultSnippet");
   const templates = config.get<string[]>("templates") || [];
 
-  if (templates.length > 0) {
-    // Show template picker
-    const templateItems: vscode.QuickPickItem[] = [
-      { label: "$(file) Default", description: "Use default template" },
-      ...templates.map((t) => ({
-        label: `$(file-code) ${t}`,
-        description: `${SNIPPET_PREFIX}${t}`,
-      })),
-    ];
+  // Always show template picker so the user can choose Default, Empty, or a custom template
+  const templateItems: vscode.QuickPickItem[] = [
+    { label: "$(file) Default", description: "Use default template" },
+    { label: "$(file-text) Empty", description: "No template" },
+    ...templates.map((t) => ({
+      label: `$(file-code) ${t}`,
+      description: `${SNIPPET_PREFIX}${t}`,
+    })),
+  ];
 
-    const selected = await vscode.window.showQuickPick(templateItems, {
-      placeHolder: "Select a template (Esc for default)",
-    });
+  const selected = await vscode.window.showQuickPick(templateItems, {
+    placeHolder: "Select a template",
+  });
 
-    if (selected && !selected.label.includes("Default")) {
-      const templateName = selected.label.replace("$(file-code) ", "");
-      const snippetName = `${SNIPPET_PREFIX}${templateName}`;
-      const langId = defaultSnippet?.langId || "markdown";
-      await insertSnippetByName(editor, langId, snippetName);
-    } else if (defaultSnippet?.name) {
-      await insertSnippetByName(editor, defaultSnippet.langId, defaultSnippet.name);
+  if (!selected || selected.label.includes("Default")) {
+    // Default or Esc: use default snippet
+    if (defaultSnippet?.name) {
+      const langId = defaultSnippet.langId || "markdown";
+      await insertSnippetByName(editor, langId, defaultSnippet.name);
     }
-  } else if (defaultSnippet?.name) {
-    // No custom templates, just use default snippet
-    await insertSnippetByName(editor, defaultSnippet.langId, defaultSnippet.name);
+  } else if (!selected.label.includes("Empty")) {
+    // Custom template selected
+    const templateName = selected.label.replace("$(file-code) ", "");
+    const snippetName = `${SNIPPET_PREFIX}${templateName}`;
+    const langId = defaultSnippet?.langId || "markdown";
+    await insertSnippetByName(editor, langId, snippetName);
   }
+  // "Empty" selected: do nothing (empty file)
 
   vscode.window.showInformationMessage(`Note created: ${filename}`);
 }
