@@ -6,7 +6,7 @@ Simple markdown notes extension with two-tier note management: individual notes 
 
 ## Features
 
-### Individual Notes (VSNotes-style)
+### Individual Notes
 - **New Note** (`Cmd+Alt+N`): Create a new markdown note with configurable filename tokens
 - **Templates**: Create and use custom templates with variable substitution (`{{title}}`, `{{date}}`, `{{datetime}}`)
 - **Subfolder Support**: Use `/` in title to auto-create subfolders (e.g., `projects/MyNote`)
