@@ -57,14 +57,6 @@
         "title": "Noteeees: New Note"
       },
       {
-        "command": "notes.createTemplate",
-        "title": "Noteeees: Create Template"
-      },
-      {
-        "command": "notes.listTemplates",
-        "title": "Noteeees: List Templates"
-      },
-      {
         "command": "notes.listNotes",
         "title": "Noteeees: List Notes"
       }
@@ -225,10 +217,31 @@
           "default": "_",
           "description": "Character to replace spaces in note titles. Set to empty string to keep spaces."
         },
-        "notes.defaultTemplate": {
-          "type": "string",
-          "default": "",
-          "description": "Default template name for new notes. Leave empty to show template picker."
+        "notes.defaultSnippet": {
+          "type": "object",
+          "default": {
+            "langId": "markdown",
+            "name": "noteeees_template_default"
+          },
+          "properties": {
+            "langId": {
+              "type": "string",
+              "description": "Language ID for the snippet."
+            },
+            "name": {
+              "type": "string",
+              "description": "Snippet name to insert. Set to null to disable."
+            }
+          },
+          "description": "Default VS Code snippet to insert after creating a note."
+        },
+        "notes.templates": {
+          "type": "array",
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "description": "List of custom template names. Each name maps to a VS Code snippet named noteeees_template_{name}."
         }
       }
     }
