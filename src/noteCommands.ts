@@ -5,6 +5,9 @@ import * as fs from "fs";
 const MEMORY_FILE_NAME = "memory.md";
 const SNIPPET_PREFIX = "noteeees_template_";
 
+/** Built-in fallback snippet body used when the named snippet is not found. */
+const FALLBACK_SNIPPET_BODY = "# ${1:${TM_FILENAME_BASE}}\n\n${0}";
+
 interface FilenameToken {
   type: "datetime" | "title" | "extension";
   token: string;
@@ -78,13 +81,25 @@ function resolveFilename(titleInput: string, now: Date): string {
 }
 
 async function insertSnippetByName(editor: vscode.TextEditor, langId: string, snippetName: string): Promise<boolean> {
-  // Use VS Code's built-in insertSnippet command by constructing a SnippetString
-  // We trigger snippet completion via the command palette approach
+  // Try named snippet lookup first (extension-contributed or user-defined)
   try {
+    const docBefore = editor.document.getText();
     await vscode.commands.executeCommand("editor.action.insertSnippet", {
       langId,
       name: snippetName,
     });
+    // Check if the document actually changed — the command may resolve
+    // without throwing even when the named snippet is not found.
+    if (editor.document.getText() !== docBefore) {
+      return true;
+    }
+  } catch {
+    // Named snippet not found — fall through to fallback.
+  }
+
+  // Fallback: insert the built-in default snippet directly.
+  try {
+    await editor.insertSnippet(new vscode.SnippetString(FALLBACK_SNIPPET_BODY));
     return true;
   } catch {
     return false;

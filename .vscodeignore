@@ -14,3 +14,4 @@ esbuild.js
 vsc-extension-quickstart.md
 CHANGELOG.md
 *.vsix
+!snippets/

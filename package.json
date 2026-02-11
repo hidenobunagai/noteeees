@@ -18,6 +18,12 @@
   "activationEvents": [],
   "main": "./dist/extension.js",
   "contributes": {
+    "snippets": [
+      {
+        "language": "markdown",
+        "path": "./snippets/markdown.json"
+      }
+    ],
     "commands": [
       {
         "command": "notes.addEntry",
