@@ -21,27 +21,27 @@
     "commands": [
       {
         "command": "notes.addEntry",
-        "title": "Noteeees: Add Entry"
+        "title": "Noteeees Memory: Add Entry"
       },
       {
         "command": "notes.quickAdd",
-        "title": "Noteeees: Quick Add"
+        "title": "Noteeees Memory: Quick Add"
       },
       {
         "command": "notes.openMemory",
-        "title": "Noteeees: Open Memory"
+        "title": "Noteeees Memory: Open"
       },
       {
         "command": "notes.search",
-        "title": "Noteeees: Search"
+        "title": "Noteeees Memory: Search"
       },
       {
         "command": "notes.structureSearch",
-        "title": "Noteeees: Structure Search"
+        "title": "Noteeees Memory: Structure Search"
       },
       {
         "command": "notes.showReminders",
-        "title": "Noteeees: Show Reminders"
+        "title": "Noteeees Memory: Show Reminders"
       },
       {
         "command": "notes.runSetup",
@@ -54,11 +54,11 @@
       },
       {
         "command": "notes.newNote",
-        "title": "Noteeees: New Note"
+        "title": "Noteeees Note: New"
       },
       {
         "command": "notes.listNotes",
-        "title": "Noteeees: List Notes"
+        "title": "Noteeees Note: List"
       }
     ],
     "keybindings": [
