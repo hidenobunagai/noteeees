@@ -4,6 +4,10 @@ All notable changes to the "notes" extension will be documented in this file.
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## [0.0.18] - 2026-02-11
+
+- Fix: Snippet template not inserted when creating new notes (added contributes.snippets and fallback mechanism).
+
 ## [0.0.17] - 2026-02-11
 
 - Sidebar: Strip date prefix from note filenames for better readability (date shown in description).
