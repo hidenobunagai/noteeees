@@ -4,6 +4,12 @@ All notable changes to the "notes" extension will be documented in this file.
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## [0.0.19] - 2026-02-11
+
+- Fix: Snippet name prefix mismatch (notes_ → noteeees_) causing template insertion to silently fail.
+- Always show template picker (Default / Empty / custom) when creating new notes.
+- Update default bundled snippet template with frontmatter (tags/title/date).
+
 ## [0.0.18] - 2026-02-11
 
 - Fix: Snippet template not inserted when creating new notes (added contributes.snippets and fallback mechanism).
