@@ -34,52 +34,74 @@ Simple markdown notes extension with two-tier note management: individual notes 
 
 ## Templates
 
-Create templates with `Noteeees: Create Template`. Templates are stored in `.noteeees/templates/` and support these variables:
+Templates use **VS Code snippets**. When you create a new note, the configured snippet is automatically inserted.
 
-| Variable | Replaced with |
-|---|---|
-| `{{title}}` | Note title |
-| `{{date}}` | Current date (YYYY-MM-DD) |
-| `{{datetime}}` | Current date and time (YYYY-MM-DD HH:mm) |
+### Setup
 
-Example template:
-```markdown
----
-tags:
-  - meeting
-title: "{{title}}"
-date: "{{date}}"
----
+1. Open Command Palette → `Preferences: Configure Snippets` → `markdown.json`
+2. Add your snippets with the `noteeees_template_` prefix:
 
-# {{title}}
-
-## Attendees
-
-## Agenda
-
-## Notes
-
-## Action Items
+```json
+{
+  "noteeees_template_default": {
+    "prefix": "noteeees_default",
+    "body": [
+      "# ${1:${TM_FILENAME_BASE}}",
+      "",
+      "$0"
+    ],
+    "description": "Default note template"
+  },
+  "noteeees_template_meeting": {
+    "prefix": "noteeees_meeting",
+    "body": [
+      "---",
+      "tags:",
+      "  - meeting",
+      "date: \"${CURRENT_YEAR}-${CURRENT_MONTH}-${CURRENT_DATE}\"",
+      "---",
+      "",
+      "# ${1:Meeting Title}",
+      "",
+      "## Attendees",
+      "",
+      "- $2",
+      "",
+      "## Agenda",
+      "",
+      "- $3",
+      "",
+      "## Notes",
+      "",
+      "$0"
+    ],
+    "description": "Meeting note template"
+  }
+}
 ```
+
+3. (Optional) Register custom templates in settings:
+
+```json
+{
+  "notes.templates": ["meeting"]
+}
+```
+
+When `notes.templates` is set, a picker will appear on note creation to choose between the default and custom templates.
 
 ## Settings
 
 | Setting | Description |
-|-----|------|
+| --- | --- |
 | `notes.notesDirectory` | Directory where notes are stored |
 | `notes.defaultNoteTitle` | Filename format (`{dt}_{title}.{ext}`) |
 | `notes.noteTitleConvertSpaces` | Character to replace spaces (default: `_`) |
-| `notes.defaultTemplate` | Default template name (empty = show picker) |
+| `notes.defaultSnippet` | Default snippet to insert (`{ langId, name }`) |
+| `notes.templates` | Custom template names (maps to `noteeees_template_{name}` snippets) |
 | `notes.dateFormat` | Date format for memory entries |
 | `notes.entryPosition` | Insertion position for new memory entries (top/bottom) |
 | `notes.structureSearchMaxResults` | Maximum Structure Search results (10-200) |
-| `notes.structureSearchWeightTagExact` | Weight for exact tag match |
-| `notes.structureSearchWeightDate` | Weight for date match |
-| `notes.structureSearchWeightMonth` | Weight for month match |
-| `notes.structureSearchWeightTagPartial` | Weight for partial tag match |
-| `notes.structureSearchWeightContent` | Weight for content keyword match |
-| `notes.structureSearchBonusMultiToken` | Bonus when multiple tokens match |
-| `notes.structureSearchBonusAllTokens` | Bonus when all tokens match |
 | `notes.structureSearchSynonyms` | Synonym rules (`key:syn1,syn2`) |
 
 ## Supercharge with MCP
