@@ -2,19 +2,8 @@ import * as vscode from "vscode";
 import * as path from "path";
 import * as fs from "fs";
 
-const TEMPLATES_DIR = ".noteeees/templates";
 const MEMORY_FILE_NAME = "memory.md";
-
-const DEFAULT_TEMPLATE_CONTENT = `---
-tags:
-  - 
-title: "{{title}}"
-date: "{{date}}"
----
-
-# {{title}}
-
-`;
+const SNIPPET_PREFIX = "noteeees_template_";
 
 interface FilenameToken {
   type: "datetime" | "title" | "extension";
@@ -88,39 +77,18 @@ function resolveFilename(titleInput: string, now: Date): string {
   return filename;
 }
 
-function getTemplatesDir(notesDir: string): string {
-  return path.join(notesDir, TEMPLATES_DIR);
-}
-
-function ensureTemplatesDir(notesDir: string): string {
-  const templatesDir = getTemplatesDir(notesDir);
-  if (!fs.existsSync(templatesDir)) {
-    fs.mkdirSync(templatesDir, { recursive: true });
+async function insertSnippetByName(editor: vscode.TextEditor, langId: string, snippetName: string): Promise<boolean> {
+  // Use VS Code's built-in insertSnippet command by constructing a SnippetString
+  // We trigger snippet completion via the command palette approach
+  try {
+    await vscode.commands.executeCommand("editor.action.insertSnippet", {
+      langId,
+      name: snippetName,
+    });
+    return true;
+  } catch {
+    return false;
   }
-  return templatesDir;
-}
-
-function getTemplateFiles(notesDir: string): string[] {
-  const templatesDir = getTemplatesDir(notesDir);
-  if (!fs.existsSync(templatesDir)) {
-    return [];
-  }
-
-  return fs
-    .readdirSync(templatesDir)
-    .filter((f) => f.endsWith(".md"))
-    .sort();
-}
-
-function applyTemplateVariables(content: string, title: string, now: Date): string {
-  const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-  const timeStr = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
-  const datetimeStr = `${dateStr} ${timeStr}`;
-
-  return content
-    .replace(/\{\{title\}\}/g, title)
-    .replace(/\{\{date\}\}/g, dateStr)
-    .replace(/\{\{datetime\}\}/g, datetimeStr);
 }
 
 export async function createNewNote(notesDir: string): Promise<void> {
@@ -143,52 +111,17 @@ export async function createNewNote(notesDir: string): Promise<void> {
     title = titleInput.substring(lastSep + 1);
   }
 
-  // Step 3: Select template
-  const templates = getTemplateFiles(notesDir);
-  let templateContent = "";
-  const config = vscode.workspace.getConfiguration("notes");
-  const defaultTemplate = config.get<string>("defaultTemplate") || "";
-
-  if (defaultTemplate) {
-    // Use configured default template
-    const templatePath = path.join(getTemplatesDir(notesDir), `${defaultTemplate}.md`);
-    if (fs.existsSync(templatePath)) {
-      templateContent = fs.readFileSync(templatePath, "utf8");
-    }
-  } else if (templates.length > 0) {
-    // Show template picker
-    const templateItems: vscode.QuickPickItem[] = [
-      { label: "$(file) Empty", description: "Create without template" },
-      ...templates.map((t) => ({
-        label: `$(file-code) ${path.basename(t, ".md")}`,
-        description: t,
-      })),
-    ];
-
-    const selected = await vscode.window.showQuickPick(templateItems, {
-      placeHolder: "Select a template (Esc for empty)",
-    });
-
-    if (selected && !selected.label.includes("Empty")) {
-      const templateName = selected.label.replace("$(file-code) ", "");
-      const templatePath = path.join(getTemplatesDir(notesDir), `${templateName}.md`);
-      if (fs.existsSync(templatePath)) {
-        templateContent = fs.readFileSync(templatePath, "utf8");
-      }
-    }
-  }
-
-  // Step 4: Generate filename
+  // Step 3: Generate filename
   const now = new Date();
   const filename = resolveFilename(title, now);
 
-  // Step 5: Create directories as needed
+  // Step 4: Create directories as needed
   const targetDir = subDir ? path.join(notesDir, subDir) : notesDir;
   if (!fs.existsSync(targetDir)) {
     fs.mkdirSync(targetDir, { recursive: true });
   }
 
-  // Step 6: Create file
+  // Step 5: Create file
   const filePath = path.join(targetDir, filename);
   if (fs.existsSync(filePath)) {
     const overwrite = await vscode.window.showWarningMessage(
@@ -201,79 +134,45 @@ export async function createNewNote(notesDir: string): Promise<void> {
     }
   }
 
-  const finalContent = templateContent ? applyTemplateVariables(templateContent, title, now) : "";
+  fs.writeFileSync(filePath, "", "utf8");
 
-  fs.writeFileSync(filePath, finalContent, "utf8");
-
-  // Step 7: Open the file
+  // Step 6: Open the file
   const doc = await vscode.workspace.openTextDocument(filePath);
-  await vscode.window.showTextDocument(doc);
+  const editor = await vscode.window.showTextDocument(doc);
+
+  // Step 7: Insert snippet template
+  const config = vscode.workspace.getConfiguration("notes");
+  const defaultSnippet = config.get<{ langId: string; name: string }>("defaultSnippet");
+  const templates = config.get<string[]>("templates") || [];
+
+  if (templates.length > 0) {
+    // Show template picker
+    const templateItems: vscode.QuickPickItem[] = [
+      { label: "$(file) Default", description: "Use default template" },
+      ...templates.map((t) => ({
+        label: `$(file-code) ${t}`,
+        description: `${SNIPPET_PREFIX}${t}`,
+      })),
+    ];
+
+    const selected = await vscode.window.showQuickPick(templateItems, {
+      placeHolder: "Select a template (Esc for default)",
+    });
+
+    if (selected && !selected.label.includes("Default")) {
+      const templateName = selected.label.replace("$(file-code) ", "");
+      const snippetName = `${SNIPPET_PREFIX}${templateName}`;
+      const langId = defaultSnippet?.langId || "markdown";
+      await insertSnippetByName(editor, langId, snippetName);
+    } else if (defaultSnippet?.name) {
+      await insertSnippetByName(editor, defaultSnippet.langId, defaultSnippet.name);
+    }
+  } else if (defaultSnippet?.name) {
+    // No custom templates, just use default snippet
+    await insertSnippetByName(editor, defaultSnippet.langId, defaultSnippet.name);
+  }
 
   vscode.window.showInformationMessage(`Note created: ${filename}`);
-}
-
-export async function createTemplate(notesDir: string): Promise<void> {
-  const templateName = await vscode.window.showInputBox({
-    prompt: "Enter template name",
-    placeHolder: "meeting",
-  });
-
-  if (!templateName) {
-    return;
-  }
-
-  const templatesDir = ensureTemplatesDir(notesDir);
-  const templatePath = path.join(templatesDir, `${templateName}.md`);
-
-  if (fs.existsSync(templatePath)) {
-    const overwrite = await vscode.window.showWarningMessage(
-      `Template "${templateName}" already exists. Overwrite?`,
-      "Yes",
-      "No",
-    );
-    if (overwrite !== "Yes") {
-      return;
-    }
-  }
-
-  fs.writeFileSync(templatePath, DEFAULT_TEMPLATE_CONTENT, "utf8");
-
-  const doc = await vscode.workspace.openTextDocument(templatePath);
-  await vscode.window.showTextDocument(doc);
-
-  vscode.window.showInformationMessage(`Template created: ${templateName}.md`);
-}
-
-export async function listTemplates(notesDir: string): Promise<void> {
-  const templates = getTemplateFiles(notesDir);
-
-  if (templates.length === 0) {
-    const create = await vscode.window.showInformationMessage(
-      "No templates found. Create one?",
-      "Create Template",
-      "Cancel",
-    );
-    if (create === "Create Template") {
-      await createTemplate(notesDir);
-    }
-    return;
-  }
-
-  const items: vscode.QuickPickItem[] = templates.map((t) => ({
-    label: `$(file-code) ${path.basename(t, ".md")}`,
-    description: t,
-  }));
-
-  const selected = await vscode.window.showQuickPick(items, {
-    placeHolder: "Select a template to edit",
-  });
-
-  if (selected) {
-    const templateName = selected.label.replace("$(file-code) ", "");
-    const templatePath = path.join(getTemplatesDir(notesDir), `${templateName}.md`);
-    const doc = await vscode.workspace.openTextDocument(templatePath);
-    await vscode.window.showTextDocument(doc);
-  }
 }
 
 export async function listNotes(notesDir: string): Promise<void> {
@@ -322,7 +221,7 @@ export function collectNoteFiles(baseDir: string, currentDir: string): NoteFile[
   for (const entry of entries) {
     const fullPath = path.join(currentDir, entry.name);
 
-    // Skip hidden directories and .noteeees
+    // Skip hidden directories
     if (entry.name.startsWith(".")) {
       continue;
     }
