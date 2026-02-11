@@ -1,19 +1,25 @@
 import * as vscode from "vscode";
+import * as path from "path";
 import { parseMemoryFile } from "./searchCommand";
 import { extractTagsFromMemory } from "./tagCompletion";
+import { collectNoteFiles } from "./noteCommands";
 
 interface TagTreeItem extends vscode.TreeItem {
-  kind: "root" | "tagsRoot" | "structureRoot" | "tag" | "month" | "monthTag" | "entry";
+  kind: "root" | "tagsRoot" | "structureRoot" | "notesRoot" | "noteFile" | "tag" | "month" | "monthTag" | "entry";
   tag?: string;
   month?: string;
   entryLine?: number;
+  filePath?: string;
 }
 
 export class NotesTreeProvider implements vscode.TreeDataProvider<TagTreeItem> {
   private _onDidChangeTreeData = new vscode.EventEmitter<TagTreeItem | undefined>();
   readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
 
-  constructor(private getMemoryPath: () => string | undefined) {}
+  constructor(
+    private getMemoryPath: () => string | undefined,
+    private getNotesDir: () => string | undefined
+  ) {}
 
   refresh(): void {
     this._onDidChangeTreeData.fire(undefined);
@@ -41,29 +47,67 @@ export class NotesTreeProvider implements vscode.TreeDataProvider<TagTreeItem> {
 
   getChildren(element?: TagTreeItem): TagTreeItem[] {
     const memoryPath = this.getMemoryPath();
-    if (!memoryPath) {
+    const notesDir = this.getNotesDir();
+
+    if (!memoryPath && !notesDir) {
       return [];
     }
 
     if (!element) {
-      // Root level: show two navigation modes
-      return [
-        {
-          label: "Tags",
-          kind: "tagsRoot",
+      // Root level: show three navigation modes
+      const roots: TagTreeItem[] = [];
+
+      if (notesDir) {
+        roots.push({
+          label: "Notes",
+          kind: "notesRoot",
           collapsibleState: vscode.TreeItemCollapsibleState.Expanded,
-          iconPath: new vscode.ThemeIcon("tag"),
-        },
-        {
-          label: "Structure",
-          kind: "structureRoot",
-          collapsibleState: vscode.TreeItemCollapsibleState.Expanded,
-          iconPath: new vscode.ThemeIcon("list-tree"),
-        },
-      ];
+          iconPath: new vscode.ThemeIcon("files"),
+        });
+      }
+
+      if (memoryPath) {
+        roots.push(
+          {
+            label: "Tags",
+            kind: "tagsRoot",
+            collapsibleState: vscode.TreeItemCollapsibleState.Expanded,
+            iconPath: new vscode.ThemeIcon("tag"),
+          },
+          {
+            label: "Structure",
+            kind: "structureRoot",
+            collapsibleState: vscode.TreeItemCollapsibleState.Expanded,
+            iconPath: new vscode.ThemeIcon("list-tree"),
+          }
+        );
+      }
+
+      return roots;
     }
 
-    if (element.kind === "tagsRoot") {
+    if (element.kind === "notesRoot" && notesDir) {
+      const noteFiles = collectNoteFiles(notesDir, notesDir);
+      noteFiles.sort((a, b) => b.mtime - a.mtime);
+
+      return noteFiles.map((f) => ({
+        label: path.basename(f.relativePath, ".md"),
+        description: f.relativePath.includes(path.sep)
+          ? path.dirname(f.relativePath)
+          : undefined,
+        kind: "noteFile" as const,
+        filePath: f.absolutePath,
+        collapsibleState: vscode.TreeItemCollapsibleState.None,
+        iconPath: new vscode.ThemeIcon("file"),
+        command: {
+          command: "notes.openNoteFile",
+          title: "Open Note",
+          arguments: [f.absolutePath],
+        },
+      }));
+    }
+
+    if (element.kind === "tagsRoot" && memoryPath) {
       const tags = extractTagsFromMemory(memoryPath);
       return tags.map((tag) => {
         const item: TagTreeItem = {
@@ -77,7 +121,7 @@ export class NotesTreeProvider implements vscode.TreeDataProvider<TagTreeItem> {
       });
     }
 
-    if (element.kind === "structureRoot") {
+    if (element.kind === "structureRoot" && memoryPath) {
       const entries = parseMemoryFile(memoryPath);
       const months = [...new Set(entries.map((entry) => entry.dateTime.slice(0, 7)))];
 
@@ -90,7 +134,7 @@ export class NotesTreeProvider implements vscode.TreeDataProvider<TagTreeItem> {
       }));
     }
 
-    if (element.kind === "month" && element.month) {
+    if (element.kind === "month" && element.month && memoryPath) {
       const month = element.month;
       const entries = parseMemoryFile(memoryPath);
       const filtered = entries.filter((entry) => entry.dateTime.startsWith(month));
@@ -106,7 +150,7 @@ export class NotesTreeProvider implements vscode.TreeDataProvider<TagTreeItem> {
       }));
     }
 
-    if (element.kind === "monthTag" && element.month && element.tag) {
+    if (element.kind === "monthTag" && element.month && element.tag && memoryPath) {
       const month = element.month;
       const tag = element.tag;
       const entries = parseMemoryFile(memoryPath);
@@ -118,7 +162,7 @@ export class NotesTreeProvider implements vscode.TreeDataProvider<TagTreeItem> {
     }
 
     // Child level: show entries for this tag
-    if (element.kind === "tag" && element.tag) {
+    if (element.kind === "tag" && element.tag && memoryPath) {
       const entries = parseMemoryFile(memoryPath);
       const filtered = entries.filter((e) => e.tags.includes(element.tag!));
 
