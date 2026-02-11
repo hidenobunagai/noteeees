@@ -1,8 +1,8 @@
-import * as vscode from "vscode";
 import * as path from "path";
+import * as vscode from "vscode";
+import { collectNoteFiles } from "./noteCommands";
 import { parseMemoryFile } from "./searchCommand";
 import { extractTagsFromMemory } from "./tagCompletion";
-import { collectNoteFiles } from "./noteCommands";
 
 /**
  * Strip a leading date/datetime prefix from a filename stem.
@@ -25,7 +25,16 @@ function stripDatePrefix(basename: string): { title: string; datePrefix: string 
 }
 
 interface TagTreeItem extends vscode.TreeItem {
-  kind: "root" | "tagsRoot" | "structureRoot" | "notesRoot" | "noteFile" | "tag" | "month" | "monthTag" | "entry";
+  kind:
+    | "root"
+    | "tagsRoot"
+    | "structureRoot"
+    | "notesRoot"
+    | "noteFile"
+    | "tag"
+    | "month"
+    | "monthTag"
+    | "entry";
   tag?: string;
   month?: string;
   entryLine?: number;
@@ -38,7 +47,7 @@ export class NotesTreeProvider implements vscode.TreeDataProvider<TagTreeItem> {
 
   constructor(
     private getMemoryPath: () => string | undefined,
-    private getNotesDir: () => string | undefined
+    private getNotesDir: () => string | undefined,
   ) {}
 
   refresh(): void {
@@ -49,7 +58,10 @@ export class NotesTreeProvider implements vscode.TreeDataProvider<TagTreeItem> {
     return element;
   }
 
-  private createEntryTreeItem(entry: ReturnType<typeof parseMemoryFile>[number], description: string): TagTreeItem {
+  private createEntryTreeItem(
+    entry: ReturnType<typeof parseMemoryFile>[number],
+    description: string,
+  ): TagTreeItem {
     return {
       label: entry.dateTime,
       description,
@@ -99,7 +111,7 @@ export class NotesTreeProvider implements vscode.TreeDataProvider<TagTreeItem> {
             kind: "structureRoot",
             collapsibleState: vscode.TreeItemCollapsibleState.Expanded,
             iconPath: new vscode.ThemeIcon("list-tree"),
-          }
+          },
         );
       }
 
@@ -113,9 +125,7 @@ export class NotesTreeProvider implements vscode.TreeDataProvider<TagTreeItem> {
       return noteFiles.map((f) => {
         const basename = path.basename(f.relativePath, ".md");
         const { title, datePrefix } = stripDatePrefix(basename);
-        const subDir = f.relativePath.includes(path.sep)
-          ? path.dirname(f.relativePath)
-          : undefined;
+        const subDir = f.relativePath.includes(path.sep) ? path.dirname(f.relativePath) : undefined;
         const descParts = [datePrefix, subDir].filter(Boolean);
 
         return {
@@ -186,7 +196,9 @@ export class NotesTreeProvider implements vscode.TreeDataProvider<TagTreeItem> {
         .filter((entry) => entry.dateTime.startsWith(month) && entry.tags.includes(tag))
         .sort((a, b) => b.dateTime.localeCompare(a.dateTime));
 
-      return filtered.map((entry) => this.createEntryTreeItem(entry, entry.content.substring(0, 40).replace(/\n/g, " ")));
+      return filtered.map((entry) =>
+        this.createEntryTreeItem(entry, entry.content.substring(0, 40).replace(/\n/g, " ")),
+      );
     }
 
     // Child level: show entries for this tag
@@ -203,7 +215,10 @@ export class NotesTreeProvider implements vscode.TreeDataProvider<TagTreeItem> {
   }
 }
 
-export function registerGoToLineCommand(context: vscode.ExtensionContext, getMemoryPath: () => string | undefined) {
+export function registerGoToLineCommand(
+  context: vscode.ExtensionContext,
+  getMemoryPath: () => string | undefined,
+) {
   const disposable = vscode.commands.registerCommand("notes.goToLine", async (line: number) => {
     const memoryPath = getMemoryPath();
     if (!memoryPath) {
