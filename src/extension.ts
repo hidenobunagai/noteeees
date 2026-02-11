@@ -6,7 +6,7 @@ import { showSearchQuickPick } from "./searchCommand";
 import { NotesTreeProvider, registerGoToLineCommand } from "./sidebarProvider";
 import { showReminders } from "./reminderCommand";
 import { showStructureSearch } from "./structureSearchCommand";
-import { createNewNote, createTemplate, listTemplates, listNotes } from "./noteCommands";
+import { createNewNote, listNotes } from "./noteCommands";
 
 const MEMORY_FILE_NAME = "memory.md";
 const MEMORY_HEADER = "# Memory Log\n\n";
@@ -266,23 +266,6 @@ export function activate(context: vscode.ExtensionContext) {
     notesTreeProvider.refresh();
   });
 
-  // Create Template command
-  const createTemplateDisposable = vscode.commands.registerCommand("notes.createTemplate", async () => {
-    const notesDir = await ensureNotesDirectory();
-    if (!notesDir) {
-      return;
-    }
-    await createTemplate(notesDir);
-  });
-
-  // List Templates command
-  const listTemplatesDisposable = vscode.commands.registerCommand("notes.listTemplates", async () => {
-    const notesDir = await ensureNotesDirectory();
-    if (!notesDir) {
-      return;
-    }
-    await listTemplates(notesDir);
-  });
 
   // List Notes command
   const listNotesDisposable = vscode.commands.registerCommand("notes.listNotes", async () => {
@@ -312,8 +295,6 @@ export function activate(context: vscode.ExtensionContext) {
     remindersDisposable,
     refreshDisposable,
     newNoteDisposable,
-    createTemplateDisposable,
-    listTemplatesDisposable,
     listNotesDisposable,
     openNoteFileDisposable
   );
