@@ -37,7 +37,8 @@
       },
       {
         "command": "notes.structureSearch",
-        "title": "Noteeees Memory: Structure Search"
+        "title": "Noteeees Memory: Structure Search",
+        "icon": "$(search)"
       },
       {
         "command": "notes.showReminders",
