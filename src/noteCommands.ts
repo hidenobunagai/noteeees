@@ -134,32 +134,6 @@ export async function createNewNote(notesDir: string): Promise<void> {
   const now = new Date();
   const filename = resolveFilename(title, now);
 
-  // Step 4: Create directories as needed
-  const targetDir = subDir ? path.join(notesDir, subDir) : notesDir;
-  if (!fs.existsSync(targetDir)) {
-    fs.mkdirSync(targetDir, { recursive: true });
-  }
-
-  // Step 5: Create file
-  const filePath = path.join(targetDir, filename);
-  if (fs.existsSync(filePath)) {
-    const overwrite = await vscode.window.showWarningMessage(
-      `File "${filename}" already exists. Overwrite?`,
-      "Yes",
-      "No",
-    );
-    if (overwrite !== "Yes") {
-      return;
-    }
-  }
-
-  fs.writeFileSync(filePath, "", "utf8");
-
-  // Step 6: Open the file
-  const doc = await vscode.workspace.openTextDocument(filePath);
-  const editor = await vscode.window.showTextDocument(doc);
-
-  // Step 7: Insert snippet template
   const config = vscode.workspace.getConfiguration("notes");
   const defaultSnippet = config.get<{ langId: string; name: string }>("defaultSnippet");
   const templates = config.get<string[]>("templates") || [];
@@ -178,8 +152,39 @@ export async function createNewNote(notesDir: string): Promise<void> {
     placeHolder: "Select a template",
   });
 
-  if (!selected || selected.label.includes("Default")) {
-    // Default or Esc: use default snippet
+  // If the user presses Esc, cancel note creation entirely
+  if (!selected) {
+    return;
+  }
+
+  // Step 4: Create directories as needed
+  const targetDir = subDir ? path.join(notesDir, subDir) : notesDir;
+  if (!fs.existsSync(targetDir)) {
+    fs.mkdirSync(targetDir, { recursive: true });
+  }
+
+  // Step 5: Check if file already exists
+  const filePath = path.join(targetDir, filename);
+  if (fs.existsSync(filePath)) {
+    const overwrite = await vscode.window.showWarningMessage(
+      `File "${filename}" already exists. Overwrite?`,
+      "Yes",
+      "No",
+    );
+    if (overwrite !== "Yes") {
+      return;
+    }
+  }
+
+  // Step 6: Create file
+  fs.writeFileSync(filePath, "", "utf8");
+
+  // Step 7: Open the file
+  const doc = await vscode.workspace.openTextDocument(filePath);
+  const editor = await vscode.window.showTextDocument(doc);
+
+  // Step 8: Insert snippet template based on selection
+  if (selected.label.includes("Default")) {
     if (defaultSnippet?.name) {
       const langId = defaultSnippet.langId || "markdown";
       await insertSnippetByName(editor, langId, defaultSnippet.name);
