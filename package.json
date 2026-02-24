@@ -71,8 +71,8 @@
     "keybindings": [
       {
         "command": "notes.quickAdd",
-        "key": "ctrl+shift+n",
-        "mac": "cmd+shift+n"
+        "key": "ctrl+alt+n",
+        "mac": "cmd+alt+n"
       },
       {
         "command": "notes.addEntry",
@@ -93,8 +93,8 @@
       },
       {
         "command": "notes.newNote",
-        "key": "ctrl+alt+n",
-        "mac": "cmd+alt+n"
+        "key": "ctrl+shift+n",
+        "mac": "cmd+shift+n"
       }
     ],
     "views": {
