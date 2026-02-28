@@ -2,35 +2,24 @@
 
 [![GitHub](https://img.shields.io/badge/github-%23121011.svg?style=for-the-badge&logo=github&logoColor=white)](https://github.com/hidenobunagai/noteeees)
 
-Simple markdown notes extension with two-tier note management: individual notes with templates and a unified memory log.
+Simple markdown notes extension. Accumulate individual note files and search them instantly via MCP.
 
 ## Features
 
 ### Individual Notes
-- **New Note** (`Cmd+Alt+N`): Create a new markdown note with configurable filename tokens
-- **Templates**: Create and use custom templates with variable substitution (`{{title}}`, `{{date}}`, `{{datetime}}`)
+- **New Note** (`Cmd+Shift+N`): Create a new markdown note with configurable filename tokens
+- **Templates**: Create and use custom templates with VS Code snippets
 - **Subfolder Support**: Use `/` in title to auto-create subfolders (e.g., `projects/MyNote`)
 - **List Notes**: Browse all notes sorted by modification date
 
-### Memory Log
-- **Quick Add** (`Cmd+Shift+N`): Quickly add a one-line note to `memory.md`
-- **Add Entry** (`Cmd+Shift+M`): Add a note entry with a snippet
-- **Tag Autocomplete**: Suggests previously used tags
-- **Search**: Filter by tags and dates
-- **Structure Search** (`Cmd+Shift+G`): Rank entries by query relevance (tags/date/month/keywords)
-- **Reminders**: Set due dates with `@YYYY-MM-DD`
-
 ### Sidebar
-- **Notes**: Browse individual note files
-- **Tags**: View memory entries grouped by tags
-- **Structure**: Navigate notes by month and tag (`YYYY-MM → #tag → entries`)
+- **Notes**: Browse individual note files sorted by modification date
 
 ## Usage
 
 1. Run `Noteeees: Run Setup` to configure the storage directory
-2. Press `Cmd+Alt+N` to create a new individual note
-3. Press `Cmd+Shift+N` to quickly add to memory log
-4. Check entries and notes in the Sidebar
+2. Press `Cmd+Shift+N` to create a new note
+3. Browse notes in the Sidebar
 
 ## Templates
 
@@ -99,10 +88,6 @@ When `notes.templates` is set, a picker will appear on note creation to choose b
 | `notes.noteTitleConvertSpaces` | Character to replace spaces (default: `_`) |
 | `notes.defaultSnippet` | Default snippet to insert (`{ langId, name }`) |
 | `notes.templates` | Custom template names (maps to `noteeees_template_{name}` snippets) |
-| `notes.dateFormat` | Date format for memory entries |
-| `notes.entryPosition` | Insertion position for new memory entries (top/bottom) |
-| `notes.structureSearchMaxResults` | Maximum Structure Search results (10-200) |
-| `notes.structureSearchSynonyms` | Synonym rules (`key:syn1,syn2`) |
 
 ## Supercharge with MCP
 
@@ -119,7 +104,7 @@ This repository includes `notes-mcp/`, an MCP server that exposes your notes to 
 
 2. Add to your MCP configuration:
 
-**Example (GitHub Copilot `.vscode/mcp.json`)**:
+**Example (GitHub Copilot `mcp.json`)**:
 
 ```json
 {
@@ -136,8 +121,27 @@ This repository includes `notes-mcp/`, an MCP server that exposes your notes to 
 }
 ```
 
+### Available Tools
+
+| Tool | Description |
+| --- | --- |
+| `search_notes` | Search across all notes by keyword, tag, or filename |
+| `get_recent_notes` | Get most recently modified notes |
+| `get_notes_by_tag` | Get all notes with a specific tag |
+| `list_tags` | List all unique tags across all notes |
+| `structure_search_notes` | Score-ranked search with tunable weights and recency bonus |
+| `get_note_content` | Get the full content of a specific note by filename |
+
 ### What You Can Do
 
-- **Context Awareness**: "Read my `memory.md` and summarize what I did last week."
-- **Auto-Journaling**: "Save the summary of this conversation to my `memory.md`."
-- **Structure-aware Retrieval**: Use `structure_search_notes` to get scored results with reasons, synonym expansion, and tunable weights.
+- **Context Awareness**: "Search my notes for anything about last week's deployment."
+- **Tag-based Retrieval**: "Show me all notes tagged #todo."
+- **Smart Search**: Use `structure_search_notes` to get scored results with reasons and tunable weights.
+- **Full Content Access**: Use `get_note_content` to read a specific note in full.
+
+### Tags
+
+Notes support tags in two ways:
+- **YAML front matter**: `tags: [todo, meeting]`
+- **Inline**: `#todo` anywhere in the note body
+
