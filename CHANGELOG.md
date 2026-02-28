@@ -4,6 +4,10 @@ All notable changes to the "notes" extension will be documented in this file.
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## [0.0.23] - 2026-02-28
+
+- Update README: remove memory feature references, add MCP tools table and tag documentation.
+
 ## [0.0.22] - 2026-02-28
 
 - Remove memory feature (memory.md single-file accumulation) entirely.
