@@ -2,7 +2,6 @@ import * as fs from "fs";
 import * as path from "path";
 import * as vscode from "vscode";
 
-const MEMORY_FILE_NAME = "memory.md";
 const SNIPPET_PREFIX = "noteeees_template_";
 
 /** Built-in fallback snippet body used when the named snippet is not found. */
@@ -249,7 +248,7 @@ export function collectNoteFiles(baseDir: string, currentDir: string): NoteFile[
 
     if (entry.isDirectory()) {
       results.push(...collectNoteFiles(baseDir, fullPath));
-    } else if (entry.isFile() && entry.name.endsWith(".md") && entry.name !== MEMORY_FILE_NAME) {
+    } else if (entry.isFile() && entry.name.endsWith(".md")) {
       const stat = fs.statSync(fullPath);
       results.push({
         relativePath: path.relative(baseDir, fullPath),

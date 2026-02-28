@@ -4,6 +4,12 @@ All notable changes to the "notes" extension will be documented in this file.
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## [0.0.22] - 2026-02-28
+
+- Remove memory feature (memory.md single-file accumulation) entirely.
+- Simplify sidebar to individual note file list only (Tags/Structure views removed).
+- Update MCP server to scan all .md files in the notes directory for search (no longer depends on memory.md). Added `get_note_content` tool.
+
 ## [0.0.19] - 2026-02-11
 
 - Fix: Snippet name prefix mismatch (notes_ → noteeees_) causing template insertion to silently fail.

@@ -2,7 +2,7 @@
   "name": "noteeees",
   "displayName": "Noteeees",
   "description": "Simple markdown notes extension",
-  "version": "0.0.19",
+  "version": "0.0.22",
   "publisher": "HidenobuNagai",
   "icon": "assets/icon.png",
   "repository": {
@@ -26,31 +26,6 @@
     ],
     "commands": [
       {
-        "command": "notes.addEntry",
-        "title": "Noteeees Memory: Add Entry"
-      },
-      {
-        "command": "notes.quickAdd",
-        "title": "Noteeees Memory: Quick Add"
-      },
-      {
-        "command": "notes.openMemory",
-        "title": "Noteeees Memory: Open"
-      },
-      {
-        "command": "notes.search",
-        "title": "Noteeees Memory: Search"
-      },
-      {
-        "command": "notes.structureSearch",
-        "title": "Noteeees Memory: Structure Search",
-        "icon": "$(search)"
-      },
-      {
-        "command": "notes.showReminders",
-        "title": "Noteeees Memory: Show Reminders"
-      },
-      {
         "command": "notes.runSetup",
         "title": "Noteeees: Run Setup"
       },
@@ -70,31 +45,9 @@
     ],
     "keybindings": [
       {
-        "command": "notes.quickAdd",
+        "command": "notes.newNote",
         "key": "ctrl+shift+n",
         "mac": "cmd+shift+n"
-      },
-      {
-        "command": "notes.addEntry",
-        "key": "ctrl+shift+m",
-        "mac": "cmd+shift+m"
-      },
-      {
-        "command": "notes.search",
-        "key": "ctrl+shift+f",
-        "mac": "cmd+shift+f",
-        "when": "editorTextFocus && resourceFilename == memory.md"
-      },
-      {
-        "command": "notes.structureSearch",
-        "key": "ctrl+shift+g",
-        "mac": "cmd+shift+g",
-        "when": "editorTextFocus && resourceFilename == memory.md"
-      },
-      {
-        "command": "notes.newNote",
-        "key": "ctrl+alt+n",
-        "mac": "cmd+alt+n"
       }
     ],
     "views": {
@@ -113,11 +66,6 @@
           "command": "notes.refreshSidebar",
           "when": "view == notesExplorer",
           "group": "navigation"
-        },
-        {
-          "command": "notes.structureSearch",
-          "when": "view == notesExplorer",
-          "group": "navigation@1"
         }
       ]
     },
@@ -140,79 +88,6 @@
             "DD.MM.YYYY HH:mm"
           ],
           "description": "Date format for new entries."
-        },
-        "notes.entryPosition": {
-          "type": "string",
-          "default": "top",
-          "enum": [
-            "top",
-            "bottom"
-          ],
-          "description": "Where to insert new entries in the memory file."
-        },
-        "notes.structureSearchMaxResults": {
-          "type": "number",
-          "default": 50,
-          "minimum": 10,
-          "maximum": 200,
-          "description": "Maximum number of Structure Search results to show (10-200)."
-        },
-        "notes.structureSearchWeightTagExact": {
-          "type": "number",
-          "default": 6,
-          "minimum": 1,
-          "maximum": 20,
-          "description": "Score weight for exact tag matches in Structure Search."
-        },
-        "notes.structureSearchWeightDate": {
-          "type": "number",
-          "default": 4,
-          "minimum": 1,
-          "maximum": 20,
-          "description": "Score weight for date matches in Structure Search."
-        },
-        "notes.structureSearchWeightMonth": {
-          "type": "number",
-          "default": 3,
-          "minimum": 1,
-          "maximum": 20,
-          "description": "Score weight for month matches in Structure Search."
-        },
-        "notes.structureSearchWeightTagPartial": {
-          "type": "number",
-          "default": 3,
-          "minimum": 1,
-          "maximum": 20,
-          "description": "Score weight for partial tag matches in Structure Search."
-        },
-        "notes.structureSearchWeightContent": {
-          "type": "number",
-          "default": 2,
-          "minimum": 1,
-          "maximum": 20,
-          "description": "Score weight for content matches in Structure Search."
-        },
-        "notes.structureSearchBonusMultiToken": {
-          "type": "number",
-          "default": 3,
-          "minimum": 0,
-          "maximum": 20,
-          "description": "Bonus score when multiple tokens match in Structure Search."
-        },
-        "notes.structureSearchBonusAllTokens": {
-          "type": "number",
-          "default": 4,
-          "minimum": 0,
-          "maximum": 20,
-          "description": "Bonus score when all tokens match in Structure Search."
-        },
-        "notes.structureSearchSynonyms": {
-          "type": "array",
-          "default": [],
-          "items": {
-            "type": "string"
-          },
-          "description": "Custom synonym rules for Structure Search. Format: key:syn1,syn2"
         },
         "notes.defaultNoteTitle": {
           "type": "string",

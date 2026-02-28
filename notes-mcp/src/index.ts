@@ -8,17 +8,18 @@ import {
 import * as fs from "fs";
 import * as path from "path";
 
-interface MemoryEntry {
-  dateTime: string;
+interface NoteEntry {
+  filePath: string;
+  filename: string;
+  title: string;
   tags: string[];
   content: string;
-  reminder?: string;
+  mtime: number;
 }
 
 interface SearchWeights {
   tagExact: number;
-  dateMatch: number;
-  monthMatch: number;
+  filenameMatch: number;
   tagPartial: number;
   contentMatch: number;
   multiTokenBonus: number;
@@ -29,68 +30,96 @@ interface StructuredSearchResult {
   score: number;
   matchedTokenCount: number;
   reasons: string[];
-  entry: MemoryEntry;
+  entry: NoteEntry;
 }
 
 const DEFAULT_WEIGHTS: SearchWeights = {
   tagExact: 6,
-  dateMatch: 4,
-  monthMatch: 3,
+  filenameMatch: 4,
   tagPartial: 3,
   contentMatch: 2,
   multiTokenBonus: 3,
   allTokensBonus: 4,
 };
 
-function getMemoryPath(): string {
+function getNotesDir(): string {
   const notesDir = process.env.NOTES_DIRECTORY;
   if (!notesDir) {
     throw new Error("NOTES_DIRECTORY environment variable not set");
   }
-  return path.join(notesDir, "memory.md");
+  return notesDir;
 }
 
-function parseMemoryFile(memoryPath: string): MemoryEntry[] {
-  if (!fs.existsSync(memoryPath)) {
-    return [];
+function extractFrontMatterTags(content: string): string[] {
+  const fmMatch = content.match(/^---\s*\n([\s\S]*?)\n---/);
+  if (!fmMatch) return [];
+  const tagsLine = fmMatch[1].match(/^tags\s*:\s*(.+)$/m);
+  if (!tagsLine) return [];
+  // Support: tags: [foo, bar] or tags: foo, bar
+  const raw = tagsLine[1].replace(/[\[\]]/g, "");
+  return raw
+    .split(",")
+    .map((t) => t.trim())
+    .filter((t) => t.length > 0)
+    .map((t) => (t.startsWith("#") ? t : `#${t}`));
+}
+
+function extractInlineTags(content: string): string[] {
+  const matches = content.match(/#[\w-]+/g) || [];
+  return [...new Set(matches)];
+}
+
+function extractTitle(content: string, filename: string): string {
+  // Try YAML front matter title
+  const fmMatch = content.match(/^---\s*\n([\s\S]*?)\n---/);
+  if (fmMatch) {
+    const titleLine = fmMatch[1].match(/^title\s*:\s*(.+)$/m);
+    if (titleLine) return titleLine[1].trim().replace(/^["']|["']$/g, "");
   }
+  // Try first # heading
+  const headingMatch = content.match(/^#\s+(.+)$/m);
+  if (headingMatch) return headingMatch[1].trim();
+  // Fall back to filename stem
+  return path.basename(filename, ".md");
+}
 
-  const content = fs.readFileSync(memoryPath, "utf8");
-  const lines = content.split("\n");
-  const entries: MemoryEntry[] = [];
+function collectNoteFiles(dir: string, baseDir: string): { filePath: string; mtime: number }[] {
+  const results: { filePath: string; mtime: number }[] = [];
+  if (!fs.existsSync(dir)) return results;
 
-  let currentEntry: MemoryEntry | null = null;
-
-  for (const line of lines) {
-    const headerMatch = line.match(/^## (\d{4}-\d{2}-\d{2}(?: \d{2}:\d{2})?)(.*)$/);
-
-    if (headerMatch) {
-      if (currentEntry) {
-        entries.push(currentEntry);
-      }
-
-      const dateTime = headerMatch[1];
-      const tagsPart = headerMatch[2];
-      const tags = tagsPart.match(/#[\w-]+/g) || [];
-
-      // Check for reminder date @YYYY-MM-DD
-      const reminderMatch = tagsPart.match(/@(\d{4}-\d{2}-\d{2})/);
-
-      currentEntry = {
-        dateTime,
-        tags,
-        content: "",
-        reminder: reminderMatch ? reminderMatch[1] : undefined,
-      };
-    } else if (currentEntry && line.trim() && !line.startsWith("# ")) {
-      currentEntry.content += (currentEntry.content ? "\n" : "") + line;
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    if (entry.name.startsWith(".")) continue;
+    const fullPath = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      results.push(...collectNoteFiles(fullPath, baseDir));
+    } else if (entry.isFile() && entry.name.endsWith(".md")) {
+      const stat = fs.statSync(fullPath);
+      results.push({ filePath: fullPath, mtime: stat.mtimeMs });
     }
   }
+  return results;
+}
 
-  if (currentEntry) {
-    entries.push(currentEntry);
+function parseAllNoteFiles(notesDir: string): NoteEntry[] {
+  const files = collectNoteFiles(notesDir, notesDir);
+  const entries: NoteEntry[] = [];
+
+  for (const { filePath, mtime } of files) {
+    const content = fs.readFileSync(filePath, "utf8");
+    const filename = path.relative(notesDir, filePath);
+    const title = extractTitle(content, filename);
+    const fmTags = extractFrontMatterTags(content);
+    const inlineTags = extractInlineTags(content);
+    const tags = fmTags.length > 0 ? fmTags : inlineTags;
+
+    // Strip front matter from content for searching
+    const bodyContent = content.replace(/^---\s*\n[\s\S]*?\n---\s*\n/, "").trim();
+
+    entries.push({ filePath, filename, title, tags, content: bodyContent, mtime });
   }
 
+  // Sort by mtime descending (newest first)
+  entries.sort((a, b) => b.mtime - a.mtime);
   return entries;
 }
 
@@ -107,17 +136,14 @@ function tokenizeQuery(query: string): string[] {
 }
 
 function toBoundedInt(value: number, fallback: number, min: number, max: number): number {
-  if (!Number.isFinite(value)) {
-    return fallback;
-  }
+  if (!Number.isFinite(value)) return fallback;
   return Math.min(Math.max(Math.floor(value), min), max);
 }
 
 function getEffectiveWeights(overrides?: Partial<SearchWeights>): SearchWeights {
   return {
     tagExact: toBoundedInt(overrides?.tagExact ?? DEFAULT_WEIGHTS.tagExact, DEFAULT_WEIGHTS.tagExact, 1, 20),
-    dateMatch: toBoundedInt(overrides?.dateMatch ?? DEFAULT_WEIGHTS.dateMatch, DEFAULT_WEIGHTS.dateMatch, 1, 20),
-    monthMatch: toBoundedInt(overrides?.monthMatch ?? DEFAULT_WEIGHTS.monthMatch, DEFAULT_WEIGHTS.monthMatch, 1, 20),
+    filenameMatch: toBoundedInt(overrides?.filenameMatch ?? DEFAULT_WEIGHTS.filenameMatch, DEFAULT_WEIGHTS.filenameMatch, 1, 20),
     tagPartial: toBoundedInt(overrides?.tagPartial ?? DEFAULT_WEIGHTS.tagPartial, DEFAULT_WEIGHTS.tagPartial, 1, 20),
     contentMatch: toBoundedInt(overrides?.contentMatch ?? DEFAULT_WEIGHTS.contentMatch, DEFAULT_WEIGHTS.contentMatch, 1, 20),
     multiTokenBonus: toBoundedInt(overrides?.multiTokenBonus ?? DEFAULT_WEIGHTS.multiTokenBonus, DEFAULT_WEIGHTS.multiTokenBonus, 0, 20),
@@ -125,99 +151,26 @@ function getEffectiveWeights(overrides?: Partial<SearchWeights>): SearchWeights 
   };
 }
 
-function parseEntryDate(dateTime: string): Date | null {
-  const isoLike = dateTime.includes(" ") ? dateTime.replace(" ", "T") : `${dateTime}T00:00`;
-  const parsed = new Date(isoLike);
-  return Number.isNaN(parsed.getTime()) ? null : parsed;
-}
-
-function getRecencyBonus(dateTime: string): number {
-  const parsed = parseEntryDate(dateTime);
-  if (!parsed) {
-    return 0;
-  }
-
-  const now = new Date();
-  const days = (now.getTime() - parsed.getTime()) / (1000 * 60 * 60 * 24);
-
-  if (days <= 7) {
-    return 4;
-  }
-  if (days <= 30) {
-    return 3;
-  }
-  if (days <= 90) {
-    return 2;
-  }
-  if (days <= 180) {
-    return 1;
-  }
+function getRecencyBonus(mtime: number): number {
+  const days = (Date.now() - mtime) / (1000 * 60 * 60 * 24);
+  if (days <= 7) return 4;
+  if (days <= 30) return 3;
+  if (days <= 90) return 2;
+  if (days <= 180) return 1;
   return 0;
 }
 
-function getBuiltInSynonyms(): Map<string, string[]> {
-  return new Map<string, string[]>([
-    ["経費", ["精算", "交通費", "出張費"]],
-    ["会議", ["mtg", "ミーティング"]],
-    ["タスク", ["todo", "課題"]],
-  ]);
-}
-
-function getSynonymMap(customSynonyms?: string[]): Map<string, string[]> {
-  const map = new Map<string, Set<string>>();
-
-  for (const [key, values] of getBuiltInSynonyms()) {
-    const normalizedKey = normalize(key);
-    if (!map.has(normalizedKey)) {
-      map.set(normalizedKey, new Set<string>());
-    }
-    values.forEach((value) => map.get(normalizedKey)?.add(normalize(value)));
-  }
-
-  for (const row of customSynonyms ?? []) {
-    const [rawKey, rawValues] = row.split(":").map((part) => part.trim());
-    if (!rawKey || !rawValues) {
-      continue;
-    }
-
-    const key = normalize(rawKey);
-    if (!map.has(key)) {
-      map.set(key, new Set<string>());
-    }
-
-    rawValues
-      .split(",")
-      .map((v) => normalize(v.trim()))
-      .filter((v) => v.length > 0)
-      .forEach((v) => map.get(key)?.add(v));
-  }
-
-  return new Map([...map.entries()].map(([key, values]) => [key, [...values]]));
-}
-
-function expandTokens(tokens: string[], synonymMap: Map<string, string[]>): string[] {
-  const expanded = new Set(tokens);
-
-  for (const token of tokens) {
-    const bareToken = token.startsWith("#") ? token.slice(1) : token;
-    const synonyms = synonymMap.get(bareToken) ?? [];
-    synonyms.forEach((synonym) => expanded.add(synonym));
-  }
-
-  return [...expanded];
-}
-
 function scoreEntry(
-  entry: MemoryEntry,
+  entry: NoteEntry,
   tokens: string[],
   weights: SearchWeights,
-  includeRecencyBonus: boolean
+  includeRecencyBonus: boolean,
 ): StructuredSearchResult {
-  const dateText = normalize(entry.dateTime);
   const normalizedTags = entry.tags.map((tag) => normalize(tag));
   const tagText = normalizedTags.join(" ");
   const contentText = normalize(entry.content);
-  const monthText = entry.dateTime.slice(0, 7);
+  const filenameText = normalize(entry.filename);
+  const titleText = normalize(entry.title);
 
   let score = 0;
   let matchedTokenCount = 0;
@@ -234,15 +187,9 @@ function scoreEntry(
       continue;
     }
 
-    if (dateText.includes(token)) {
-      score += weights.dateMatch;
-      reasons.push(`date:${token}`);
-      tokenMatched = true;
-    }
-
-    if (monthText.includes(token)) {
-      score += weights.monthMatch;
-      reasons.push(`month:${token}`);
+    if (filenameText.includes(token) || titleText.includes(token)) {
+      score += weights.filenameMatch;
+      reasons.push(`filename:${token}`);
       tokenMatched = true;
     }
 
@@ -258,9 +205,7 @@ function scoreEntry(
       tokenMatched = true;
     }
 
-    if (tokenMatched) {
-      matchedTokenCount += 1;
-    }
+    if (tokenMatched) matchedTokenCount += 1;
   }
 
   if (matchedTokenCount >= 2) {
@@ -274,55 +219,42 @@ function scoreEntry(
   }
 
   if (includeRecencyBonus) {
-    const recencyBonus = getRecencyBonus(entry.dateTime);
-    if (recencyBonus > 0) {
-      score += recencyBonus;
-      reasons.push(`bonus:recent+${recencyBonus}`);
+    const bonus = getRecencyBonus(entry.mtime);
+    if (bonus > 0) {
+      score += bonus;
+      reasons.push(`bonus:recent+${bonus}`);
     }
   }
 
-  return {
-    score,
-    matchedTokenCount,
-    reasons: [...new Set(reasons)],
-    entry,
-  };
+  return { score, matchedTokenCount, reasons: [...new Set(reasons)], entry };
 }
 
 const server = new Server(
-  {
-    name: "notes-mcp",
-    version: "1.0.0",
-  },
-  {
-    capabilities: {
-      tools: {},
-    },
-  }
+  { name: "notes-mcp", version: "2.0.0" },
+  { capabilities: { tools: {} } },
 );
 
 server.setRequestHandler(ListToolsRequestSchema, async () => ({
   tools: [
     {
       name: "search_notes",
-      description: "Search memory notes by tag, date, or keyword",
+      description: "Search notes by tag, filename, or keyword",
       inputSchema: {
         type: "object" as const,
         properties: {
           query: { type: "string", description: "Search query (keyword or tag like #todo)" },
           tag: { type: "string", description: "Filter by specific tag (without #)" },
-          date: { type: "string", description: "Filter by date (YYYY-MM-DD)" },
           limit: { type: "number", description: "Max results (default 10)" },
         },
       },
     },
     {
       name: "get_recent_notes",
-      description: "Get the most recent memory entries",
+      description: "Get the most recently modified notes",
       inputSchema: {
         type: "object" as const,
         properties: {
-          limit: { type: "number", description: "Number of entries (default 5)" },
+          limit: { type: "number", description: "Number of notes (default 10)" },
         },
       },
     },
@@ -338,18 +270,8 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
       },
     },
     {
-      name: "get_reminders",
-      description: "Get notes with upcoming reminders (@YYYY-MM-DD format)",
-      inputSchema: {
-        type: "object" as const,
-        properties: {
-          days_ahead: { type: "number", description: "Days to look ahead (default 7)" },
-        },
-      },
-    },
-    {
       name: "list_tags",
-      description: "List all unique tags in the memory file",
+      description: "List all unique tags across all notes",
       inputSchema: {
         type: "object" as const,
         properties: {},
@@ -357,25 +279,19 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     },
     {
       name: "structure_search_notes",
-      description: "Structure-aware search with score/reasons, synonym expansion, and tunable weights",
+      description: "Score-ranked search with tunable weights across all note files",
       inputSchema: {
         type: "object" as const,
         properties: {
-          query: { type: "string", description: "Search query (e.g. '#todo 2026-02 経費')" },
+          query: { type: "string", description: "Search query (e.g. '#todo meeting')" },
           limit: { type: "number", description: "Max results (default 10, range 1-200)" },
           include_recency_bonus: { type: "boolean", description: "Apply recency bonus (default true)" },
-          synonyms: {
-            type: "array",
-            items: { type: "string" },
-            description: "Custom synonym rules, format: key:syn1,syn2",
-          },
           weights: {
             type: "object",
             description: "Score weight overrides",
             properties: {
               tagExact: { type: "number" },
-              dateMatch: { type: "number" },
-              monthMatch: { type: "number" },
+              filenameMatch: { type: "number" },
               tagPartial: { type: "number" },
               contentMatch: { type: "number" },
               multiTokenBonus: { type: "number" },
@@ -386,19 +302,29 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
         required: ["query"],
       },
     },
+    {
+      name: "get_note_content",
+      description: "Get the full content of a specific note by filename",
+      inputSchema: {
+        type: "object" as const,
+        properties: {
+          filename: { type: "string", description: "Relative filename of the note (as returned by other tools)" },
+        },
+        required: ["filename"],
+      },
+    },
   ],
 }));
 
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
-  const memoryPath = getMemoryPath();
-  const entries = parseMemoryFile(memoryPath);
+  const notesDir = getNotesDir();
+  const entries = parseAllNoteFiles(notesDir);
 
   switch (request.params.name) {
     case "search_notes": {
-      const { query, tag, date, limit = 10 } = request.params.arguments as {
+      const { query, tag, limit = 10 } = request.params.arguments as {
         query?: string;
         tag?: string;
-        date?: string;
         limit?: number;
       };
 
@@ -408,16 +334,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         filtered = filtered.filter((e) => e.tags.includes(`#${tag}`));
       }
 
-      if (date) {
-        filtered = filtered.filter((e) => e.dateTime.startsWith(date));
-      }
-
       if (query) {
         const lowerQuery = query.toLowerCase();
         filtered = filtered.filter(
           (e) =>
             e.content.toLowerCase().includes(lowerQuery) ||
-            e.tags.some((t) => t.toLowerCase().includes(lowerQuery))
+            e.filename.toLowerCase().includes(lowerQuery) ||
+            e.title.toLowerCase().includes(lowerQuery) ||
+            e.tags.some((t) => t.toLowerCase().includes(lowerQuery)),
         );
       }
 
@@ -425,19 +349,27 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         content: [
           {
             type: "text" as const,
-            text: JSON.stringify(filtered.slice(0, limit), null, 2),
+            text: JSON.stringify(
+              filtered.slice(0, limit).map(({ filePath: _, content: __, ...rest }) => rest),
+              null,
+              2,
+            ),
           },
         ],
       };
     }
 
     case "get_recent_notes": {
-      const { limit = 5 } = request.params.arguments as { limit?: number };
+      const { limit = 10 } = request.params.arguments as { limit?: number };
       return {
         content: [
           {
             type: "text" as const,
-            text: JSON.stringify(entries.slice(0, limit), null, 2),
+            text: JSON.stringify(
+              entries.slice(0, limit).map(({ filePath: _, content: __, ...rest }) => rest),
+              null,
+              2,
+            ),
           },
         ],
       };
@@ -450,30 +382,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         content: [
           {
             type: "text" as const,
-            text: JSON.stringify(filtered, null, 2),
-          },
-        ],
-      };
-    }
-
-    case "get_reminders": {
-      const { days_ahead = 7 } = request.params.arguments as { days_ahead?: number };
-      const today = new Date();
-      const futureDate = new Date(today);
-      futureDate.setDate(futureDate.getDate() + days_ahead);
-
-      const todayStr = today.toISOString().split("T")[0];
-      const futureStr = futureDate.toISOString().split("T")[0];
-
-      const reminders = entries.filter(
-        (e) => e.reminder && e.reminder >= todayStr && e.reminder <= futureStr
-      );
-
-      return {
-        content: [
-          {
-            type: "text" as const,
-            text: JSON.stringify(reminders, null, 2),
+            text: JSON.stringify(
+              filtered.map(({ filePath: _, content: __, ...rest }) => rest),
+              null,
+              2,
+            ),
           },
         ],
       };
@@ -483,12 +396,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const allTags = entries.flatMap((e) => e.tags);
       const uniqueTags = [...new Set(allTags)].sort();
       return {
-        content: [
-          {
-            type: "text" as const,
-            text: JSON.stringify(uniqueTags, null, 2),
-          },
-        ],
+        content: [{ type: "text" as const, text: JSON.stringify(uniqueTags, null, 2) }],
       };
     }
 
@@ -497,13 +405,11 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         query,
         limit = 10,
         include_recency_bonus = true,
-        synonyms,
         weights,
       } = request.params.arguments as {
         query: string;
         limit?: number;
         include_recency_bonus?: boolean;
-        synonyms?: string[];
         weights?: Partial<SearchWeights>;
       };
 
@@ -511,42 +417,44 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       if (queryTokens.length === 0) {
         return {
           content: [
-            {
-              type: "text" as const,
-              text: JSON.stringify({ error: "query is empty" }, null, 2),
-            },
+            { type: "text" as const, text: JSON.stringify({ error: "query is empty" }, null, 2) },
           ],
         };
       }
 
       const safeLimit = toBoundedInt(limit, 10, 1, 200);
-      const synonymMap = getSynonymMap(synonyms);
-      const expandedTokens = expandTokens(queryTokens, synonymMap);
       const effectiveWeights = getEffectiveWeights(weights);
 
       const ranked = entries
-        .map((entry) => scoreEntry(entry, expandedTokens, effectiveWeights, include_recency_bonus))
+        .map((entry) => scoreEntry(entry, queryTokens, effectiveWeights, include_recency_bonus))
         .filter((result) => result.score > 0)
-        .sort((a, b) => b.score - a.score || b.entry.dateTime.localeCompare(a.entry.dateTime))
-        .slice(0, safeLimit);
+        .sort((a, b) => b.score - a.score || b.entry.mtime - a.entry.mtime)
+        .slice(0, safeLimit)
+        .map(({ entry: { filePath: _, content: __, ...entryRest }, ...rest }) => ({
+          ...rest,
+          entry: entryRest,
+        }));
 
       return {
         content: [
           {
             type: "text" as const,
-            text: JSON.stringify(
-              {
-                query,
-                queryTokens,
-                expandedTokens,
-                totalMatches: ranked.length,
-                results: ranked,
-              },
-              null,
-              2
-            ),
+            text: JSON.stringify({ query, queryTokens, totalMatches: ranked.length, results: ranked }, null, 2),
           },
         ],
+      };
+    }
+
+    case "get_note_content": {
+      const { filename } = request.params.arguments as { filename: string };
+      const entry = entries.find((e) => e.filename === filename);
+      if (!entry) {
+        return {
+          content: [{ type: "text" as const, text: JSON.stringify({ error: `Note not found: ${filename}` }) }],
+        };
+      }
+      return {
+        content: [{ type: "text" as const, text: entry.content }],
       };
     }
 
@@ -562,3 +470,4 @@ async function main() {
 }
 
 main().catch(console.error);
+
