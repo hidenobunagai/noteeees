@@ -357,31 +357,55 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     gap: 5px;
   }
 
-  .task-check {
-    appearance: none;
-    -webkit-appearance: none;
+  .task-check-wrap {
+    display: inline-flex;
+    align-items: center;
+    flex-shrink: 0;
+    margin-top: 2px;
+    cursor: pointer;
+  }
+
+  /* Hide the native checkbox but keep it accessible */
+  .task-check-wrap input[type="checkbox"] {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+    pointer-events: none;
+  }
+
+  /* Custom checkbox box */
+  .task-check-box {
     width: 14px;
     height: 14px;
     border: 1.5px solid var(--vscode-checkbox-border, var(--vscode-foreground));
     border-radius: 3px;
     background: transparent;
-    cursor: pointer;
-    flex-shrink: 0;
-    margin-top: 2px;
     position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.1s, border-color 0.1s;
   }
-  .task-check:checked {
+
+  .task-check-wrap input[type="checkbox"]:checked + .task-check-box {
     background: var(--vscode-checkbox-background, var(--vscode-textLink-foreground));
     border-color: var(--vscode-checkbox-background, var(--vscode-textLink-foreground));
   }
-  .task-check:checked::after {
+
+  /* Checkmark using SVG-like path via clip */
+  .task-check-box::after {
     content: '';
-    position: absolute;
-    left: 2px; top: 0px;
-    width: 8px; height: 5px;
-    border-left: 2px solid white;
-    border-bottom: 2px solid white;
-    transform: rotate(-45deg);
+    display: none;
+    width: 8px;
+    height: 5px;
+    border-left: 2px solid #fff;
+    border-bottom: 2px solid #fff;
+    transform: rotate(-45deg) translateY(-1px);
+  }
+
+  .task-check-wrap input[type="checkbox"]:checked + .task-check-box::after {
+    display: block;
   }
 
   .entry-text {
@@ -405,23 +429,13 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
   /* ---- Input area ---- */
   .input-area {
     flex-shrink: 0;
-    padding: 8px 6px;
+    padding: 8px 6px 6px;
     border-top: 1px solid var(--vscode-panel-border);
     background: var(--vscode-sideBar-background, var(--vscode-editor-background));
   }
 
-  .input-row {
-    display: flex;
-    gap: 5px;
-    align-items: flex-end;
-  }
-
-  .input-wrap {
-    flex: 1;
-    position: relative;
-  }
-
   textarea {
+    display: block;
     width: 100%;
     resize: none;
     background: var(--vscode-input-background);
@@ -436,16 +450,18 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     min-height: 36px;
     max-height: 120px;
     overflow-y: auto;
+    margin-bottom: 5px;
   }
   textarea:focus {
     border-color: var(--vscode-focusBorder);
   }
   textarea::placeholder { color: var(--vscode-input-placeholderForeground); }
 
-  .btn-group {
+  /* Bottom row: task toggle (left) + send button (right) */
+  .input-actions {
     display: flex;
-    flex-direction: column;
-    gap: 4px;
+    align-items: center;
+    gap: 5px;
   }
 
   .send-btn {
@@ -453,11 +469,12 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     color: var(--vscode-button-foreground);
     border: none;
     border-radius: 5px;
-    padding: 6px 10px;
+    padding: 5px 14px;
     cursor: pointer;
     font-size: 13px;
     transition: background 0.15s;
     white-space: nowrap;
+    margin-left: auto;
   }
   .send-btn:hover { background: var(--vscode-button-hoverBackground); }
 
@@ -466,7 +483,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     border: 1px solid var(--vscode-input-border, var(--vscode-panel-border));
     color: var(--vscode-foreground);
     border-radius: 5px;
-    padding: 5px 8px;
+    padding: 4px 8px;
     cursor: pointer;
     font-size: 11px;
     opacity: 0.6;
@@ -515,14 +532,10 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
 
 <div class="input-area">
   <div id="errorBanner" style="display:none"></div>
-  <div class="input-row">
-    <div class="input-wrap">
-      <textarea id="inputBox" rows="1" placeholder="Capture a thought…"></textarea>
-    </div>
-    <div class="btn-group">
-      <button class="send-btn" id="sendBtn">&#10148;</button>
-      <button class="task-toggle" id="taskToggle" title="Toggle task mode">&#9744; Task</button>
-    </div>
+  <textarea id="inputBox" rows="1" placeholder="Capture a thought…"></textarea>
+  <div class="input-actions">
+    <button class="task-toggle" id="taskToggle" title="Toggle task mode">&#9744; Task</button>
+    <button class="send-btn" id="sendBtn">Send &#10148;</button>
   </div>
   <div class="hint" id="hintText">Enter to send · Shift+Enter for newline</div>
 </div>
@@ -531,6 +544,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
   const vscode = acquireVsCodeApi();
   let isTaskMode = false;
   let sendOnEnter = true;
+  let isComposing = false; // IME composition guard
 
   const inputBox = document.getElementById('inputBox');
   const sendBtn = document.getElementById('sendBtn');
@@ -629,14 +643,23 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
       body.className = 'entry-body';
 
       if (entry.isTask) {
+        const label = document.createElement('label');
+        label.className = 'task-check-wrap';
+        label.title = entry.done ? 'Mark as not done' : 'Mark as done';
+
         const cb = document.createElement('input');
         cb.type = 'checkbox';
-        cb.className = 'task-check';
         cb.checked = entry.done;
         cb.addEventListener('change', () => {
           vscode.postMessage({ command: 'toggleTask', index: entry.index });
         });
-        body.appendChild(cb);
+
+        const box = document.createElement('span');
+        box.className = 'task-check-box';
+
+        label.appendChild(cb);
+        label.appendChild(box);
+        body.appendChild(label);
       }
 
       const textSpan = document.createElement('span');
@@ -669,7 +692,12 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
 
   sendBtn.addEventListener('click', send);
 
+  // Track IME composition to prevent sending on Japanese/CJK Enter confirmation
+  inputBox.addEventListener('compositionstart', () => { isComposing = true; });
+  inputBox.addEventListener('compositionend', () => { isComposing = false; });
+
   inputBox.addEventListener('keydown', (e) => {
+    if (isComposing) { return; } // ignore Enter during IME composition
     if (sendOnEnter) {
       if (e.key === 'Enter' && !e.shiftKey) {
         e.preventDefault();

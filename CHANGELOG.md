@@ -4,6 +4,14 @@ All notable changes to the "notes" extension will be documented in this file.
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## [0.0.26] - 2026-03-01
+
+### Fix: Moments panel bug fixes
+
+- **Checkbox**: Task checkboxes in the timeline now display correctly and toggle properly. Replaced native `<input>` custom styling (which doesn't support `::after` in WebView) with `<label>` + hidden `<input>` + `<span>` pattern.
+- **Japanese IME**: Pressing Enter to confirm CJK input (IME composition) no longer accidentally submits the Moment. Uses `compositionstart`/`compositionend` events to guard the send handler.
+- **Layout**: Input area redesigned to vertical stack — textarea full-width on top, Task toggle + Send button in a row below. Looks correct at any sidebar width.
+
 ## [0.0.25] - 2026-03-01
 
 ### New feature: Moments
