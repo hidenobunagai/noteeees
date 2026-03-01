@@ -60,7 +60,9 @@ export class NotesTreeProvider implements vscode.TreeDataProvider<NoteTreeItem> 
     }
 
     if (element.kind === "notesRoot") {
-      const noteFiles = collectNoteFiles(notesDir, notesDir);
+      const config = vscode.workspace.getConfiguration("notes");
+      const momentsSubfolder = config.get<string>("momentsSubfolder") || "moments";
+      const noteFiles = collectNoteFiles(notesDir, notesDir, [momentsSubfolder]);
       noteFiles.sort((a, b) => b.mtime - a.mtime);
 
       return noteFiles.map((f) => {

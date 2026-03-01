@@ -2,6 +2,7 @@ import * as vscode from "vscode";
 import * as fs from "fs";
 import { NotesTreeProvider } from "./sidebarProvider";
 import { createNewNote, listNotes } from "./noteCommands";
+import { MomentsViewProvider } from "./momentsPanel";
 
 function getNotesDir(): string | undefined {
   const config = vscode.workspace.getConfiguration("notes");
@@ -44,6 +45,12 @@ export function activate(context: vscode.ExtensionContext) {
   const notesTreeProvider = new NotesTreeProvider(getNotesDir);
   vscode.window.registerTreeDataProvider("notesExplorer", notesTreeProvider);
 
+  // Register Moments webview view
+  const momentsProvider = new MomentsViewProvider(getNotesDir);
+  context.subscriptions.push(
+    vscode.window.registerWebviewViewProvider(MomentsViewProvider.viewType, momentsProvider),
+  );
+
   // Watch for new/deleted/changed .md files for sidebar refresh
   const mdWatcher = vscode.workspace.createFileSystemWatcher("**/*.md");
   mdWatcher.onDidCreate(() => notesTreeProvider.refresh());
@@ -84,6 +91,12 @@ export function activate(context: vscode.ExtensionContext) {
     await listNotes(notesDir);
   });
 
+  // Focus Moments panel command
+  const focusMomentsDisposable = vscode.commands.registerCommand("notes.focusMoments", async () => {
+    await ensureNotesDirectory();
+    await vscode.commands.executeCommand("notesMomentsView.focus");
+  });
+
   // Open Note File command (used by sidebar)
   const openNoteFileDisposable = vscode.commands.registerCommand("notes.openNoteFile", async (filePath: string) => {
     if (!filePath || !fs.existsSync(filePath)) {
@@ -98,6 +111,7 @@ export function activate(context: vscode.ExtensionContext) {
     refreshDisposable,
     newNoteDisposable,
     listNotesDisposable,
+    focusMomentsDisposable,
     openNoteFileDisposable
   );
 }

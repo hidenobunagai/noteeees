@@ -6,6 +6,35 @@ Simple markdown notes extension. Accumulate individual note files and search the
 
 ## Features
 
+### Moments
+A quick-capture timeline panel for fleeting thoughts, tasks, and ideas — always one keypress away.
+
+- **`Cmd+Shift+M`**: Open the Moments panel from the Activity Bar (⚡ lightning icon)
+- **Timeline view**: Entries displayed in chronological order with timestamps
+- **Quick input**: Type a thought, press `Enter` to save instantly
+- **Task mode**: Toggle the `Task` button to create checkable `[ ]` items; click checkboxes to mark done
+- **Date navigation**: Browse previous / next days with `◀ ▶` or jump back to Today
+- **Tag highlighting**: `#tag` tokens are rendered as color badges
+- **Open in editor**: `↗` opens the day's raw Markdown file for editing
+
+#### Storage format
+
+Each day creates a plain Markdown file at `{NotesDirectory}/moments/YYYY-MM-DD.md`:
+
+```markdown
+---
+type: moments
+date: 2026-03-01
+---
+
+- 09:15 Great idea for the API design #idea
+- [ ] 10:30 Follow up with the team #todo
+- [x] 11:00 Completed task
+- 14:22 Interesting article https://example.com
+```
+
+Moments are excluded from the regular Notes sidebar but are **fully searchable via MCP** since they're plain `.md` files.
+
 ### Individual Notes
 - **New Note** (`Cmd+Shift+N`): Create a new markdown note with configurable filename tokens
 - **Templates**: Create and use custom templates with VS Code snippets

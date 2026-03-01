@@ -4,6 +4,24 @@ All notable changes to the "notes" extension will be documented in this file.
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## [0.0.25] - 2026-03-01
+
+### New feature: Moments
+
+A quick-capture timeline panel inspired by stream-of-consciousness note-taking tools.
+- **Activity Bar entry**: A dedicated lightning-bolt icon opens the Moments panel from any context.
+- **Timeline view**: Timestamped entries displayed in chronological order (chat-style, newest at bottom).
+- **Quick input**: Type a thought and press Enter (or Cmd+Enter) to save instantly.
+- **Task support**: Toggle task mode to prefix entries with `[ ]`; click checkboxes in the timeline to mark as done.
+- **Date navigation**: Browse previous/next days with `◀ ▶` buttons or jump back to Today.
+- **Tag highlighting**: `#tag` tokens are rendered as color badges.
+- **Open in editor**: `↗` button opens the raw daily Markdown file for editing.
+- **Storage**: One file per day at `{NOTES_DIRECTORY}/moments/YYYY-MM-DD.md` (plain Markdown list).
+- **MCP-friendly**: Moments files are plain `.md` — the existing `search_notes` / `structure_search_notes` tools already find them.
+- **Configurable**: `notes.momentsSubfolder` and `notes.momentsSendOnEnter` settings added.
+- **Keybinding**: `Cmd+Shift+M` / `Ctrl+Shift+M` focuses the Moments panel.
+- Moments subfolder is excluded from the regular Notes sidebar and `listNotes` quick-pick.
+
 ## [0.0.24] - 2026-03-01
 
 ### MCP server improvements (notes-mcp v3.0.0)

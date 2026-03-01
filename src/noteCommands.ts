@@ -196,7 +196,9 @@ export async function createNewNote(notesDir: string): Promise<void> {
 }
 
 export async function listNotes(notesDir: string): Promise<void> {
-  const noteFiles = collectNoteFiles(notesDir, notesDir);
+  const config = vscode.workspace.getConfiguration("notes");
+  const momentsSubfolder = config.get<string>("momentsSubfolder") || "moments";
+  const noteFiles = collectNoteFiles(notesDir, notesDir, [momentsSubfolder]);
 
   if (noteFiles.length === 0) {
     vscode.window.showInformationMessage("No notes found.");
@@ -229,7 +231,7 @@ interface NoteFile {
   mtime: number;
 }
 
-export function collectNoteFiles(baseDir: string, currentDir: string): NoteFile[] {
+export function collectNoteFiles(baseDir: string, currentDir: string, excludeDirs: string[] = []): NoteFile[] {
   const results: NoteFile[] = [];
 
   if (!fs.existsSync(currentDir)) {
@@ -247,7 +249,11 @@ export function collectNoteFiles(baseDir: string, currentDir: string): NoteFile[
     }
 
     if (entry.isDirectory()) {
-      results.push(...collectNoteFiles(baseDir, fullPath));
+      // Skip excluded directories (e.g. the moments subfolder)
+      if (excludeDirs.includes(entry.name)) {
+        continue;
+      }
+      results.push(...collectNoteFiles(baseDir, fullPath, excludeDirs));
     } else if (entry.isFile() && entry.name.endsWith(".md")) {
       const stat = fs.statSync(fullPath);
       results.push({

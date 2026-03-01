@@ -2,7 +2,7 @@
   "name": "noteeees",
   "displayName": "Noteeees",
   "description": "Simple markdown notes extension",
-  "version": "0.0.24",
+  "version": "0.0.25",
   "publisher": "HidenobuNagai",
   "icon": "assets/icon.png",
   "repository": {
@@ -41,6 +41,10 @@
       {
         "command": "notes.listNotes",
         "title": "Noteeees Note: List"
+      },
+      {
+        "command": "notes.focusMoments",
+        "title": "Noteeees: Open Moments"
       }
     ],
     "keybindings": [
@@ -48,8 +52,22 @@
         "command": "notes.newNote",
         "key": "ctrl+shift+n",
         "mac": "cmd+shift+n"
+      },
+      {
+        "command": "notes.focusMoments",
+        "key": "ctrl+shift+m",
+        "mac": "cmd+shift+m"
       }
     ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "notesMoments",
+          "title": "Moments",
+          "icon": "assets/moments-icon.svg"
+        }
+      ]
+    },
     "views": {
       "explorer": [
         {
@@ -57,6 +75,13 @@
           "name": "Noteeees",
           "icon": "$(notebook)",
           "contextualTitle": "Memory Notes"
+        }
+      ],
+      "notesMoments": [
+        {
+          "type": "webview",
+          "id": "notesMomentsView",
+          "name": "Moments"
         }
       ]
     },
@@ -124,6 +149,17 @@
             "type": "string"
           },
           "description": "List of custom template names. Each name maps to a VS Code snippet named noteeees_template_{name}."
+        },
+        "notes.momentsSubfolder": {
+          "type": "string",
+          "default": "moments",
+          "scope": "machine",
+          "description": "Subfolder within the notes directory where Moments entries are stored. Each day creates a YYYY-MM-DD.md file."
+        },
+        "notes.momentsSendOnEnter": {
+          "type": "boolean",
+          "default": true,
+          "description": "If true, pressing Enter sends the Moment entry. Use Shift+Enter for a newline. If false, use Ctrl+Enter / Cmd+Enter to send."
         }
       }
     }
