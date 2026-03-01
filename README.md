@@ -125,18 +125,21 @@ This repository includes `notes-mcp/`, an MCP server that exposes your notes to 
 
 | Tool | Description |
 | --- | --- |
-| `search_notes` | Search across all notes by keyword, tag, or filename |
-| `get_recent_notes` | Get most recently modified notes |
+| `search_notes` | Search across all notes by keyword, tag, or filename. Returns snippet around each match. |
+| `get_recent_notes` | Get most recently modified notes (metadata only) |
 | `get_notes_by_tag` | Get all notes with a specific tag |
-| `list_tags` | List all unique tags across all notes |
-| `structure_search_notes` | Score-ranked search with tunable weights and recency bonus |
+| `get_notes_by_date` | Filter notes by date range (`from`/`to` YYYY-MM-DD) using filename date or mtime |
+| `list_notes` | Lightweight metadata-only listing of all notes (filename, title, tags, createdAt, mtime) |
+| `list_tags` | List all unique tags with usage counts sorted by frequency |
+| `structure_search_notes` | Score-ranked search with tunable weights, recency bonus, and synonym expansion |
 | `get_note_content` | Get the full content of a specific note by filename |
 
 ### What You Can Do
 
 - **Context Awareness**: "Search my notes for anything about last week's deployment."
 - **Tag-based Retrieval**: "Show me all notes tagged #todo."
-- **Smart Search**: Use `structure_search_notes` to get scored results with reasons and tunable weights.
+- **Date-based Lookup**: "Show me notes from January."
+- **Smart Search**: Use `structure_search_notes` to get scored results with reasons, synonym expansion (e.g. 経費→精算), and tunable weights.
 - **Full Content Access**: Use `get_note_content` to read a specific note in full.
 
 ### Tags
