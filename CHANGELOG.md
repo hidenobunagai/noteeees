@@ -4,6 +4,14 @@ All notable changes to the "notes" extension will be documented in this file.
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## [0.0.27] - 2026-03-02
+
+### Fix: Moments task checkbox checkmark not appearing
+
+Replaced CSS `::after` pseudo-element approach (unreliable in VS Code WebView) with
+JS-injected `✓` text inside a `.checked` class span. The checkmark now appears correctly
+when a task is marked done.
+
 ## [0.0.26] - 2026-03-01
 
 ### Fix: Moments panel bug fixes

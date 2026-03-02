@@ -381,31 +381,19 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     border: 1.5px solid var(--vscode-checkbox-border, var(--vscode-foreground));
     border-radius: 3px;
     background: transparent;
-    position: relative;
     display: flex;
     align-items: center;
     justify-content: center;
+    font-size: 10px;
+    line-height: 1;
+    color: transparent;
     transition: background 0.1s, border-color 0.1s;
   }
 
-  .task-check-wrap input[type="checkbox"]:checked + .task-check-box {
+  .task-check-box.checked {
     background: var(--vscode-checkbox-background, var(--vscode-textLink-foreground));
     border-color: var(--vscode-checkbox-background, var(--vscode-textLink-foreground));
-  }
-
-  /* Checkmark using SVG-like path via clip */
-  .task-check-box::after {
-    content: '';
-    display: none;
-    width: 8px;
-    height: 5px;
-    border-left: 2px solid #fff;
-    border-bottom: 2px solid #fff;
-    transform: rotate(-45deg) translateY(-1px);
-  }
-
-  .task-check-wrap input[type="checkbox"]:checked + .task-check-box::after {
-    display: block;
+    color: #fff;
   }
 
   .entry-text {
@@ -655,7 +643,8 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
         });
 
         const box = document.createElement('span');
-        box.className = 'task-check-box';
+        box.className = 'task-check-box' + (entry.done ? ' checked' : '');
+        box.textContent = '✓';
 
         label.appendChild(cb);
         label.appendChild(box);
