@@ -365,35 +365,23 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     cursor: pointer;
   }
 
-  /* Hide the native checkbox but keep it accessible */
-  .task-check-wrap input[type="checkbox"] {
-    position: absolute;
-    opacity: 0;
-    width: 0;
-    height: 0;
-    pointer-events: none;
-  }
-
   /* Custom checkbox box */
   .task-check-box {
-    width: 14px;
-    height: 14px;
-    border: 1.5px solid var(--vscode-checkbox-border, var(--vscode-foreground));
-    border-radius: 3px;
-    background: transparent;
-    display: flex;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
-    font-size: 10px;
+    font-size: 14px;
     line-height: 1;
-    color: transparent;
-    transition: background 0.1s, border-color 0.1s;
+    flex-shrink: 0;
+    margin-top: 1px;
+    cursor: pointer;
+    color: var(--vscode-foreground);
+    opacity: 0.6;
   }
 
   .task-check-box.checked {
-    background: var(--vscode-checkbox-background, var(--vscode-textLink-foreground));
-    border-color: var(--vscode-checkbox-background, var(--vscode-textLink-foreground));
-    color: #fff;
+    opacity: 1;
+    color: var(--vscode-textLink-foreground);
   }
 
   .entry-text {
@@ -634,19 +622,14 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
         const label = document.createElement('label');
         label.className = 'task-check-wrap';
         label.title = entry.done ? 'Mark as not done' : 'Mark as done';
-
-        const cb = document.createElement('input');
-        cb.type = 'checkbox';
-        cb.checked = entry.done;
-        cb.addEventListener('change', () => {
+        label.addEventListener('click', () => {
           vscode.postMessage({ command: 'toggleTask', index: entry.index });
         });
 
         const box = document.createElement('span');
         box.className = 'task-check-box' + (entry.done ? ' checked' : '');
-        box.textContent = '✓';
+        box.textContent = entry.done ? '☑' : '☐';
 
-        label.appendChild(cb);
         label.appendChild(box);
         body.appendChild(label);
       }

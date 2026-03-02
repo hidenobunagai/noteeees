@@ -4,43 +4,48 @@ import { NotesTreeProvider } from "./sidebarProvider";
 import { createNewNote, listNotes } from "./noteCommands";
 import { MomentsViewProvider } from "./momentsPanel";
 
-function getNotesDir(): string | undefined {
-  const config = vscode.workspace.getConfiguration("notes");
-  return config.get<string>("notesDirectory") || undefined;
-}
-
-async function selectNotesDirectory(): Promise<string | undefined> {
-  const selected = await vscode.window.showOpenDialog({
-    canSelectFiles: false,
-    canSelectFolders: true,
-    canSelectMany: false,
-    openLabel: "Select Notes Directory",
-  });
-
-  if (selected && selected[0]) {
-    const notesDir = selected[0].fsPath;
-    const config = vscode.workspace.getConfiguration("notes");
-    await config.update("notesDirectory", notesDir, vscode.ConfigurationTarget.Global);
-    return notesDir;
-  }
-  return undefined;
-}
-
-async function ensureNotesDirectory(): Promise<string | undefined> {
-  const config = vscode.workspace.getConfiguration("notes");
-  let notesDir = config.get<string>("notesDirectory");
-
-  if (!notesDir) {
-    notesDir = await selectNotesDirectory();
-    if (!notesDir) {
-      vscode.window.showErrorMessage("Notes directory is not configured. Run 'Notes: Run Setup' first.");
-      return undefined;
-    }
-  }
-  return notesDir;
-}
+const GLOBAL_STATE_KEY = "notesDirectory";
 
 export function activate(context: vscode.ExtensionContext) {
+  // Read from globalState (machine-local, never synced).
+  // Falls back to old config value for migration from older installs.
+  function getNotesDir(): string | undefined {
+    const stored = context.globalState.get<string>(GLOBAL_STATE_KEY);
+    if (stored) { return stored; }
+    // Migration: pick up value set by older extension versions via VS Code config
+    const legacy = vscode.workspace.getConfiguration("notes").get<string>("notesDirectory");
+    return legacy || undefined;
+  }
+
+  async function selectNotesDirectory(): Promise<string | undefined> {
+    const selected = await vscode.window.showOpenDialog({
+      canSelectFiles: false,
+      canSelectFolders: true,
+      canSelectMany: false,
+      openLabel: "Select Notes Directory",
+    });
+
+    if (selected && selected[0]) {
+      const notesDir = selected[0].fsPath;
+      // Store in globalState — completely local, never touched by Settings Sync
+      await context.globalState.update(GLOBAL_STATE_KEY, notesDir);
+      return notesDir;
+    }
+    return undefined;
+  }
+
+  async function ensureNotesDirectory(): Promise<string | undefined> {
+    let notesDir = getNotesDir();
+    if (!notesDir) {
+      notesDir = await selectNotesDirectory();
+      if (!notesDir) {
+        vscode.window.showErrorMessage("Notes directory is not configured. Run 'Notes: Run Setup' first.");
+        return undefined;
+      }
+    }
+    return notesDir;
+  }
+
   // Register sidebar tree view
   const notesTreeProvider = new NotesTreeProvider(getNotesDir);
   vscode.window.registerTreeDataProvider("notesExplorer", notesTreeProvider);

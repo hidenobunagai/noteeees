@@ -4,6 +4,17 @@ All notable changes to the "notes" extension will be documented in this file.
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## [0.0.28] - 2026-03-02
+
+### Fix: Task checkbox and folder sync
+
+- **Task checkbox**: Replaced CSS pseudo-element/color approach with Unicode characters
+  (`☐` = undone, `☑` = done). Completely CSS-independent, works reliably in any VS Code theme.
+- **Notes directory no longer syncs**: Folder selected via "Run Setup" is now stored in
+  `context.globalState` (VS Code extension storage, 100% machine-local, never touched by
+  Settings Sync). Previously used VS Code configuration which could sync between machines.
+  Old config values are automatically migrated on first use.
+
 ## [0.0.27] - 2026-03-02
 
 ### Fix: Moments task checkbox checkmark not appearing
