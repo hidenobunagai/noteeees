@@ -365,23 +365,10 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     cursor: pointer;
   }
 
-  /* Custom checkbox box */
   .task-check-box {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    font-size: 14px;
-    line-height: 1;
-    flex-shrink: 0;
-    margin-top: 1px;
-    cursor: pointer;
-    color: var(--vscode-foreground);
-    opacity: 0.6;
-  }
-
-  .task-check-box.checked {
-    opacity: 1;
-    color: var(--vscode-textLink-foreground);
   }
 
   .entry-text {
@@ -522,6 +509,44 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
   let sendOnEnter = true;
   let isComposing = false; // IME composition guard
 
+  /** Build an SVG checkbox icon. No font dependency — always renders correctly. */
+  function makeSvgCheckbox(done) {
+    const NS = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(NS, 'svg');
+    svg.setAttribute('width', '14');
+    svg.setAttribute('height', '14');
+    svg.setAttribute('viewBox', '0 0 14 14');
+    svg.style.display = 'block';
+
+    const rect = document.createElementNS(NS, 'rect');
+    rect.setAttribute('x', '1');
+    rect.setAttribute('y', '1');
+    rect.setAttribute('width', '12');
+    rect.setAttribute('height', '12');
+    rect.setAttribute('rx', '2.5');
+    rect.setAttribute('ry', '2.5');
+
+    if (done) {
+      rect.setAttribute('fill', 'var(--vscode-textLink-foreground)');
+      rect.setAttribute('stroke', 'var(--vscode-textLink-foreground)');
+      const tick = document.createElementNS(NS, 'polyline');
+      tick.setAttribute('points', '3.5,7.5 5.5,9.5 10.5,4.5');
+      tick.setAttribute('stroke', 'white');
+      tick.setAttribute('stroke-width', '1.8');
+      tick.setAttribute('fill', 'none');
+      tick.setAttribute('stroke-linecap', 'round');
+      tick.setAttribute('stroke-linejoin', 'round');
+      svg.appendChild(rect);
+      svg.appendChild(tick);
+    } else {
+      rect.setAttribute('fill', 'none');
+      rect.setAttribute('stroke', 'var(--vscode-foreground)');
+      rect.setAttribute('stroke-opacity', '0.45');
+      svg.appendChild(rect);
+    }
+    return svg;
+  }
+
   const inputBox = document.getElementById('inputBox');
   const sendBtn = document.getElementById('sendBtn');
   const taskToggle = document.getElementById('taskToggle');
@@ -627,8 +652,8 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
         });
 
         const box = document.createElement('span');
-        box.className = 'task-check-box' + (entry.done ? ' checked' : '');
-        box.textContent = entry.done ? '☑' : '☐';
+        box.className = 'task-check-box';
+        box.appendChild(makeSvgCheckbox(entry.done));
 
         label.appendChild(box);
         body.appendChild(label);

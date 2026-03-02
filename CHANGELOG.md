@@ -4,6 +4,16 @@ All notable changes to the "notes" extension will be documented in this file.
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## [0.0.29] - 2026-03-02
+
+### Fix: Task checkbox SVG rendering
+
+Previous Unicode character approach (`☑`/`☐`) was unreliable because VS Code WebView's
+default font does not include these characters (rendered as tofu □). Replaced with inline SVG
+drawn via `createElementNS` — completely font-independent:
+- Undone: hollow rounded square outline
+- Done: filled rounded square with white polyline checkmark
+
 ## [0.0.28] - 2026-03-02
 
 ### Fix: Task checkbox and folder sync
