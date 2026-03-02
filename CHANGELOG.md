@@ -4,6 +4,15 @@ All notable changes to the "notes" extension will be documented in this file.
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## [0.0.30] - 2026-03-02
+
+### Fix: Task toggle button checkmark
+
+The `□` in "□ Task" button was static HTML (`&#9744;`) and never changed on click.
+Only the button color changed (blue `.active` class). Fixed by:
+- Removing the static `□` from the HTML
+- Updating `textContent` in the click handler: inactive = `Task`, active = `✓ Task`
+
 ## [0.0.29] - 2026-03-02
 
 ### Fix: Task checkbox SVG rendering
