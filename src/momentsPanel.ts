@@ -51,8 +51,8 @@ function readMoments(notesDir: string, date: string): MomentEntry[] {
   if (!fs.existsSync(filePath)) {return [];}
 
   const raw = fs.readFileSync(filePath, "utf8");
-  // Strip front matter
-  const body = raw.replace(/^---\n[\s\S]*?\n---\n/, "").trim();
+  // Strip front matter only — do NOT trim, so line indices stay consistent with toggleTask
+  const body = raw.replace(/^---\n[\s\S]*?\n---\n/, "");
   const lines = body.split("\n");
   const entries: MomentEntry[] = [];
 

@@ -4,6 +4,20 @@ All notable changes to the "notes" extension will be documented in this file.
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## [0.0.31] - 2026-03-03
+
+### Fix: Task toggle (checkmark) had no effect
+
+Root cause: `ensureMomentsFile` creates files with a blank line after the front matter
+(`---\n\n`). `readMoments` called `.trim()` on the body, removing that blank line, so
+`entry.index = 0` pointed to the first task line. But `toggleTask` computed
+`fileLineIdx = bodyStart + 0` which landed on the blank line — not the task line —
+so no `[ ]` → `[x]` replacement ever happened.
+
+Fix: remove `.trim()` from body parsing in `readMoments`. Blank lines are already
+skipped in the parse loop, so `entry.index` now correctly reflects the raw body
+line position, which matches what `toggleTask` computes.
+
 ## [0.0.30] - 2026-03-02
 
 ### Fix: Task toggle button checkmark
