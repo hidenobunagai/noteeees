@@ -12,7 +12,7 @@ A quick-capture timeline panel for fleeting thoughts, tasks, and ideas — alway
 - **`Cmd+Shift+M`**: Open the Moments panel from the Activity Bar (⚡ lightning icon)
 - **Timeline view**: Entries displayed in chronological order with timestamps
 - **Quick input**: Type a thought, press `Enter` to save instantly
-- **Task mode**: Toggle the `Task` button to create checkable `[ ]` items; click checkboxes to mark done
+- **Task mode**: Toggle the `Task` button to create `[ ]` items; click the task text to mark done without changing row size
 - **Date navigation**: Browse previous / next days with `◀ ▶` or jump back to Today
 - **Tag highlighting**: `#tag` tokens are rendered as color badges
 - **Open in editor**: `↗` opens the day's raw Markdown file for editing

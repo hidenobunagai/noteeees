@@ -6,6 +6,17 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [0.0.31] - 2026-03-03
 
+## [0.0.32] - 2026-03-06
+
+### Fix: Moments task rows no longer shift on toggle
+
+Task items in the Moments timeline no longer render with a checkbox control. Instead,
+the task text itself acts as the toggle target and the done state is shown with subtle
+blue text/background treatment only. This keeps the row height and alignment stable
+when toggling a task while preserving the underlying Markdown storage format.
+
+## [0.0.31] - 2026-03-03
+
 ### Fix: Task toggle (checkmark) had no effect
 
 Root cause: `ensureMomentsFile` creates files with a blank line after the front matter

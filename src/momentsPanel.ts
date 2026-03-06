@@ -1,6 +1,6 @@
-import * as vscode from "vscode";
 import * as fs from "fs";
 import * as path from "path";
+import * as vscode from "vscode";
 
 export interface MomentEntry {
   index: number; // 0-based line index in the body
@@ -48,7 +48,9 @@ function offsetDate(date: string, days: number): string {
 
 function readMoments(notesDir: string, date: string): MomentEntry[] {
   const filePath = getMomentsFilePath(notesDir, date);
-  if (!fs.existsSync(filePath)) {return [];}
+  if (!fs.existsSync(filePath)) {
+    return [];
+  }
 
   const raw = fs.readFileSync(filePath, "utf8");
   // Strip front matter only — do NOT trim, so line indices stay consistent with toggleTask
@@ -58,7 +60,9 @@ function readMoments(notesDir: string, date: string): MomentEntry[] {
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
-    if (!line) {continue;}
+    if (!line) {
+      continue;
+    }
 
     // Task done:   - [x] HH:mm text
     // Task todo:   - [ ] HH:mm text
@@ -82,7 +86,9 @@ function readMoments(notesDir: string, date: string): MomentEntry[] {
 function ensureMomentsFile(notesDir: string, date: string): string {
   const filePath = getMomentsFilePath(notesDir, date);
   const dir = path.dirname(filePath);
-  if (!fs.existsSync(dir)) {fs.mkdirSync(dir, { recursive: true });}
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true });
+  }
 
   if (!fs.existsSync(filePath)) {
     fs.writeFileSync(filePath, `---\ntype: moments\ndate: ${date}\n---\n\n`, "utf8");
@@ -98,13 +104,17 @@ function appendMoment(notesDir: string, date: string, text: string, isTask: bool
 
   let content = fs.readFileSync(filePath, "utf8");
   // Ensure ends with newline before appending
-  if (!content.endsWith("\n")) {content += "\n";}
+  if (!content.endsWith("\n")) {
+    content += "\n";
+  }
   fs.writeFileSync(filePath, content + entry, "utf8");
 }
 
 function toggleTask(notesDir: string, date: string, index: number): void {
   const filePath = getMomentsFilePath(notesDir, date);
-  if (!fs.existsSync(filePath)) {return;}
+  if (!fs.existsSync(filePath)) {
+    return;
+  }
 
   const raw = fs.readFileSync(filePath, "utf8");
   // Preserve front matter as-is; work on full file lines
@@ -121,7 +131,9 @@ function toggleTask(notesDir: string, date: string, index: number): void {
   }
 
   const fileLineIdx = bodyStart + index;
-  if (fileLineIdx >= lines.length) {return;}
+  if (fileLineIdx >= lines.length) {
+    return;
+  }
 
   const line = lines[fileLineIdx];
   if (line.match(/^-\s+\[x\]/i)) {
@@ -179,7 +191,9 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
         }
 
         case "toggleTask": {
-          if (!notesDir) {return;}
+          if (!notesDir) {
+            return;
+          }
           toggleTask(notesDir, this._currentDate, message.index);
           this._sendEntries();
           break;
@@ -198,7 +212,9 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
         }
 
         case "openFile": {
-          if (!notesDir) {return;}
+          if (!notesDir) {
+            return;
+          }
           const filePath = getMomentsFilePath(notesDir, this._currentDate);
           if (!fs.existsSync(filePath)) {
             ensureMomentsFile(notesDir, this._currentDate);
@@ -221,7 +237,9 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
   }
 
   private _sendEntries(): void {
-    if (!this._view) {return;}
+    if (!this._view) {
+      return;
+    }
     const notesDir = this._getNotesDir();
     const entries = notesDir ? readMoments(notesDir, this._currentDate) : [];
     const today = formatDate(new Date());
