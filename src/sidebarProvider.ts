@@ -4,6 +4,7 @@ import * as vscode from "vscode";
 import { buildIndexedNotes, collectNoteFiles, type IndexedNote } from "./noteCommands";
 
 export type SidebarTagSortMode = "frequency" | "alphabetical";
+export type MoveDirection = "up" | "down";
 
 /**
  * Strip a leading date/datetime prefix from a filename stem.
@@ -46,6 +47,22 @@ export function limitSidebarNotes<T>(notes: T[], limit: number): T[] {
     return notes;
   }
   return notes.slice(0, limit);
+}
+
+export function movePinnedItem<T>(items: T[], index: number, direction: MoveDirection): T[] {
+  if (index < 0 || index >= items.length) {
+    return items;
+  }
+
+  const targetIndex = direction === "up" ? index - 1 : index + 1;
+  if (targetIndex < 0 || targetIndex >= items.length) {
+    return items;
+  }
+
+  const reordered = [...items];
+  const [item] = reordered.splice(index, 1);
+  reordered.splice(targetIndex, 0, item);
+  return reordered;
 }
 
 export function buildTagSummary(

@@ -1,11 +1,11 @@
-import { filterMomentEntries, sortOpenTaskOverview } from "../momentsPanel";
 import * as assert from "assert";
+import { filterMomentEntries, sortOpenTaskOverview } from "../momentsPanel";
 
 // You can import and use all API from the 'vscode' module
 // as well as import your extension to test it
 import * as vscode from "vscode";
 import { extractNoteMetadata, shouldPromptForTemplateSelection } from "../noteCommands";
-import { buildTagSummary, limitSidebarNotes } from "../sidebarProvider";
+import { buildTagSummary, limitSidebarNotes, movePinnedItem } from "../sidebarProvider";
 // import * as myExtension from '../../extension';
 
 suite("Extension Test Suite", () => {
@@ -45,10 +45,7 @@ suite("Extension Test Suite", () => {
 
   test("tag summary can be sorted alphabetically", () => {
     const summary = buildTagSummary(
-      [
-        { tags: ["#zeta", "#beta"] },
-        { tags: ["#alpha"] },
-      ],
+      [{ tags: ["#zeta", "#beta"] }, { tags: ["#alpha"] }],
       "alphabetical",
     );
 
@@ -62,6 +59,12 @@ suite("Extension Test Suite", () => {
   test("recent notes limit keeps newest items only", () => {
     assert.deepStrictEqual(limitSidebarNotes([1, 2, 3], 2), [1, 2]);
     assert.deepStrictEqual(limitSidebarNotes([1, 2, 3], 0), [1, 2, 3]);
+  });
+
+  test("pinned items can move up and down", () => {
+    assert.deepStrictEqual(movePinnedItem(["a", "b", "c"], 1, "up"), ["b", "a", "c"]);
+    assert.deepStrictEqual(movePinnedItem(["a", "b", "c"], 1, "down"), ["a", "c", "b"]);
+    assert.deepStrictEqual(movePinnedItem(["a", "b", "c"], 0, "up"), ["a", "b", "c"]);
   });
 
   test("open task filter keeps only unfinished tasks", () => {

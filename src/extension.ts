@@ -1,8 +1,13 @@
 import * as fs from "fs";
 import * as vscode from "vscode";
 import { MomentsViewProvider, showOpenTasksOverview } from "./momentsPanel";
-import { createNewNote, listNotes } from "./noteCommands";
-import { NotesTreeProvider, type SidebarTagSortMode } from "./sidebarProvider";
+import { buildIndexedNotes, collectNoteFiles, createNewNote, listNotes } from "./noteCommands";
+import {
+  buildTagSummary,
+  movePinnedItem,
+  NotesTreeProvider,
+  type SidebarTagSortMode,
+} from "./sidebarProvider";
 
 const LEGACY_GLOBAL_STATE_KEY = "notesDirectory";
 const PINNED_NOTES_KEY = "pinnedNotes";
@@ -25,11 +30,14 @@ export function activate(context: vscode.ExtensionContext) {
   }
 
   async function setPinnedRelativePaths(paths: string[]): Promise<void> {
-    await context.globalState.update(PINNED_NOTES_KEY, [...new Set(paths)].sort());
+    await context.globalState.update(PINNED_NOTES_KEY, [...new Set(paths)]);
   }
 
   function getSidebarTagSort(): SidebarTagSortMode {
-    return vscode.workspace.getConfiguration("notes").get<SidebarTagSortMode>("sidebarTagSort") ?? "frequency";
+    return (
+      vscode.workspace.getConfiguration("notes").get<SidebarTagSortMode>("sidebarTagSort") ??
+      "frequency"
+    );
   }
 
   async function migrateLegacyNotesDirectory(): Promise<void> {
@@ -69,6 +77,59 @@ export function activate(context: vscode.ExtensionContext) {
       }
     }
     return notesDir;
+  }
+
+  function getIndexedNotes(notesDir: string) {
+    const momentsSubfolder = vscode.workspace.getConfiguration("notes").get<string>("momentsSubfolder") || "moments";
+    const noteFiles = collectNoteFiles(notesDir, notesDir, [momentsSubfolder]);
+    return buildIndexedNotes(noteFiles).sort((a, b) => b.mtime - a.mtime);
+  }
+
+  async function searchTags(notesDir: string): Promise<void> {
+    const indexedNotes = getIndexedNotes(notesDir);
+    const tags = buildTagSummary(indexedNotes.map((note) => ({ tags: note.metadata.tags })), getSidebarTagSort());
+
+    if (tags.length === 0) {
+      vscode.window.showInformationMessage("No tags found.");
+      return;
+    }
+
+    const selectedTag = await vscode.window.showQuickPick(
+      tags.map(({ tag, count }) => ({
+        label: tag,
+        description: `${count} note${count === 1 ? "" : "s"}`,
+      })),
+      {
+        placeHolder: "Search tags",
+        matchOnDescription: true,
+      },
+    );
+
+    if (!selectedTag) {
+      return;
+    }
+
+    const matchingNotes = indexedNotes.filter((note) => note.metadata.tags.includes(selectedTag.label));
+    const selectedNote = await vscode.window.showQuickPick(
+      matchingNotes.map((note) => ({
+        label: `$(file) ${note.metadata.title}`,
+        description: note.relativePath,
+        detail: `Updated ${new Date(note.mtime).toLocaleString()}`,
+        filePath: note.absolutePath,
+      })),
+      {
+        placeHolder: `Notes tagged ${selectedTag.label}`,
+        matchOnDescription: true,
+        matchOnDetail: true,
+      },
+    );
+
+    if (!selectedNote) {
+      return;
+    }
+
+    const doc = await vscode.workspace.openTextDocument(selectedNote.filePath);
+    await vscode.window.showTextDocument(doc);
   }
 
   // Register sidebar tree view
@@ -123,17 +184,28 @@ export function activate(context: vscode.ExtensionContext) {
     notesTreeProvider.refresh();
   });
 
-  const toggleTagSortDisposable = vscode.commands.registerCommand("notes.toggleTagSort", async () => {
-    const nextMode: SidebarTagSortMode = getSidebarTagSort() === "frequency"
-      ? "alphabetical"
-      : "frequency";
+  const toggleTagSortDisposable = vscode.commands.registerCommand(
+    "notes.toggleTagSort",
+    async () => {
+      const nextMode: SidebarTagSortMode =
+        getSidebarTagSort() === "frequency" ? "alphabetical" : "frequency";
 
-    await vscode.workspace
-      .getConfiguration("notes")
-      .update("sidebarTagSort", nextMode, vscode.ConfigurationTarget.Global);
+      await vscode.workspace
+        .getConfiguration("notes")
+        .update("sidebarTagSort", nextMode, vscode.ConfigurationTarget.Global);
 
-    notesTreeProvider.refresh();
-    vscode.window.showInformationMessage(`Sidebar tag sort: ${nextMode}`);
+      notesTreeProvider.refresh();
+      vscode.window.showInformationMessage(`Sidebar tag sort: ${nextMode}`);
+    },
+  );
+
+  const searchTagsDisposable = vscode.commands.registerCommand("notes.searchTags", async () => {
+    const notesDir = await ensureNotesDirectory();
+    if (!notesDir) {
+      return;
+    }
+
+    await searchTags(notesDir);
   });
 
   // New Note command
@@ -206,7 +278,39 @@ export function activate(context: vscode.ExtensionContext) {
         return;
       }
 
-      await setPinnedRelativePaths(getPinnedRelativePaths().filter((path) => path !== relativePath));
+      await setPinnedRelativePaths(
+        getPinnedRelativePaths().filter((path) => path !== relativePath),
+      );
+      notesTreeProvider.refresh();
+    },
+  );
+
+  const movePinnedNoteUpDisposable = vscode.commands.registerCommand(
+    "notes.movePinnedNoteUp",
+    async (item?: { relativePath?: string }) => {
+      const relativePath = item?.relativePath;
+      if (!relativePath) {
+        return;
+      }
+
+      const current = getPinnedRelativePaths();
+      const index = current.indexOf(relativePath);
+      await setPinnedRelativePaths(movePinnedItem(current, index, "up"));
+      notesTreeProvider.refresh();
+    },
+  );
+
+  const movePinnedNoteDownDisposable = vscode.commands.registerCommand(
+    "notes.movePinnedNoteDown",
+    async (item?: { relativePath?: string }) => {
+      const relativePath = item?.relativePath;
+      if (!relativePath) {
+        return;
+      }
+
+      const current = getPinnedRelativePaths();
+      const index = current.indexOf(relativePath);
+      await setPinnedRelativePaths(movePinnedItem(current, index, "down"));
       notesTreeProvider.refresh();
     },
   );
@@ -216,6 +320,7 @@ export function activate(context: vscode.ExtensionContext) {
     runSetupDisposable,
     refreshDisposable,
     toggleTagSortDisposable,
+    searchTagsDisposable,
     newNoteDisposable,
     listNotesDisposable,
     focusMomentsDisposable,
@@ -223,6 +328,8 @@ export function activate(context: vscode.ExtensionContext) {
     openNoteFileDisposable,
     pinNoteDisposable,
     unpinNoteDisposable,
+    movePinnedNoteUpDisposable,
+    movePinnedNoteDownDisposable,
   );
 }
 

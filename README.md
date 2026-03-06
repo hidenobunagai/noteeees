@@ -45,8 +45,9 @@ Moments are excluded from the regular Notes sidebar but are **fully searchable v
 
 ### Sidebar
 - **Pinned**: Pin frequently used notes from the sidebar context menu
+- **Pinned ordering**: Move pinned notes up or down from the sidebar context menu
 - **Recent**: Browse your latest notes with a configurable item limit
-- **Tags**: Open notes grouped by tag, with usage counts in the sidebar and toggle sort order
+- **Tags**: Open notes grouped by tag, with usage counts in the sidebar, toggle sort order, and search tags directly
 
 ## Usage
 

@@ -51,6 +51,11 @@
         "title": "Noteeees Moments: Show Open Tasks Overview"
       },
       {
+        "command": "notes.searchTags",
+        "title": "Noteeees Sidebar: Search Tags",
+        "icon": "$(tag)"
+      },
+      {
         "command": "notes.toggleTagSort",
         "title": "Noteeees Sidebar: Toggle Tag Sort",
         "icon": "$(arrow-swap)"
@@ -62,6 +67,14 @@
       {
         "command": "notes.unpinNote",
         "title": "Unpin Note"
+      },
+      {
+        "command": "notes.movePinnedNoteUp",
+        "title": "Move Pinned Note Up"
+      },
+      {
+        "command": "notes.movePinnedNoteDown",
+        "title": "Move Pinned Note Down"
       }
     ],
     "keybindings": [
@@ -110,14 +123,19 @@
           "group": "navigation@1"
         },
         {
-          "command": "notes.toggleTagSort",
+          "command": "notes.searchTags",
           "when": "view == notesExplorer",
           "group": "navigation@2"
         },
         {
-          "command": "notes.refreshSidebar",
+          "command": "notes.toggleTagSort",
           "when": "view == notesExplorer",
           "group": "navigation@3"
+        },
+        {
+          "command": "notes.refreshSidebar",
+          "when": "view == notesExplorer",
+          "group": "navigation@4"
         }
       ],
       "view/item/context": [
@@ -130,6 +148,16 @@
           "command": "notes.unpinNote",
           "when": "view == notesExplorer && viewItem == pinnedNoteFile",
           "group": "inline"
+        },
+        {
+          "command": "notes.movePinnedNoteUp",
+          "when": "view == notesExplorer && viewItem == pinnedNoteFile",
+          "group": "navigation@1"
+        },
+        {
+          "command": "notes.movePinnedNoteDown",
+          "when": "view == notesExplorer && viewItem == pinnedNoteFile",
+          "group": "navigation@2"
         }
       ]
     },
