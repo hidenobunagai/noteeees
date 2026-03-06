@@ -39,7 +39,7 @@ Moments are excluded from the regular Notes sidebar but are **fully searchable v
 - **New Note** (`Cmd+Shift+N`): Create a new markdown note with configurable filename tokens
 - **Templates**: Create and use custom templates with VS Code snippets
 - **Subfolder Support**: Use `/` in title to auto-create subfolders (e.g., `projects/MyNote`)
-- **List Notes**: Browse all notes sorted by modification date
+- **Search Notes**: Search notes by title, path, or tag from the command palette
 
 ### Sidebar
 - **Notes**: Browse individual note files sorted by modification date
@@ -106,7 +106,7 @@ Templates use **VS Code snippets**. When you create a new note, the configured s
 }
 ```
 
-When `notes.templates` is set, a picker will appear on note creation to choose between the default and custom templates.
+When `notes.templates` is set, a picker will appear on note creation to choose between the default, empty note, and custom templates. If no custom templates are configured, Noteeees creates the note immediately with the default snippet.
 
 ## Settings
 

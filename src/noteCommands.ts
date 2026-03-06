@@ -13,6 +13,11 @@ interface FilenameToken {
   format: string;
 }
 
+interface NoteMetadata {
+  title: string;
+  tags: string[];
+}
+
 const DEFAULT_TOKENS: FilenameToken[] = [
   { type: "datetime", token: "{dt}", format: "YYYY-MM-DD_HH-mm" },
   { type: "title", token: "{title}", format: "Untitled" },
@@ -111,6 +116,40 @@ async function insertSnippetByName(
 
 export function shouldPromptForTemplateSelection(templates: string[]): boolean {
   return templates.length > 0;
+}
+
+function extractFrontMatterTags(rawContent: string): string[] {
+  const fmMatch = rawContent.match(/^---\s*\n([\s\S]*?)\n---/);
+  if (!fmMatch) {
+    return [];
+  }
+
+  const tagsLine = fmMatch[1].match(/^tags\s*:\s*(.+)$/m);
+  if (!tagsLine) {
+    return [];
+  }
+
+  const raw = tagsLine[1].replace(/[\[\]]/g, "");
+  return raw
+    .split(",")
+    .map((tag) => tag.trim())
+    .filter((tag) => tag.length > 0)
+    .map((tag) => (tag.startsWith("#") ? tag : `#${tag}`));
+}
+
+function extractInlineTags(rawContent: string): string[] {
+  return [...new Set(rawContent.match(/#[\w-]+/g) || [])];
+}
+
+export function extractNoteMetadata(rawContent: string, fallbackTitle: string): NoteMetadata {
+  const headingMatch = rawContent.match(/^#\s+(.+)$/m);
+  const title = headingMatch?.[1]?.trim() || fallbackTitle;
+  const tags = [...new Set([...extractFrontMatterTags(rawContent), ...extractInlineTags(rawContent)])];
+  return { title, tags };
+}
+
+function formatModifiedAt(mtime: number): string {
+  return new Date(mtime).toLocaleString();
 }
 
 export async function createNewNote(notesDir: string): Promise<void> {
@@ -221,17 +260,31 @@ export async function listNotes(notesDir: string): Promise<void> {
   // Sort by modification time, newest first
   noteFiles.sort((a, b) => b.mtime - a.mtime);
 
-  const items: vscode.QuickPickItem[] = noteFiles.map((f) => ({
-    label: `$(file) ${f.relativePath}`,
-    description: new Date(f.mtime).toLocaleDateString(),
-  }));
+  const items: vscode.QuickPickItem[] = noteFiles.map((f) => {
+    const rawContent = fs.readFileSync(f.absolutePath, "utf8");
+    const fallbackTitle = path.basename(f.relativePath, ".md");
+    const metadata = extractNoteMetadata(rawContent, fallbackTitle);
+    const details = [`Updated ${formatModifiedAt(f.mtime)}`];
+
+    if (metadata.tags.length > 0) {
+      details.unshift(metadata.tags.join(" "));
+    }
+
+    return {
+      label: `$(file) ${metadata.title}`,
+      description: f.relativePath,
+      detail: details.join("  •  "),
+    };
+  });
 
   const selected = await vscode.window.showQuickPick(items, {
-    placeHolder: `${noteFiles.length} notes found`,
+    placeHolder: `${noteFiles.length} notes found. Search by title, path, or tag.`,
+    matchOnDescription: true,
+    matchOnDetail: true,
   });
 
   if (selected) {
-    const relativePath = selected.label.replace("$(file) ", "");
+    const relativePath = selected.description || selected.label.replace("$(file) ", "");
     const filePath = path.join(notesDir, relativePath);
     const doc = await vscode.workspace.openTextDocument(filePath);
     await vscode.window.showTextDocument(doc);

@@ -40,7 +40,7 @@
       },
       {
         "command": "notes.listNotes",
-        "title": "Noteeees Note: List"
+        "title": "Noteeees Note: Search"
       },
       {
         "command": "notes.focusMoments",
