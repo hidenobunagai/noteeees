@@ -43,6 +43,22 @@ suite("Extension Test Suite", () => {
     ]);
   });
 
+  test("tag summary can be sorted alphabetically", () => {
+    const summary = buildTagSummary(
+      [
+        { tags: ["#zeta", "#beta"] },
+        { tags: ["#alpha"] },
+      ],
+      "alphabetical",
+    );
+
+    assert.deepStrictEqual(summary, [
+      { tag: "#alpha", count: 1 },
+      { tag: "#beta", count: 1 },
+      { tag: "#zeta", count: 1 },
+    ]);
+  });
+
   test("recent notes limit keeps newest items only", () => {
     assert.deepStrictEqual(limitSidebarNotes([1, 2, 3], 2), [1, 2]);
     assert.deepStrictEqual(limitSidebarNotes([1, 2, 3], 0), [1, 2, 3]);

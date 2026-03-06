@@ -2,9 +2,10 @@ import * as fs from "fs";
 import * as vscode from "vscode";
 import { MomentsViewProvider } from "./momentsPanel";
 import { createNewNote, listNotes } from "./noteCommands";
-import { NotesTreeProvider } from "./sidebarProvider";
+import { NotesTreeProvider, type SidebarTagSortMode } from "./sidebarProvider";
 
 const LEGACY_GLOBAL_STATE_KEY = "notesDirectory";
+const PINNED_NOTES_KEY = "pinnedNotes";
 
 export function activate(context: vscode.ExtensionContext) {
   function getNotesDir(): string | undefined {
@@ -17,6 +18,18 @@ export function activate(context: vscode.ExtensionContext) {
       .getConfiguration("notes")
       .update("notesDirectory", notesDir, vscode.ConfigurationTarget.Global);
     await context.globalState.update(LEGACY_GLOBAL_STATE_KEY, undefined);
+  }
+
+  function getPinnedRelativePaths(): string[] {
+    return context.globalState.get<string[]>(PINNED_NOTES_KEY) ?? [];
+  }
+
+  async function setPinnedRelativePaths(paths: string[]): Promise<void> {
+    await context.globalState.update(PINNED_NOTES_KEY, [...new Set(paths)].sort());
+  }
+
+  function getSidebarTagSort(): SidebarTagSortMode {
+    return vscode.workspace.getConfiguration("notes").get<SidebarTagSortMode>("sidebarTagSort") ?? "frequency";
   }
 
   async function migrateLegacyNotesDirectory(): Promise<void> {
@@ -59,7 +72,11 @@ export function activate(context: vscode.ExtensionContext) {
   }
 
   // Register sidebar tree view
-  const notesTreeProvider = new NotesTreeProvider(getNotesDir);
+  const notesTreeProvider = new NotesTreeProvider(
+    getNotesDir,
+    getPinnedRelativePaths,
+    getSidebarTagSort,
+  );
   vscode.window.registerTreeDataProvider("notesExplorer", notesTreeProvider);
 
   // Register Moments webview view
@@ -83,7 +100,9 @@ export function activate(context: vscode.ExtensionContext) {
   const configChangeDisposable = vscode.workspace.onDidChangeConfiguration((event) => {
     if (
       event.affectsConfiguration("notes.notesDirectory") ||
-      event.affectsConfiguration("notes.momentsSubfolder")
+      event.affectsConfiguration("notes.momentsSubfolder") ||
+      event.affectsConfiguration("notes.sidebarRecentLimit") ||
+      event.affectsConfiguration("notes.sidebarTagSort")
     ) {
       notesTreeProvider.refresh();
       momentsProvider.refresh();
@@ -102,6 +121,19 @@ export function activate(context: vscode.ExtensionContext) {
   // Refresh sidebar command
   const refreshDisposable = vscode.commands.registerCommand("notes.refreshSidebar", () => {
     notesTreeProvider.refresh();
+  });
+
+  const toggleTagSortDisposable = vscode.commands.registerCommand("notes.toggleTagSort", async () => {
+    const nextMode: SidebarTagSortMode = getSidebarTagSort() === "frequency"
+      ? "alphabetical"
+      : "frequency";
+
+    await vscode.workspace
+      .getConfiguration("notes")
+      .update("sidebarTagSort", nextMode, vscode.ConfigurationTarget.Global);
+
+    notesTreeProvider.refresh();
+    vscode.window.showInformationMessage(`Sidebar tag sort: ${nextMode}`);
   });
 
   // New Note command
@@ -141,14 +173,43 @@ export function activate(context: vscode.ExtensionContext) {
     },
   );
 
+  const pinNoteDisposable = vscode.commands.registerCommand(
+    "notes.pinNote",
+    async (item?: { relativePath?: string }) => {
+      const relativePath = item?.relativePath;
+      if (!relativePath) {
+        return;
+      }
+
+      await setPinnedRelativePaths([...getPinnedRelativePaths(), relativePath]);
+      notesTreeProvider.refresh();
+    },
+  );
+
+  const unpinNoteDisposable = vscode.commands.registerCommand(
+    "notes.unpinNote",
+    async (item?: { relativePath?: string }) => {
+      const relativePath = item?.relativePath;
+      if (!relativePath) {
+        return;
+      }
+
+      await setPinnedRelativePaths(getPinnedRelativePaths().filter((path) => path !== relativePath));
+      notesTreeProvider.refresh();
+    },
+  );
+
   context.subscriptions.push(
     configChangeDisposable,
     runSetupDisposable,
     refreshDisposable,
+    toggleTagSortDisposable,
     newNoteDisposable,
     listNotesDisposable,
     focusMomentsDisposable,
     openNoteFileDisposable,
+    pinNoteDisposable,
+    unpinNoteDisposable,
   );
 }
 

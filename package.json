@@ -45,6 +45,19 @@
       {
         "command": "notes.focusMoments",
         "title": "Noteeees: Open Moments"
+      },
+      {
+        "command": "notes.toggleTagSort",
+        "title": "Noteeees Sidebar: Toggle Tag Sort",
+        "icon": "$(arrow-swap)"
+      },
+      {
+        "command": "notes.pinNote",
+        "title": "Pin Note"
+      },
+      {
+        "command": "notes.unpinNote",
+        "title": "Unpin Note"
       }
     ],
     "keybindings": [
@@ -93,9 +106,26 @@
           "group": "navigation@1"
         },
         {
-          "command": "notes.refreshSidebar",
+          "command": "notes.toggleTagSort",
           "when": "view == notesExplorer",
           "group": "navigation@2"
+        },
+        {
+          "command": "notes.refreshSidebar",
+          "when": "view == notesExplorer",
+          "group": "navigation@3"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "notes.pinNote",
+          "when": "view == notesExplorer && viewItem == noteFile",
+          "group": "inline"
+        },
+        {
+          "command": "notes.unpinNote",
+          "when": "view == notesExplorer && viewItem == pinnedNoteFile",
+          "group": "inline"
         }
       ]
     },
@@ -160,6 +190,15 @@
           "default": 20,
           "minimum": 0,
           "description": "Number of notes shown in the Recent section of the sidebar. Set to 0 to show all notes."
+        },
+        "notes.sidebarTagSort": {
+          "type": "string",
+          "default": "frequency",
+          "enum": [
+            "frequency",
+            "alphabetical"
+          ],
+          "description": "Sort mode for the Tags section in the sidebar."
         },
         "notes.momentsSubfolder": {
           "type": "string",

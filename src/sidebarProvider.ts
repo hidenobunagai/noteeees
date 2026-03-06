@@ -3,6 +3,8 @@ import * as path from "path";
 import * as vscode from "vscode";
 import { buildIndexedNotes, collectNoteFiles, type IndexedNote } from "./noteCommands";
 
+export type SidebarTagSortMode = "frequency" | "alphabetical";
+
 /**
  * Strip a leading date/datetime prefix from a filename stem.
  * Recognised patterns (separator = '-' or '_'):
@@ -24,8 +26,9 @@ function stripDatePrefix(basename: string): { title: string; datePrefix: string 
 }
 
 interface NoteTreeItem extends vscode.TreeItem {
-  kind: "recentRoot" | "tagsRoot" | "tagGroup" | "noteFile";
+  kind: "pinnedRoot" | "recentRoot" | "tagsRoot" | "tagGroup" | "noteFile";
   filePath?: string;
+  relativePath?: string;
   tag?: string;
 }
 
@@ -47,6 +50,7 @@ export function limitSidebarNotes<T>(notes: T[], limit: number): T[] {
 
 export function buildTagSummary(
   notes: Array<{ tags: string[] }>,
+  sortMode: SidebarTagSortMode = "frequency",
 ): Array<{ tag: string; count: number }> {
   const counts = new Map<string, number>();
 
@@ -56,9 +60,13 @@ export function buildTagSummary(
     }
   }
 
-  return [...counts.entries()]
-    .map(([tag, count]) => ({ tag, count }))
-    .sort((a, b) => b.count - a.count || a.tag.localeCompare(b.tag));
+  const summary = [...counts.entries()].map(([tag, count]) => ({ tag, count }));
+
+  if (sortMode === "alphabetical") {
+    return summary.sort((a, b) => a.tag.localeCompare(b.tag));
+  }
+
+  return summary.sort((a, b) => b.count - a.count || a.tag.localeCompare(b.tag));
 }
 
 function getRecentNotesLimit(): number {
@@ -74,7 +82,11 @@ export class NotesTreeProvider implements vscode.TreeDataProvider<NoteTreeItem> 
   private _onDidChangeTreeData = new vscode.EventEmitter<NoteTreeItem | undefined>();
   readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
 
-  constructor(private getNotesDir: () => string | undefined) {}
+  constructor(
+    private getNotesDir: () => string | undefined,
+    private getPinnedRelativePaths: () => string[],
+    private getTagSortMode: () => SidebarTagSortMode,
+  ) {}
 
   refresh(): void {
     this._onDidChangeTreeData.fire(undefined);
@@ -91,8 +103,23 @@ export class NotesTreeProvider implements vscode.TreeDataProvider<NoteTreeItem> 
       return [];
     }
 
+    const notes = this._getSidebarNotes(notesDir);
+    const pinnedRelativePaths = new Set(this.getPinnedRelativePaths());
+    const pinnedNotes = notes.filter((note) => pinnedRelativePaths.has(note.relativePath));
+    const unpinnedNotes = notes.filter((note) => !pinnedRelativePaths.has(note.relativePath));
+
     if (!element) {
       return [
+        ...(pinnedNotes.length > 0
+          ? [
+              {
+                label: "Pinned",
+                kind: "pinnedRoot" as const,
+                collapsibleState: vscode.TreeItemCollapsibleState.Expanded,
+                iconPath: new vscode.ThemeIcon("pin"),
+              },
+            ]
+          : []),
         {
           label: "Recent",
           kind: "recentRoot",
@@ -108,14 +135,18 @@ export class NotesTreeProvider implements vscode.TreeDataProvider<NoteTreeItem> 
       ];
     }
 
-    const notes = this._getSidebarNotes(notesDir);
+    if (element.kind === "pinnedRoot") {
+      return pinnedNotes.map((note) => this._createNoteTreeItem(note));
+    }
 
     if (element.kind === "recentRoot") {
-      return limitSidebarNotes(notes, getRecentNotesLimit()).map((note) => this._createNoteTreeItem(note));
+      return limitSidebarNotes(unpinnedNotes, getRecentNotesLimit()).map((note) =>
+        this._createNoteTreeItem(note),
+      );
     }
 
     if (element.kind === "tagsRoot") {
-      return buildTagSummary(notes).map(({ tag, count }) => ({
+      return buildTagSummary(notes, this.getTagSortMode()).map(({ tag, count }) => ({
         label: tag,
         description: formatTagCount(count),
         tooltip: `${formatTagCount(count)} tagged ${tag}`,
@@ -168,6 +199,7 @@ export class NotesTreeProvider implements vscode.TreeDataProvider<NoteTreeItem> 
     const tagDescription = activeTag
       ? [note.relativePath, new Date(note.mtime).toLocaleDateString()].join(" • ")
       : note.description;
+    const pinned = this.getPinnedRelativePaths().includes(note.relativePath);
 
     return {
       label: note.title,
@@ -175,8 +207,10 @@ export class NotesTreeProvider implements vscode.TreeDataProvider<NoteTreeItem> 
       tooltip: this._buildTooltip(note),
       kind: "noteFile",
       filePath: note.absolutePath,
+      relativePath: note.relativePath,
+      contextValue: pinned ? "pinnedNoteFile" : "noteFile",
       collapsibleState: vscode.TreeItemCollapsibleState.None,
-      iconPath: new vscode.ThemeIcon("file"),
+      iconPath: new vscode.ThemeIcon(pinned ? "pin" : "file"),
       command: {
         command: "notes.openNoteFile",
         title: "Open Note",
