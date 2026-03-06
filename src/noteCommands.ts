@@ -109,6 +109,10 @@ async function insertSnippetByName(
   }
 }
 
+export function shouldPromptForTemplateSelection(templates: string[]): boolean {
+  return templates.length > 0;
+}
+
 export async function createNewNote(notesDir: string): Promise<void> {
   // Step 1: Ask for note title
   const titleInput = await vscode.window.showInputBox({
@@ -163,7 +167,16 @@ export async function createNewNote(notesDir: string): Promise<void> {
   const defaultSnippet = config.get<{ langId: string; name: string }>("defaultSnippet");
   const templates = config.get<string[]>("templates") || [];
 
-  // Always show template picker so the user can choose Default, Empty, or a custom template
+  if (!shouldPromptForTemplateSelection(templates)) {
+    if (defaultSnippet?.name) {
+      const langId = defaultSnippet.langId || "markdown";
+      await insertSnippetByName(editor, langId, defaultSnippet.name);
+    }
+    vscode.window.showInformationMessage(`Note created: ${filename}`);
+    return;
+  }
+
+  // Show the picker only when custom templates are configured.
   const templateItems: vscode.QuickPickItem[] = [
     { label: "$(file) Default", description: "Use default template" },
     { label: "$(file-text) Empty", description: "No template" },
