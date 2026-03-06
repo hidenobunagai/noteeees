@@ -155,6 +155,12 @@
           },
           "description": "List of custom template names. Each name maps to a VS Code snippet named noteeees_template_{name}."
         },
+        "notes.sidebarRecentLimit": {
+          "type": "number",
+          "default": 20,
+          "minimum": 0,
+          "description": "Number of notes shown in the Recent section of the sidebar. Set to 0 to show all notes."
+        },
         "notes.momentsSubfolder": {
           "type": "string",
           "default": "moments",

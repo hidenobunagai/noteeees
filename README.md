@@ -42,7 +42,8 @@ Moments are excluded from the regular Notes sidebar but are **fully searchable v
 - **Search Notes**: Search notes by title, path, or tag from the command palette
 
 ### Sidebar
-- **Notes**: Browse individual note files sorted by modification date
+- **Recent**: Browse your latest notes with a configurable item limit
+- **Tags**: Open notes grouped by tag, with usage counts in the sidebar
 
 ## Usage
 
@@ -119,6 +120,7 @@ When `notes.templates` is set, a picker will appear on note creation to choose b
 | `notes.noteTitleConvertSpaces` | Character to replace spaces (default: `_`) |
 | `notes.defaultSnippet` | Default snippet to insert (`{ langId, name }`) |
 | `notes.templates` | Custom template names (maps to `noteeees_template_{name}` snippets) |
+| `notes.sidebarRecentLimit` | Number of notes shown in the sidebar Recent section (`0` = all) |
 
 ## Supercharge with MCP
 

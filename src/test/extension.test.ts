@@ -4,7 +4,7 @@ import * as assert from "assert";
 // as well as import your extension to test it
 import * as vscode from "vscode";
 import { extractNoteMetadata, shouldPromptForTemplateSelection } from "../noteCommands";
-import { buildTagSummary } from "../sidebarProvider";
+import { buildTagSummary, limitSidebarNotes } from "../sidebarProvider";
 // import * as myExtension from '../../extension';
 
 suite("Extension Test Suite", () => {
@@ -40,5 +40,10 @@ suite("Extension Test Suite", () => {
       { tag: "#project", count: 1 },
       { tag: "#review", count: 1 },
     ]);
+  });
+
+  test("recent notes limit keeps newest items only", () => {
+    assert.deepStrictEqual(limitSidebarNotes([1, 2, 3], 2), [1, 2]);
+    assert.deepStrictEqual(limitSidebarNotes([1, 2, 3], 0), [1, 2, 3]);
   });
 });

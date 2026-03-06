@@ -38,7 +38,16 @@ interface SidebarNoteItem {
   description?: string;
 }
 
-export function buildTagSummary(notes: Array<{ tags: string[] }>): Array<{ tag: string; count: number }> {
+export function limitSidebarNotes<T>(notes: T[], limit: number): T[] {
+  if (limit <= 0) {
+    return notes;
+  }
+  return notes.slice(0, limit);
+}
+
+export function buildTagSummary(
+  notes: Array<{ tags: string[] }>,
+): Array<{ tag: string; count: number }> {
   const counts = new Map<string, number>();
 
   for (const note of notes) {
@@ -50,6 +59,15 @@ export function buildTagSummary(notes: Array<{ tags: string[] }>): Array<{ tag: 
   return [...counts.entries()]
     .map(([tag, count]) => ({ tag, count }))
     .sort((a, b) => b.count - a.count || a.tag.localeCompare(b.tag));
+}
+
+function getRecentNotesLimit(): number {
+  const config = vscode.workspace.getConfiguration("notes");
+  return Math.max(0, config.get<number>("sidebarRecentLimit") ?? 20);
+}
+
+function formatTagCount(count: number): string {
+  return `${count} note${count === 1 ? "" : "s"}`;
 }
 
 export class NotesTreeProvider implements vscode.TreeDataProvider<NoteTreeItem> {
@@ -93,14 +111,14 @@ export class NotesTreeProvider implements vscode.TreeDataProvider<NoteTreeItem> 
     const notes = this._getSidebarNotes(notesDir);
 
     if (element.kind === "recentRoot") {
-      return notes.map((note) => this._createNoteTreeItem(note));
+      return limitSidebarNotes(notes, getRecentNotesLimit()).map((note) => this._createNoteTreeItem(note));
     }
 
     if (element.kind === "tagsRoot") {
       return buildTagSummary(notes).map(({ tag, count }) => ({
         label: tag,
-        description: `${count}`,
-        tooltip: `${count} notes tagged ${tag}`,
+        description: formatTagCount(count),
+        tooltip: `${formatTagCount(count)} tagged ${tag}`,
         tag,
         kind: "tagGroup" as const,
         collapsibleState: vscode.TreeItemCollapsibleState.Collapsed,
@@ -131,12 +149,10 @@ export class NotesTreeProvider implements vscode.TreeDataProvider<NoteTreeItem> 
   private _toSidebarNoteItem(note: IndexedNote): SidebarNoteItem {
     const basename = path.basename(note.relativePath, ".md");
     const fallback = stripDatePrefix(basename);
-    const subDir = note.relativePath.includes(path.sep) ? path.dirname(note.relativePath) : undefined;
+    const subDir = note.relativePath.includes(path.sep)
+      ? path.dirname(note.relativePath)
+      : undefined;
     const descParts = [subDir].filter(Boolean);
-
-    if (note.metadata.tags.length > 0) {
-      descParts.push(note.metadata.tags.slice(0, 2).join(" "));
-    }
 
     return {
       title: note.metadata.title || fallback.title,
@@ -150,7 +166,7 @@ export class NotesTreeProvider implements vscode.TreeDataProvider<NoteTreeItem> 
 
   private _createNoteTreeItem(note: SidebarNoteItem, activeTag?: string): NoteTreeItem {
     const tagDescription = activeTag
-      ? note.relativePath
+      ? [note.relativePath, new Date(note.mtime).toLocaleDateString()].join(" • ")
       : note.description;
 
     return {
@@ -176,6 +192,8 @@ export class NotesTreeProvider implements vscode.TreeDataProvider<NoteTreeItem> 
       lines.push(note.tags.join(" "));
     }
 
+    lines.push(`Updated ${new Date(note.mtime).toLocaleString()}`);
+
     const raw = fs.readFileSync(note.absolutePath, "utf8");
     const preview = raw.replace(/^---\s*\n[\s\S]*?\n---\s*\n?/, "").trim();
     if (preview.length > 0) {
@@ -185,4 +203,3 @@ export class NotesTreeProvider implements vscode.TreeDataProvider<NoteTreeItem> 
     return lines.join("\n");
   }
 }
-
