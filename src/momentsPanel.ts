@@ -358,19 +358,45 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
   }
   .entry:hover { background: var(--vscode-list-hoverBackground); }
 
-  .entry.is-task .entry-text {
-    cursor: pointer;
+  .task-check {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    margin-top: 1px;
     border-radius: 4px;
-    outline: none;
-  }
-
-  .entry.is-task .entry-text:hover {
+    border: 1px solid var(--vscode-input-border, var(--vscode-panel-border));
+    background: transparent;
     color: var(--vscode-textLink-foreground);
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: border-color 0.15s, background 0.15s, color 0.15s;
   }
 
-  .entry.is-task .entry-text:focus-visible {
+  .task-check:hover {
+    border-color: var(--vscode-textLink-foreground);
+    background: color-mix(in srgb, var(--vscode-textLink-foreground) 10%, transparent);
+  }
+
+  .task-check:focus-visible {
     outline: 1px solid var(--vscode-focusBorder);
     outline-offset: 2px;
+  }
+
+  .task-check-icon {
+    font-size: 11px;
+    line-height: 1;
+    opacity: 0;
+  }
+
+  .entry.is-task.task-done .task-check {
+    border-color: color-mix(in srgb, var(--vscode-textLink-foreground) 40%, var(--vscode-panel-border));
+    background: color-mix(in srgb, var(--vscode-textLink-foreground) 18%, transparent);
+  }
+
+  .entry.is-task.task-done .task-check-icon {
+    opacity: 1;
   }
 
   .entry.is-task.task-done {
@@ -380,6 +406,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
 
   .entry.is-task.task-done .entry-text {
     color: var(--vscode-textLink-foreground);
+    text-decoration: line-through;
   }
 
   .time-badge {
@@ -643,17 +670,16 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
           vscode.postMessage({ command: 'toggleTask', index: entry.index });
         };
 
-        textSpan.setAttribute('role', 'button');
-        textSpan.setAttribute('tabindex', '0');
-        textSpan.setAttribute('aria-pressed', String(entry.done));
-        textSpan.title = entry.done ? 'Mark as not done' : 'Mark as done';
-        textSpan.addEventListener('click', toggleTask);
-        textSpan.addEventListener('keydown', (event) => {
-          if (event.key === 'Enter' || event.key === ' ') {
-            event.preventDefault();
-            toggleTask(event);
-          }
-        });
+        const toggleButton = document.createElement('button');
+        toggleButton.className = 'task-check';
+        toggleButton.type = 'button';
+        toggleButton.setAttribute('role', 'checkbox');
+        toggleButton.setAttribute('aria-checked', String(entry.done));
+        toggleButton.setAttribute('aria-label', entry.done ? 'Mark task as not done' : 'Mark task as done');
+        toggleButton.title = entry.done ? 'Mark task as not done' : 'Mark task as done';
+        toggleButton.innerHTML = '<span class="task-check-icon">✓</span>';
+        toggleButton.addEventListener('click', toggleTask);
+        body.appendChild(toggleButton);
       }
 
       body.appendChild(textSpan);
