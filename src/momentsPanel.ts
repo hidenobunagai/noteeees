@@ -335,12 +335,34 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     border-radius: 6px;
     background: var(--vscode-editor-background);
     border: 1px solid var(--vscode-panel-border);
-    transition: background 0.1s;
+    transition: background 0.1s, border-color 0.1s;
     word-break: break-word;
   }
   .entry:hover { background: var(--vscode-list-hoverBackground); }
 
-  .entry.task-done .entry-text { opacity: 0.45; text-decoration: line-through; }
+  .entry.is-task .entry-text {
+    cursor: pointer;
+    border-radius: 4px;
+    outline: none;
+  }
+
+  .entry.is-task .entry-text:hover {
+    color: var(--vscode-textLink-foreground);
+  }
+
+  .entry.is-task .entry-text:focus-visible {
+    outline: 1px solid var(--vscode-focusBorder);
+    outline-offset: 2px;
+  }
+
+  .entry.is-task.task-done {
+    background: color-mix(in srgb, var(--vscode-textLink-foreground) 8%, var(--vscode-editor-background));
+    border-color: color-mix(in srgb, var(--vscode-textLink-foreground) 35%, var(--vscode-panel-border));
+  }
+
+  .entry.is-task.task-done .entry-text {
+    color: var(--vscode-textLink-foreground);
+  }
 
   .time-badge {
     font-size: 10px;
@@ -355,20 +377,6 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     display: flex;
     align-items: flex-start;
     gap: 5px;
-  }
-
-  .task-check-wrap {
-    display: inline-flex;
-    align-items: center;
-    flex-shrink: 0;
-    margin-top: 2px;
-    cursor: pointer;
-  }
-
-  .task-check-box {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
   }
 
   .entry-text {
@@ -509,44 +517,6 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
   let sendOnEnter = true;
   let isComposing = false; // IME composition guard
 
-  /** Build an SVG checkbox icon. No font dependency — always renders correctly. */
-  function makeSvgCheckbox(done) {
-    const NS = 'http://www.w3.org/2000/svg';
-    const svg = document.createElementNS(NS, 'svg');
-    svg.setAttribute('width', '14');
-    svg.setAttribute('height', '14');
-    svg.setAttribute('viewBox', '0 0 14 14');
-    svg.style.display = 'block';
-
-    const rect = document.createElementNS(NS, 'rect');
-    rect.setAttribute('x', '1');
-    rect.setAttribute('y', '1');
-    rect.setAttribute('width', '12');
-    rect.setAttribute('height', '12');
-    rect.setAttribute('rx', '2.5');
-    rect.setAttribute('ry', '2.5');
-
-    if (done) {
-      rect.setAttribute('fill', 'var(--vscode-textLink-foreground)');
-      rect.setAttribute('stroke', 'var(--vscode-textLink-foreground)');
-      const tick = document.createElementNS(NS, 'polyline');
-      tick.setAttribute('points', '3.5,7.5 5.5,9.5 10.5,4.5');
-      tick.setAttribute('stroke', 'white');
-      tick.setAttribute('stroke-width', '1.8');
-      tick.setAttribute('fill', 'none');
-      tick.setAttribute('stroke-linecap', 'round');
-      tick.setAttribute('stroke-linejoin', 'round');
-      svg.appendChild(rect);
-      svg.appendChild(tick);
-    } else {
-      rect.setAttribute('fill', 'none');
-      rect.setAttribute('stroke', 'var(--vscode-foreground)');
-      rect.setAttribute('stroke-opacity', '0.45');
-      svg.appendChild(rect);
-    }
-    return svg;
-  }
-
   const inputBox = document.getElementById('inputBox');
   const sendBtn = document.getElementById('sendBtn');
   const taskToggle = document.getElementById('taskToggle');
@@ -634,7 +604,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
 
     entries.forEach((entry) => {
       const div = document.createElement('div');
-      div.className = 'entry' + (entry.done ? ' task-done' : '');
+      div.className = 'entry' + (entry.isTask ? ' is-task' : '') + (entry.done ? ' task-done' : '');
 
       const timeBadge = document.createElement('span');
       timeBadge.className = 'time-badge';
@@ -643,25 +613,31 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
       const body = document.createElement('div');
       body.className = 'entry-body';
 
-      if (entry.isTask) {
-        const label = document.createElement('label');
-        label.className = 'task-check-wrap';
-        label.title = entry.done ? 'Mark as not done' : 'Mark as done';
-        label.addEventListener('click', () => {
-          vscode.postMessage({ command: 'toggleTask', index: entry.index });
-        });
-
-        const box = document.createElement('span');
-        box.className = 'task-check-box';
-        box.appendChild(makeSvgCheckbox(entry.done));
-
-        label.appendChild(box);
-        body.appendChild(label);
-      }
-
       const textSpan = document.createElement('span');
       textSpan.className = 'entry-text';
       textSpan.innerHTML = renderText(entry.text);
+
+      if (entry.isTask) {
+        const toggleTask = (event) => {
+          if (event.target instanceof HTMLElement && event.target.closest('a')) {
+            return;
+          }
+          vscode.postMessage({ command: 'toggleTask', index: entry.index });
+        };
+
+        textSpan.setAttribute('role', 'button');
+        textSpan.setAttribute('tabindex', '0');
+        textSpan.setAttribute('aria-pressed', String(entry.done));
+        textSpan.title = entry.done ? 'Mark as not done' : 'Mark as done';
+        textSpan.addEventListener('click', toggleTask);
+        textSpan.addEventListener('keydown', (event) => {
+          if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            toggleTask(event);
+          }
+        });
+      }
+
       body.appendChild(textSpan);
 
       div.appendChild(timeBadge);
