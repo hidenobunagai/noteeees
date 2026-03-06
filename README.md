@@ -50,6 +50,8 @@ Moments are excluded from the regular Notes sidebar but are **fully searchable v
 2. Press `Cmd+Shift+N` to create a new note
 3. Browse notes in the Sidebar
 
+The notes directory is stored in VS Code machine-local settings, so it stays visible in Settings and can be changed there later.
+
 ## Templates
 
 Templates use **VS Code snippets**. When you create a new note, the configured snippet is automatically inserted.

@@ -4,17 +4,28 @@ import { NotesTreeProvider } from "./sidebarProvider";
 import { createNewNote, listNotes } from "./noteCommands";
 import { MomentsViewProvider } from "./momentsPanel";
 
-const GLOBAL_STATE_KEY = "notesDirectory";
+const LEGACY_GLOBAL_STATE_KEY = "notesDirectory";
 
 export function activate(context: vscode.ExtensionContext) {
-  // Read from globalState (machine-local, never synced).
-  // Falls back to old config value for migration from older installs.
   function getNotesDir(): string | undefined {
-    const stored = context.globalState.get<string>(GLOBAL_STATE_KEY);
-    if (stored) { return stored; }
-    // Migration: pick up value set by older extension versions via VS Code config
-    const legacy = vscode.workspace.getConfiguration("notes").get<string>("notesDirectory");
-    return legacy || undefined;
+    const configured = vscode.workspace.getConfiguration("notes").get<string>("notesDirectory");
+    return configured || undefined;
+  }
+
+  async function setNotesDir(notesDir: string): Promise<void> {
+    await vscode.workspace
+      .getConfiguration("notes")
+      .update("notesDirectory", notesDir, vscode.ConfigurationTarget.Global);
+    await context.globalState.update(LEGACY_GLOBAL_STATE_KEY, undefined);
+  }
+
+  async function migrateLegacyNotesDirectory(): Promise<void> {
+    const configured = getNotesDir();
+    const legacy = context.globalState.get<string>(LEGACY_GLOBAL_STATE_KEY);
+
+    if (!configured && legacy) {
+      await setNotesDir(legacy);
+    }
   }
 
   async function selectNotesDirectory(): Promise<string | undefined> {
@@ -27,8 +38,7 @@ export function activate(context: vscode.ExtensionContext) {
 
     if (selected && selected[0]) {
       const notesDir = selected[0].fsPath;
-      // Store in globalState — completely local, never touched by Settings Sync
-      await context.globalState.update(GLOBAL_STATE_KEY, notesDir);
+      await setNotesDir(notesDir);
       return notesDir;
     }
     return undefined;
@@ -56,12 +66,24 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.window.registerWebviewViewProvider(MomentsViewProvider.viewType, momentsProvider),
   );
 
+  void migrateLegacyNotesDirectory().then(() => {
+    notesTreeProvider.refresh();
+    momentsProvider.refresh();
+  });
+
   // Watch for new/deleted/changed .md files for sidebar refresh
   const mdWatcher = vscode.workspace.createFileSystemWatcher("**/*.md");
   mdWatcher.onDidCreate(() => notesTreeProvider.refresh());
   mdWatcher.onDidDelete(() => notesTreeProvider.refresh());
   mdWatcher.onDidChange(() => notesTreeProvider.refresh());
   context.subscriptions.push(mdWatcher);
+
+  const configChangeDisposable = vscode.workspace.onDidChangeConfiguration((event) => {
+    if (event.affectsConfiguration("notes.notesDirectory") || event.affectsConfiguration("notes.momentsSubfolder")) {
+      notesTreeProvider.refresh();
+      momentsProvider.refresh();
+    }
+  });
 
   // Run Setup command
   const runSetupDisposable = vscode.commands.registerCommand("notes.runSetup", async () => {
@@ -112,6 +134,7 @@ export function activate(context: vscode.ExtensionContext) {
   });
 
   context.subscriptions.push(
+    configChangeDisposable,
     runSetupDisposable,
     refreshDisposable,
     newNoteDisposable,
