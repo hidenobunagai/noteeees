@@ -10,6 +10,13 @@ export interface MomentEntry {
   done: boolean;
 }
 
+interface OpenTaskOverviewItem {
+  date: string;
+  time: string;
+  text: string;
+  filePath: string;
+}
+
 export type MomentFilter = "all" | "openTasks";
 
 export function filterMomentEntries(entries: MomentEntry[], filter: MomentFilter): MomentEntry[] {
@@ -37,6 +44,10 @@ function getSendOnEnter(): boolean {
 function getMomentsFilePath(notesDir: string, date: string): string {
   const subfolder = getMomentsSubfolder();
   return path.join(notesDir, subfolder, `${date}.md`);
+}
+
+function getMomentsDirectory(notesDir: string): string {
+  return path.join(notesDir, getMomentsSubfolder());
 }
 
 function formatDate(d: Date): string {
@@ -91,6 +102,86 @@ function readMoments(notesDir: string, date: string): MomentEntry[] {
   }
 
   return entries;
+}
+
+function compareOpenTaskOverview<T extends { date: string; time: string }>(a: T, b: T): number {
+  const dateCompare = b.date.localeCompare(a.date);
+  if (dateCompare !== 0) {
+    return dateCompare;
+  }
+
+  return b.time.localeCompare(a.time);
+}
+
+export function sortOpenTaskOverview<T extends { date: string; time: string }>(items: T[]): T[] {
+  return [...items].sort((a, b) => compareOpenTaskOverview(a, b));
+}
+
+function collectOpenTaskOverview(notesDir: string): OpenTaskOverviewItem[] {
+  const momentsDir = getMomentsDirectory(notesDir);
+  if (!fs.existsSync(momentsDir)) {
+    return [];
+  }
+
+  const files = fs.readdirSync(momentsDir, { withFileTypes: true });
+  const items: OpenTaskOverviewItem[] = [];
+
+  for (const file of files) {
+    if (!file.isFile() || !file.name.endsWith(".md")) {
+      continue;
+    }
+
+    const date = path.basename(file.name, ".md");
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      continue;
+    }
+
+    const filePath = path.join(momentsDir, file.name);
+    const entries = readMoments(notesDir, date);
+
+    for (const entry of entries) {
+      if (entry.isTask && !entry.done) {
+        items.push({
+          date,
+          time: entry.time,
+          text: entry.text,
+          filePath,
+        });
+      }
+    }
+  }
+
+  return sortOpenTaskOverview(items);
+}
+
+export async function showOpenTasksOverview(notesDir: string): Promise<void> {
+  const items = collectOpenTaskOverview(notesDir);
+
+  if (items.length === 0) {
+    vscode.window.showInformationMessage("No open tasks across Moments.");
+    return;
+  }
+
+  const picked = await vscode.window.showQuickPick(
+    items.map((item) => ({
+      label: `$(checklist) ${item.text}`,
+      description: `${item.date} • ${item.time}`,
+      detail: item.filePath,
+      item,
+    })),
+    {
+      placeHolder: `${items.length} open tasks across Moments`,
+      matchOnDescription: true,
+      matchOnDetail: true,
+    },
+  );
+
+  if (!picked) {
+    return;
+  }
+
+  const doc = await vscode.workspace.openTextDocument(picked.item.filePath);
+  await vscode.window.showTextDocument(doc);
 }
 
 function ensureMomentsFile(notesDir: string, date: string): string {
@@ -232,6 +323,16 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
           vscode.workspace.openTextDocument(filePath).then((doc) => {
             vscode.window.showTextDocument(doc);
           });
+          break;
+        }
+
+        case "showOpenTasksOverview": {
+          if (!notesDir) {
+            this._showError("Notes directory is not configured.");
+            return;
+          }
+
+          void showOpenTasksOverview(notesDir);
           break;
         }
       }
@@ -553,6 +654,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
 <div class="topbar">
   <button class="nav-btn" id="prevBtn" title="Previous day">&#8249;</button>
   <span class="date-label" id="dateLabel">—</span>
+  <button class="nav-btn" id="inboxBtn" title="Show open tasks across all days">Inbox</button>
   <button class="nav-btn" id="openTasksBtn" title="Show open tasks only">Open</button>
   <button class="nav-btn" id="todayBtn" title="Go to today">Today</button>
   <button class="nav-btn" id="nextBtn" title="Next day">&#8250;</button>
@@ -585,6 +687,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
   const timeline = document.getElementById('timeline');
   const emptyState = document.getElementById('emptyState');
   const dateLabel = document.getElementById('dateLabel');
+  const inboxBtn = document.getElementById('inboxBtn');
   const openTasksBtn = document.getElementById('openTasksBtn');
   const todayBtn = document.getElementById('todayBtn');
   const prevBtn = document.getElementById('prevBtn');
@@ -776,6 +879,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
   nextBtn.addEventListener('click', () => vscode.postMessage({ command: 'navigate', delta: 1 }));
   todayBtn.addEventListener('click', () => vscode.postMessage({ command: 'goToday' }));
   openFileBtn.addEventListener('click', () => vscode.postMessage({ command: 'openFile' }));
+  inboxBtn.addEventListener('click', () => vscode.postMessage({ command: 'showOpenTasksOverview' }));
   openTasksBtn.addEventListener('click', () => {
     activeFilter = activeFilter === 'openTasks' ? 'all' : 'openTasks';
     renderTimeline(latestEntries, latestDate, latestIsToday);

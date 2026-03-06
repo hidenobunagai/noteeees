@@ -47,6 +47,10 @@
         "title": "Noteeees: Open Moments"
       },
       {
+        "command": "notes.showOpenTasksOverview",
+        "title": "Noteeees Moments: Show Open Tasks Overview"
+      },
+      {
         "command": "notes.toggleTagSort",
         "title": "Noteeees Sidebar: Toggle Tag Sort",
         "icon": "$(arrow-swap)"

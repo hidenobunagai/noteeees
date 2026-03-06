@@ -1,6 +1,6 @@
 import * as fs from "fs";
 import * as vscode from "vscode";
-import { MomentsViewProvider } from "./momentsPanel";
+import { MomentsViewProvider, showOpenTasksOverview } from "./momentsPanel";
 import { createNewNote, listNotes } from "./noteCommands";
 import { NotesTreeProvider, type SidebarTagSortMode } from "./sidebarProvider";
 
@@ -161,6 +161,18 @@ export function activate(context: vscode.ExtensionContext) {
     await vscode.commands.executeCommand("notesMomentsView.focus");
   });
 
+  const showOpenTasksOverviewDisposable = vscode.commands.registerCommand(
+    "notes.showOpenTasksOverview",
+    async () => {
+      const notesDir = await ensureNotesDirectory();
+      if (!notesDir) {
+        return;
+      }
+
+      await showOpenTasksOverview(notesDir);
+    },
+  );
+
   // Open Note File command (used by sidebar)
   const openNoteFileDisposable = vscode.commands.registerCommand(
     "notes.openNoteFile",
@@ -207,6 +219,7 @@ export function activate(context: vscode.ExtensionContext) {
     newNoteDisposable,
     listNotesDisposable,
     focusMomentsDisposable,
+    showOpenTasksOverviewDisposable,
     openNoteFileDisposable,
     pinNoteDisposable,
     unpinNoteDisposable,

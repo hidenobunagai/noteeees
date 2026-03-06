@@ -1,9 +1,9 @@
+import { filterMomentEntries, sortOpenTaskOverview } from "../momentsPanel";
 import * as assert from "assert";
 
 // You can import and use all API from the 'vscode' module
 // as well as import your extension to test it
 import * as vscode from "vscode";
-import { filterMomentEntries } from "../momentsPanel";
 import { extractNoteMetadata, shouldPromptForTemplateSelection } from "../noteCommands";
 import { buildTagSummary, limitSidebarNotes } from "../sidebarProvider";
 // import * as myExtension from '../../extension';
@@ -76,6 +76,20 @@ suite("Extension Test Suite", () => {
 
     assert.deepStrictEqual(filtered, [
       { index: 0, time: "09:00", text: "todo", isTask: true, done: false },
+    ]);
+  });
+
+  test("open task overview is sorted by date and time desc", () => {
+    const sorted = sortOpenTaskOverview([
+      { date: "2026-03-06", time: "09:00" },
+      { date: "2026-03-07", time: "08:30" },
+      { date: "2026-03-07", time: "10:15" },
+    ]);
+
+    assert.deepStrictEqual(sorted, [
+      { date: "2026-03-07", time: "10:15" },
+      { date: "2026-03-07", time: "08:30" },
+      { date: "2026-03-06", time: "09:00" },
     ]);
   });
 });
