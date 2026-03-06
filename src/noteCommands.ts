@@ -13,7 +13,7 @@ interface FilenameToken {
   format: string;
 }
 
-interface NoteMetadata {
+export interface NoteMetadata {
   title: string;
   tags: string[];
 }
@@ -144,12 +144,34 @@ function extractInlineTags(rawContent: string): string[] {
 export function extractNoteMetadata(rawContent: string, fallbackTitle: string): NoteMetadata {
   const headingMatch = rawContent.match(/^#\s+(.+)$/m);
   const title = headingMatch?.[1]?.trim() || fallbackTitle;
-  const tags = [...new Set([...extractFrontMatterTags(rawContent), ...extractInlineTags(rawContent)])];
+  const tags = [
+    ...new Set([...extractFrontMatterTags(rawContent), ...extractInlineTags(rawContent)]),
+  ];
   return { title, tags };
 }
 
 function formatModifiedAt(mtime: number): string {
   return new Date(mtime).toLocaleString();
+}
+
+export interface IndexedNote {
+  relativePath: string;
+  absolutePath: string;
+  mtime: number;
+  metadata: NoteMetadata;
+}
+
+export function buildIndexedNotes(noteFiles: NoteFile[]): IndexedNote[] {
+  return noteFiles.map((file) => {
+    const rawContent = fs.readFileSync(file.absolutePath, "utf8");
+    const fallbackTitle = path.basename(file.relativePath, ".md");
+    const metadata = extractNoteMetadata(rawContent, fallbackTitle);
+
+    return {
+      ...file,
+      metadata,
+    };
+  });
 }
 
 export async function createNewNote(notesDir: string): Promise<void> {
@@ -260,19 +282,16 @@ export async function listNotes(notesDir: string): Promise<void> {
   // Sort by modification time, newest first
   noteFiles.sort((a, b) => b.mtime - a.mtime);
 
-  const items: vscode.QuickPickItem[] = noteFiles.map((f) => {
-    const rawContent = fs.readFileSync(f.absolutePath, "utf8");
-    const fallbackTitle = path.basename(f.relativePath, ".md");
-    const metadata = extractNoteMetadata(rawContent, fallbackTitle);
-    const details = [`Updated ${formatModifiedAt(f.mtime)}`];
+  const items: vscode.QuickPickItem[] = buildIndexedNotes(noteFiles).map((note) => {
+    const details = [`Updated ${formatModifiedAt(note.mtime)}`];
 
-    if (metadata.tags.length > 0) {
-      details.unshift(metadata.tags.join(" "));
+    if (note.metadata.tags.length > 0) {
+      details.unshift(note.metadata.tags.join(" "));
     }
 
     return {
-      label: `$(file) ${metadata.title}`,
-      description: f.relativePath,
+      label: `$(file) ${note.metadata.title}`,
+      description: note.relativePath,
       detail: details.join("  •  "),
     };
   });
@@ -297,7 +316,11 @@ interface NoteFile {
   mtime: number;
 }
 
-export function collectNoteFiles(baseDir: string, currentDir: string, excludeDirs: string[] = []): NoteFile[] {
+export function collectNoteFiles(
+  baseDir: string,
+  currentDir: string,
+  excludeDirs: string[] = [],
+): NoteFile[] {
   const results: NoteFile[] = [];
 
   if (!fs.existsSync(currentDir)) {

@@ -88,9 +88,14 @@
     "menus": {
       "view/title": [
         {
+          "command": "notes.listNotes",
+          "when": "view == notesExplorer",
+          "group": "navigation@1"
+        },
+        {
           "command": "notes.refreshSidebar",
           "when": "view == notesExplorer",
-          "group": "navigation"
+          "group": "navigation@2"
         }
       ]
     },

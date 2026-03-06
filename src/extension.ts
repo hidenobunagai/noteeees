@@ -1,8 +1,8 @@
-import * as vscode from "vscode";
 import * as fs from "fs";
-import { NotesTreeProvider } from "./sidebarProvider";
-import { createNewNote, listNotes } from "./noteCommands";
+import * as vscode from "vscode";
 import { MomentsViewProvider } from "./momentsPanel";
+import { createNewNote, listNotes } from "./noteCommands";
+import { NotesTreeProvider } from "./sidebarProvider";
 
 const LEGACY_GLOBAL_STATE_KEY = "notesDirectory";
 
@@ -49,7 +49,9 @@ export function activate(context: vscode.ExtensionContext) {
     if (!notesDir) {
       notesDir = await selectNotesDirectory();
       if (!notesDir) {
-        vscode.window.showErrorMessage("Notes directory is not configured. Run 'Notes: Run Setup' first.");
+        vscode.window.showErrorMessage(
+          "Notes directory is not configured. Run 'Notes: Run Setup' first.",
+        );
         return undefined;
       }
     }
@@ -79,7 +81,10 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(mdWatcher);
 
   const configChangeDisposable = vscode.workspace.onDidChangeConfiguration((event) => {
-    if (event.affectsConfiguration("notes.notesDirectory") || event.affectsConfiguration("notes.momentsSubfolder")) {
+    if (
+      event.affectsConfiguration("notes.notesDirectory") ||
+      event.affectsConfiguration("notes.momentsSubfolder")
+    ) {
       notesTreeProvider.refresh();
       momentsProvider.refresh();
     }
@@ -125,13 +130,16 @@ export function activate(context: vscode.ExtensionContext) {
   });
 
   // Open Note File command (used by sidebar)
-  const openNoteFileDisposable = vscode.commands.registerCommand("notes.openNoteFile", async (filePath: string) => {
-    if (!filePath || !fs.existsSync(filePath)) {
-      return;
-    }
-    const doc = await vscode.workspace.openTextDocument(filePath);
-    await vscode.window.showTextDocument(doc);
-  });
+  const openNoteFileDisposable = vscode.commands.registerCommand(
+    "notes.openNoteFile",
+    async (filePath: string) => {
+      if (!filePath || !fs.existsSync(filePath)) {
+        return;
+      }
+      const doc = await vscode.workspace.openTextDocument(filePath);
+      await vscode.window.showTextDocument(doc);
+    },
+  );
 
   context.subscriptions.push(
     configChangeDisposable,
@@ -140,9 +148,8 @@ export function activate(context: vscode.ExtensionContext) {
     newNoteDisposable,
     listNotesDisposable,
     focusMomentsDisposable,
-    openNoteFileDisposable
+    openNoteFileDisposable,
   );
 }
 
 export function deactivate() {}
-

@@ -1,6 +1,7 @@
+import * as fs from "fs";
 import * as path from "path";
 import * as vscode from "vscode";
-import { collectNoteFiles } from "./noteCommands";
+import { buildIndexedNotes, collectNoteFiles, type IndexedNote } from "./noteCommands";
 
 /**
  * Strip a leading date/datetime prefix from a filename stem.
@@ -23,8 +24,32 @@ function stripDatePrefix(basename: string): { title: string; datePrefix: string 
 }
 
 interface NoteTreeItem extends vscode.TreeItem {
-  kind: "notesRoot" | "noteFile";
+  kind: "recentRoot" | "tagsRoot" | "tagGroup" | "noteFile";
   filePath?: string;
+  tag?: string;
+}
+
+interface SidebarNoteItem {
+  title: string;
+  relativePath: string;
+  absolutePath: string;
+  mtime: number;
+  tags: string[];
+  description?: string;
+}
+
+export function buildTagSummary(notes: Array<{ tags: string[] }>): Array<{ tag: string; count: number }> {
+  const counts = new Map<string, number>();
+
+  for (const note of notes) {
+    for (const tag of note.tags) {
+      counts.set(tag, (counts.get(tag) ?? 0) + 1);
+    }
+  }
+
+  return [...counts.entries()]
+    .map(([tag, count]) => ({ tag, count }))
+    .sort((a, b) => b.count - a.count || a.tag.localeCompare(b.tag));
 }
 
 export class NotesTreeProvider implements vscode.TreeDataProvider<NoteTreeItem> {
@@ -51,44 +76,113 @@ export class NotesTreeProvider implements vscode.TreeDataProvider<NoteTreeItem> 
     if (!element) {
       return [
         {
-          label: "Notes",
-          kind: "notesRoot",
+          label: "Recent",
+          kind: "recentRoot",
           collapsibleState: vscode.TreeItemCollapsibleState.Expanded,
           iconPath: new vscode.ThemeIcon("files"),
+        },
+        {
+          label: "Tags",
+          kind: "tagsRoot",
+          collapsibleState: vscode.TreeItemCollapsibleState.Collapsed,
+          iconPath: new vscode.ThemeIcon("tag"),
         },
       ];
     }
 
-    if (element.kind === "notesRoot") {
-      const config = vscode.workspace.getConfiguration("notes");
-      const momentsSubfolder = config.get<string>("momentsSubfolder") || "moments";
-      const noteFiles = collectNoteFiles(notesDir, notesDir, [momentsSubfolder]);
-      noteFiles.sort((a, b) => b.mtime - a.mtime);
+    const notes = this._getSidebarNotes(notesDir);
 
-      return noteFiles.map((f) => {
-        const basename = path.basename(f.relativePath, ".md");
-        const { title, datePrefix } = stripDatePrefix(basename);
-        const subDir = f.relativePath.includes(path.sep) ? path.dirname(f.relativePath) : undefined;
-        const descParts = [datePrefix, subDir].filter(Boolean);
+    if (element.kind === "recentRoot") {
+      return notes.map((note) => this._createNoteTreeItem(note));
+    }
 
-        return {
-          label: title,
-          description: descParts.length > 0 ? descParts.join(" • ") : undefined,
-          tooltip: basename,
-          kind: "noteFile" as const,
-          filePath: f.absolutePath,
-          collapsibleState: vscode.TreeItemCollapsibleState.None,
-          iconPath: new vscode.ThemeIcon("file"),
-          command: {
-            command: "notes.openNoteFile",
-            title: "Open Note",
-            arguments: [f.absolutePath],
-          },
-        };
-      });
+    if (element.kind === "tagsRoot") {
+      return buildTagSummary(notes).map(({ tag, count }) => ({
+        label: tag,
+        description: `${count}`,
+        tooltip: `${count} notes tagged ${tag}`,
+        tag,
+        kind: "tagGroup" as const,
+        collapsibleState: vscode.TreeItemCollapsibleState.Collapsed,
+        iconPath: new vscode.ThemeIcon("tag"),
+      }));
+    }
+
+    if (element.kind === "tagGroup" && element.tag) {
+      return notes
+        .filter((note) => note.tags.includes(element.tag!))
+        .map((note) => this._createNoteTreeItem(note, element.tag));
     }
 
     return [];
+  }
+
+  private _getSidebarNotes(notesDir: string): SidebarNoteItem[] {
+    const config = vscode.workspace.getConfiguration("notes");
+    const momentsSubfolder = config.get<string>("momentsSubfolder") || "moments";
+    const noteFiles = collectNoteFiles(notesDir, notesDir, [momentsSubfolder]);
+    const indexedNotes = buildIndexedNotes(noteFiles);
+
+    return indexedNotes
+      .sort((a, b) => b.mtime - a.mtime)
+      .map((note) => this._toSidebarNoteItem(note));
+  }
+
+  private _toSidebarNoteItem(note: IndexedNote): SidebarNoteItem {
+    const basename = path.basename(note.relativePath, ".md");
+    const fallback = stripDatePrefix(basename);
+    const subDir = note.relativePath.includes(path.sep) ? path.dirname(note.relativePath) : undefined;
+    const descParts = [subDir].filter(Boolean);
+
+    if (note.metadata.tags.length > 0) {
+      descParts.push(note.metadata.tags.slice(0, 2).join(" "));
+    }
+
+    return {
+      title: note.metadata.title || fallback.title,
+      relativePath: note.relativePath,
+      absolutePath: note.absolutePath,
+      mtime: note.mtime,
+      tags: note.metadata.tags,
+      description: descParts.length > 0 ? descParts.join(" • ") : undefined,
+    };
+  }
+
+  private _createNoteTreeItem(note: SidebarNoteItem, activeTag?: string): NoteTreeItem {
+    const tagDescription = activeTag
+      ? note.relativePath
+      : note.description;
+
+    return {
+      label: note.title,
+      description: tagDescription,
+      tooltip: this._buildTooltip(note),
+      kind: "noteFile",
+      filePath: note.absolutePath,
+      collapsibleState: vscode.TreeItemCollapsibleState.None,
+      iconPath: new vscode.ThemeIcon("file"),
+      command: {
+        command: "notes.openNoteFile",
+        title: "Open Note",
+        arguments: [note.absolutePath],
+      },
+    };
+  }
+
+  private _buildTooltip(note: SidebarNoteItem): string {
+    const lines = [note.relativePath];
+
+    if (note.tags.length > 0) {
+      lines.push(note.tags.join(" "));
+    }
+
+    const raw = fs.readFileSync(note.absolutePath, "utf8");
+    const preview = raw.replace(/^---\s*\n[\s\S]*?\n---\s*\n?/, "").trim();
+    if (preview.length > 0) {
+      lines.push(preview.slice(0, 140).replace(/\n+/g, " "));
+    }
+
+    return lines.join("\n");
   }
 }
 
