@@ -10,6 +10,16 @@ export interface MomentEntry {
   done: boolean;
 }
 
+export type MomentFilter = "all" | "openTasks";
+
+export function filterMomentEntries(entries: MomentEntry[], filter: MomentFilter): MomentEntry[] {
+  if (filter === "openTasks") {
+    return entries.filter((entry) => entry.isTask && !entry.done);
+  }
+
+  return entries;
+}
+
 // ---------------------------------------------------------------------------
 // File helpers
 // ---------------------------------------------------------------------------
@@ -304,6 +314,12 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
   }
   .nav-btn:hover { opacity: 1; background: var(--vscode-toolbar-hoverBackground); }
 
+  .nav-btn.active {
+    opacity: 1;
+    color: var(--vscode-textLink-foreground);
+    background: color-mix(in srgb, var(--vscode-textLink-foreground) 12%, transparent);
+  }
+
   .date-label {
     font-size: 12px;
     font-weight: 600;
@@ -537,6 +553,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
 <div class="topbar">
   <button class="nav-btn" id="prevBtn" title="Previous day">&#8249;</button>
   <span class="date-label" id="dateLabel">—</span>
+  <button class="nav-btn" id="openTasksBtn" title="Show open tasks only">Open</button>
   <button class="nav-btn" id="todayBtn" title="Go to today">Today</button>
   <button class="nav-btn" id="nextBtn" title="Next day">&#8250;</button>
   <button class="open-btn" id="openFileBtn" title="Open file in editor">&#8599;</button>
@@ -568,12 +585,17 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
   const timeline = document.getElementById('timeline');
   const emptyState = document.getElementById('emptyState');
   const dateLabel = document.getElementById('dateLabel');
+  const openTasksBtn = document.getElementById('openTasksBtn');
   const todayBtn = document.getElementById('todayBtn');
   const prevBtn = document.getElementById('prevBtn');
   const nextBtn = document.getElementById('nextBtn');
   const openFileBtn = document.getElementById('openFileBtn');
   const hintText = document.getElementById('hintText');
   const errorBanner = document.getElementById('errorBanner');
+  let activeFilter = 'all';
+  let latestEntries = [];
+  let latestDate = '';
+  let latestIsToday = true;
 
   // Notify extension we're ready
   vscode.postMessage({ command: 'ready' });
@@ -583,8 +605,11 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     const msg = event.data;
     if (msg.command === 'update') {
       sendOnEnter = msg.sendOnEnter;
+      latestEntries = msg.entries;
+      latestDate = msg.date;
+      latestIsToday = msg.isToday;
       updateHint();
-      renderTimeline(msg.entries, msg.date, msg.isToday);
+      renderTimeline(latestEntries, latestDate, latestIsToday);
     } else if (msg.command === 'error') {
       showError(msg.message);
     }
@@ -623,6 +648,10 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
   }
 
   function renderTimeline(entries, date, isToday) {
+    const visibleEntries = activeFilter === 'openTasks'
+      ? entries.filter((entry) => entry.isTask && !entry.done)
+      : entries;
+
     // Update date header
     const today = new Date();
     const todayStr = formatDateLocal(today);
@@ -631,14 +660,20 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     else if (date === offsetDate(todayStr, -1)) label = 'Yesterday · ' + date;
     dateLabel.textContent = label;
     dateLabel.className = 'date-label' + (isToday ? ' is-today' : '');
+    openTasksBtn.classList.toggle('active', activeFilter === 'openTasks');
+    openTasksBtn.setAttribute('aria-pressed', String(activeFilter === 'openTasks'));
 
     // Update Today button visibility
     todayBtn.style.display = isToday ? 'none' : '';
 
-    if (entries.length === 0) {
+    if (visibleEntries.length === 0) {
       emptyState.style.display = 'block';
       timeline.querySelectorAll('.entry').forEach(e => e.remove());
-      emptyState.textContent = isToday ? 'No moments yet — capture your first thought!' : 'No moments on this day';
+      if (activeFilter === 'openTasks') {
+        emptyState.textContent = isToday ? 'No open tasks today' : 'No open tasks on this day';
+      } else {
+        emptyState.textContent = isToday ? 'No moments yet — capture your first thought!' : 'No moments on this day';
+      }
       return;
     }
 
@@ -647,7 +682,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     // Rebuild entries
     timeline.querySelectorAll('.entry').forEach(e => e.remove());
 
-    entries.forEach((entry) => {
+    visibleEntries.forEach((entry) => {
       const div = document.createElement('div');
       div.className = 'entry' + (entry.isTask ? ' is-task' : '') + (entry.done ? ' task-done' : '');
 
@@ -741,6 +776,10 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
   nextBtn.addEventListener('click', () => vscode.postMessage({ command: 'navigate', delta: 1 }));
   todayBtn.addEventListener('click', () => vscode.postMessage({ command: 'goToday' }));
   openFileBtn.addEventListener('click', () => vscode.postMessage({ command: 'openFile' }));
+  openTasksBtn.addEventListener('click', () => {
+    activeFilter = activeFilter === 'openTasks' ? 'all' : 'openTasks';
+    renderTimeline(latestEntries, latestDate, latestIsToday);
+  });
 
   // ---- Date helpers (browser-side) ----
   function formatDateLocal(d) {

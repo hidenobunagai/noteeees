@@ -3,6 +3,7 @@ import * as assert from "assert";
 // You can import and use all API from the 'vscode' module
 // as well as import your extension to test it
 import * as vscode from "vscode";
+import { filterMomentEntries } from "../momentsPanel";
 import { extractNoteMetadata, shouldPromptForTemplateSelection } from "../noteCommands";
 import { buildTagSummary, limitSidebarNotes } from "../sidebarProvider";
 // import * as myExtension from '../../extension';
@@ -45,5 +46,20 @@ suite("Extension Test Suite", () => {
   test("recent notes limit keeps newest items only", () => {
     assert.deepStrictEqual(limitSidebarNotes([1, 2, 3], 2), [1, 2]);
     assert.deepStrictEqual(limitSidebarNotes([1, 2, 3], 0), [1, 2, 3]);
+  });
+
+  test("open task filter keeps only unfinished tasks", () => {
+    const filtered = filterMomentEntries(
+      [
+        { index: 0, time: "09:00", text: "todo", isTask: true, done: false },
+        { index: 1, time: "09:30", text: "done", isTask: true, done: true },
+        { index: 2, time: "10:00", text: "note", isTask: false, done: false },
+      ],
+      "openTasks",
+    );
+
+    assert.deepStrictEqual(filtered, [
+      { index: 0, time: "09:00", text: "todo", isTask: true, done: false },
+    ]);
   });
 });
