@@ -1,10 +1,19 @@
 import * as assert from "assert";
-import { filterMomentEntries, mapMomentBodyIndexToFileLine, sortOpenTaskOverview } from "../momentsPanel";
+import {
+  filterMomentEntries,
+  mapMomentBodyIndexToFileLine,
+  sortOpenTaskOverview,
+  toggleMomentTaskLine,
+} from "../momentsPanel";
 
 // You can import and use all API from the 'vscode' module
 // as well as import your extension to test it
 import * as vscode from "vscode";
-import { extractNoteMetadata, shouldPromptForTemplateSelection } from "../noteCommands";
+import {
+  extractNoteMetadata,
+  extractPreviewText,
+  shouldPromptForTemplateSelection,
+} from "../noteCommands";
 import { buildTagSummary, limitSidebarNotes, movePinnedItem } from "../sidebarProvider";
 // import * as myExtension from '../../extension';
 
@@ -27,6 +36,15 @@ suite("Extension Test Suite", () => {
 
     assert.strictEqual(metadata.title, "Weekly Sync");
     assert.deepStrictEqual(metadata.tags, ["#project", "#todo"]);
+  });
+
+  test("preview text strips front matter and collapses newlines", () => {
+    const preview = extractPreviewText(
+      "---\ntags: [project]\n---\n\n# Weekly Sync\n\nDiscuss roadmap\nNext actions",
+      80,
+    );
+
+    assert.strictEqual(preview, "# Weekly Sync Discuss roadmap Next actions");
   });
 
   test("tag summary is sorted by frequency", () => {
@@ -99,5 +117,20 @@ suite("Extension Test Suite", () => {
   test("moment body index maps to file line after front matter", () => {
     const raw = "---\ntype: moments\ndate: 2026-03-07\n---\n\n- [ ] 09:00 task";
     assert.strictEqual(mapMomentBodyIndexToFileLine(raw, 1), 5);
+  });
+
+  test("task line toggle flips checkbox state", () => {
+    assert.deepStrictEqual(toggleMomentTaskLine("- [ ] 09:00 task"), {
+      line: "- [x] 09:00 task",
+      changed: true,
+    });
+    assert.deepStrictEqual(toggleMomentTaskLine("- [x] 09:00 task"), {
+      line: "- [ ] 09:00 task",
+      changed: true,
+    });
+    assert.deepStrictEqual(toggleMomentTaskLine("- 09:00 note"), {
+      line: "- 09:00 note",
+      changed: false,
+    });
   });
 });

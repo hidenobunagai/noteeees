@@ -19,6 +19,10 @@ interface OpenTaskOverviewItem {
   fileLineIndex: number;
 }
 
+interface OpenTaskQuickPickItem extends vscode.QuickPickItem {
+  task: OpenTaskOverviewItem;
+}
+
 export type MomentFilter = "all" | "openTasks";
 
 export function filterMomentEntries(entries: MomentEntry[], filter: MomentFilter): MomentEntry[] {
@@ -118,6 +122,24 @@ export function mapMomentBodyIndexToFileLine(raw: string, bodyIndex: number): nu
   return bodyStart + bodyIndex;
 }
 
+export function toggleMomentTaskLine(line: string): { line: string; changed: boolean } {
+  if (line.match(/^(-\s+)\[x\]/i)) {
+    return {
+      line: line.replace(/^(-\s+)\[x\]/i, "$1[ ]"),
+      changed: true,
+    };
+  }
+
+  if (line.match(/^(-\s+)\[ \]/)) {
+    return {
+      line: line.replace(/^(-\s+)\[ \]/, "$1[x]"),
+      changed: true,
+    };
+  }
+
+  return { line, changed: false };
+}
+
 function compareOpenTaskOverview<T extends { date: string; time: string }>(a: T, b: T): number {
   const dateCompare = b.date.localeCompare(a.date);
   if (dateCompare !== 0) {
@@ -129,6 +151,53 @@ function compareOpenTaskOverview<T extends { date: string; time: string }>(a: T,
 
 export function sortOpenTaskOverview<T extends { date: string; time: string }>(items: T[]): T[] {
   return [...items].sort((a, b) => compareOpenTaskOverview(a, b));
+}
+
+function openOpenTaskItem(item: OpenTaskOverviewItem): Thenable<vscode.TextEditor> {
+  return vscode.workspace.openTextDocument(item.filePath).then((doc) => {
+    return vscode.window.showTextDocument(doc).then((editor) => {
+      const line = Math.min(item.fileLineIndex, Math.max(0, doc.lineCount - 1));
+      const range = doc.lineAt(line).range;
+      editor.selection = new vscode.Selection(range.start, range.end);
+      editor.revealRange(range, vscode.TextEditorRevealType.InCenter);
+      return editor;
+    });
+  });
+}
+
+function toggleTaskAtFileLine(filePath: string, fileLineIndex: number): boolean {
+  if (!fs.existsSync(filePath)) {
+    return false;
+  }
+
+  const lines = fs.readFileSync(filePath, "utf8").split("\n");
+  if (fileLineIndex < 0 || fileLineIndex >= lines.length) {
+    return false;
+  }
+
+  const result = toggleMomentTaskLine(lines[fileLineIndex]);
+  if (!result.changed) {
+    return false;
+  }
+
+  lines[fileLineIndex] = result.line;
+  fs.writeFileSync(filePath, lines.join("\n"), "utf8");
+  return true;
+}
+
+function toOpenTaskQuickPickItem(item: OpenTaskOverviewItem): OpenTaskQuickPickItem {
+  return {
+    label: `$(checklist) ${item.text}`,
+    description: `${item.date} • ${item.time}`,
+    detail: `${item.relativePath}:${item.fileLineIndex + 1}`,
+    buttons: [
+      {
+        iconPath: new vscode.ThemeIcon("check"),
+        tooltip: "Mark task as done",
+      },
+    ],
+    task: item,
+  };
 }
 
 function collectOpenTaskOverview(notesDir: string): OpenTaskOverviewItem[] {
@@ -172,37 +241,56 @@ function collectOpenTaskOverview(notesDir: string): OpenTaskOverviewItem[] {
 }
 
 export async function showOpenTasksOverview(notesDir: string): Promise<void> {
-  const items = collectOpenTaskOverview(notesDir);
+  const quickPick = vscode.window.createQuickPick<OpenTaskQuickPickItem>();
+  quickPick.title = "Moments Inbox";
+  quickPick.matchOnDescription = true;
+  quickPick.matchOnDetail = true;
 
-  if (items.length === 0) {
+  const refreshItems = (): number => {
+    const items = collectOpenTaskOverview(notesDir);
+    quickPick.items = items.map((item) => toOpenTaskQuickPickItem(item));
+    quickPick.placeholder = `${items.length} open tasks across Moments. Type to filter by text, date, or file.`;
+    return items.length;
+  };
+
+  if (refreshItems() === 0) {
+    quickPick.dispose();
     vscode.window.showInformationMessage("No open tasks across Moments.");
     return;
   }
 
-  const picked = await vscode.window.showQuickPick(
-    items.map((item) => ({
-      label: `$(checklist) ${item.text}`,
-      description: `${item.date} • ${item.time}`,
-      detail: `${item.relativePath}:${item.fileLineIndex + 1}`,
-      item,
-    })),
-    {
-      placeHolder: `${items.length} open tasks across Moments. Type to filter by text, date, or file.`,
-      matchOnDescription: true,
-      matchOnDetail: true,
-    },
-  );
+  quickPick.onDidAccept(() => {
+    const selected = quickPick.selectedItems[0];
+    if (!selected) {
+      return;
+    }
 
-  if (!picked) {
-    return;
-  }
+    void openOpenTaskItem(selected.task);
+    quickPick.hide();
+  });
 
-  const doc = await vscode.workspace.openTextDocument(picked.item.filePath);
-  const editor = await vscode.window.showTextDocument(doc);
-  const line = Math.min(picked.item.fileLineIndex, Math.max(0, doc.lineCount - 1));
-  const range = doc.lineAt(line).range;
-  editor.selection = new vscode.Selection(range.start, range.end);
-  editor.revealRange(range, vscode.TextEditorRevealType.InCenter);
+  quickPick.onDidTriggerItemButton((event) => {
+    quickPick.busy = true;
+    quickPick.enabled = false;
+
+    try {
+      toggleTaskAtFileLine(event.item.task.filePath, event.item.task.fileLineIndex);
+      const remaining = refreshItems();
+      if (remaining === 0) {
+        quickPick.hide();
+        vscode.window.showInformationMessage("All open tasks are complete.");
+      }
+    } finally {
+      quickPick.busy = false;
+      quickPick.enabled = true;
+    }
+  });
+
+  quickPick.onDidHide(() => {
+    quickPick.dispose();
+  });
+
+  quickPick.show();
 }
 
 function ensureMomentsFile(notesDir: string, date: string): string {
@@ -246,12 +334,12 @@ function toggleTask(notesDir: string, date: string, index: number): void {
     return;
   }
 
-  const line = lines[fileLineIdx];
-  if (line.match(/^-\s+\[x\]/i)) {
-    lines[fileLineIdx] = line.replace(/^(-\s+)\[x\]/i, "$1[ ]");
-  } else if (line.match(/^-\s+\[ \]/)) {
-    lines[fileLineIdx] = line.replace(/^(-\s+)\[ \]/, "$1[x]");
+  const result = toggleMomentTaskLine(lines[fileLineIdx]);
+  if (!result.changed) {
+    return;
   }
+
+  lines[fileLineIdx] = result.line;
 
   fs.writeFileSync(filePath, lines.join("\n"), "utf8");
 }

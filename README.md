@@ -14,7 +14,7 @@ A quick-capture timeline panel for fleeting thoughts, tasks, and ideas — alway
 - **Quick input**: Type a thought, press `Enter` to save instantly
 - **Task mode**: Toggle the `Task` button to create `[ ]` items; click the checkbox to mark done
 - **Open-task filter**: Toggle `Open` to focus only on unfinished tasks for the current day
-- **Inbox overview**: Open `Inbox` to browse unfinished tasks across all Moments files and jump to the exact line
+- **Inbox overview**: Open `Inbox` to browse unfinished tasks across all Moments files, mark them done inline, or jump to the exact line
 - **Date navigation**: Browse previous / next days with `◀ ▶` or jump back to Today
 - **Tag highlighting**: `#tag` tokens are rendered as color badges
 - **Open in editor**: `↗` opens the day's raw Markdown file for editing
@@ -42,10 +42,11 @@ Moments are excluded from the regular Notes sidebar but are **fully searchable v
 - **Templates**: Create and use custom templates with VS Code snippets
 - **Subfolder Support**: Use `/` in title to auto-create subfolders (e.g., `projects/MyNote`)
 - **Search Notes**: Search notes by title, path, or tag from the command palette
+- **Preview-rich search**: Search results include timestamps, tags, and content preview so matches are easier to scan
 
 ### Sidebar
 - **Pinned**: Pin frequently used notes from the sidebar context menu
-- **Pinned ordering**: Move pinned notes up or down from the sidebar context menu
+- **Pinned ordering**: Move pinned notes up or down from the sidebar context menu or with `Cmd+Opt+↑ / ↓`
 - **Recent**: Browse your latest notes with a configurable item limit
 - **Tags**: Open notes grouped by tag, with usage counts in the sidebar, toggle sort order, and search tags directly
 

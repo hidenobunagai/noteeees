@@ -18,6 +18,19 @@ export interface NoteMetadata {
   tags: string[];
 }
 
+function stripFrontMatter(rawContent: string): string {
+  return rawContent.replace(/^---\s*\n[\s\S]*?\n---\s*\n?/, "").trim();
+}
+
+export function extractPreviewText(rawContent: string, maxLength: number = 140): string {
+  const preview = stripFrontMatter(rawContent).replace(/\n+/g, " ").trim();
+  if (preview.length <= maxLength) {
+    return preview;
+  }
+
+  return `${preview.slice(0, maxLength - 1).trimEnd()}…`;
+}
+
 const DEFAULT_TOKENS: FilenameToken[] = [
   { type: "datetime", token: "{dt}", format: "YYYY-MM-DD_HH-mm" },
   { type: "title", token: "{title}", format: "Untitled" },
@@ -159,6 +172,7 @@ export interface IndexedNote {
   absolutePath: string;
   mtime: number;
   metadata: NoteMetadata;
+  preview: string;
 }
 
 export function buildIndexedNotes(noteFiles: NoteFile[]): IndexedNote[] {
@@ -166,10 +180,12 @@ export function buildIndexedNotes(noteFiles: NoteFile[]): IndexedNote[] {
     const rawContent = fs.readFileSync(file.absolutePath, "utf8");
     const fallbackTitle = path.basename(file.relativePath, ".md");
     const metadata = extractNoteMetadata(rawContent, fallbackTitle);
+    const preview = extractPreviewText(rawContent);
 
     return {
       ...file,
       metadata,
+      preview,
     };
   });
 }
@@ -287,6 +303,10 @@ export async function listNotes(notesDir: string): Promise<void> {
 
     if (note.metadata.tags.length > 0) {
       details.unshift(note.metadata.tags.join(" "));
+    }
+
+     if (note.preview) {
+      details.push(note.preview);
     }
 
     return {

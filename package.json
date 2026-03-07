@@ -87,6 +87,18 @@
         "command": "notes.focusMoments",
         "key": "ctrl+shift+m",
         "mac": "cmd+shift+m"
+      },
+      {
+        "command": "notes.movePinnedNoteUp",
+        "key": "ctrl+alt+up",
+        "mac": "cmd+alt+up",
+        "when": "view == notesExplorer && viewItem == pinnedNoteFile"
+      },
+      {
+        "command": "notes.movePinnedNoteDown",
+        "key": "ctrl+alt+down",
+        "mac": "cmd+alt+down",
+        "when": "view == notesExplorer && viewItem == pinnedNoteFile"
       }
     ],
     "viewsContainers": {

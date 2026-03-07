@@ -80,14 +80,18 @@ export function activate(context: vscode.ExtensionContext) {
   }
 
   function getIndexedNotes(notesDir: string) {
-    const momentsSubfolder = vscode.workspace.getConfiguration("notes").get<string>("momentsSubfolder") || "moments";
+    const momentsSubfolder =
+      vscode.workspace.getConfiguration("notes").get<string>("momentsSubfolder") || "moments";
     const noteFiles = collectNoteFiles(notesDir, notesDir, [momentsSubfolder]);
     return buildIndexedNotes(noteFiles).sort((a, b) => b.mtime - a.mtime);
   }
 
   async function searchTags(notesDir: string): Promise<void> {
     const indexedNotes = getIndexedNotes(notesDir);
-    const tags = buildTagSummary(indexedNotes.map((note) => ({ tags: note.metadata.tags })), getSidebarTagSort());
+    const tags = buildTagSummary(
+      indexedNotes.map((note) => ({ tags: note.metadata.tags })),
+      getSidebarTagSort(),
+    );
 
     if (tags.length === 0) {
       vscode.window.showInformationMessage("No tags found.");
@@ -109,12 +113,20 @@ export function activate(context: vscode.ExtensionContext) {
       return;
     }
 
-    const matchingNotes = indexedNotes.filter((note) => note.metadata.tags.includes(selectedTag.label));
+    const matchingNotes = indexedNotes.filter((note) =>
+      note.metadata.tags.includes(selectedTag.label),
+    );
     const selectedNote = await vscode.window.showQuickPick(
       matchingNotes.map((note) => ({
         label: `$(file) ${note.metadata.title}`,
         description: note.relativePath,
-        detail: `Updated ${new Date(note.mtime).toLocaleString()}`,
+        detail: [
+          note.metadata.tags.join(" "),
+          `Updated ${new Date(note.mtime).toLocaleString()}`,
+          note.preview,
+        ]
+          .filter(Boolean)
+          .join("  •  "),
         filePath: note.absolutePath,
       })),
       {
@@ -138,7 +150,16 @@ export function activate(context: vscode.ExtensionContext) {
     getPinnedRelativePaths,
     getSidebarTagSort,
   );
-  vscode.window.registerTreeDataProvider("notesExplorer", notesTreeProvider);
+  const notesTreeView = vscode.window.createTreeView("notesExplorer", {
+    treeDataProvider: notesTreeProvider as vscode.TreeDataProvider<vscode.TreeItem>,
+  });
+  let selectedSidebarItem: (vscode.TreeItem & { relativePath?: string }) | undefined;
+  const treeSelectionDisposable = notesTreeView.onDidChangeSelection((event) => {
+    selectedSidebarItem = event.selection[0] as
+      | (vscode.TreeItem & { relativePath?: string })
+      | undefined;
+  });
+  context.subscriptions.push(notesTreeView, treeSelectionDisposable);
 
   // Register Moments webview view
   const momentsProvider = new MomentsViewProvider(getNotesDir);
@@ -288,7 +309,7 @@ export function activate(context: vscode.ExtensionContext) {
   const movePinnedNoteUpDisposable = vscode.commands.registerCommand(
     "notes.movePinnedNoteUp",
     async (item?: { relativePath?: string }) => {
-      const relativePath = item?.relativePath;
+      const relativePath = item?.relativePath ?? selectedSidebarItem?.relativePath;
       if (!relativePath) {
         return;
       }
@@ -303,7 +324,7 @@ export function activate(context: vscode.ExtensionContext) {
   const movePinnedNoteDownDisposable = vscode.commands.registerCommand(
     "notes.movePinnedNoteDown",
     async (item?: { relativePath?: string }) => {
-      const relativePath = item?.relativePath;
+      const relativePath = item?.relativePath ?? selectedSidebarItem?.relativePath;
       if (!relativePath) {
         return;
       }
