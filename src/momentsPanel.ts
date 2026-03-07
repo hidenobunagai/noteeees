@@ -889,7 +889,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
   <div id="errorBanner" style="display:none"></div>
   <textarea id="inputBox" rows="1" placeholder="Capture a thought…"></textarea>
   <div class="input-actions">
-    <button class="task-toggle" id="taskToggle" title="Toggle task mode">Task</button>
+    <button class="task-toggle" id="taskToggle" title="Toggle task mode" aria-pressed="false">Task</button>
     <button class="send-btn" id="sendBtn">Send &#10148;</button>
   </div>
   <div class="hint" id="hintText">Enter to send · Shift+Enter for newline</div>
@@ -1055,7 +1055,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
   taskToggle.addEventListener('click', () => {
     isTaskMode = !isTaskMode;
     taskToggle.classList.toggle('active', isTaskMode);
-    taskToggle.textContent = isTaskMode ? '✓ Task' : 'Task';
+    taskToggle.setAttribute('aria-pressed', String(isTaskMode));
   });
 
   function send() {
