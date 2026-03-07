@@ -1,5 +1,5 @@
 import * as assert from "assert";
-import { filterMomentEntries, sortOpenTaskOverview } from "../momentsPanel";
+import { filterMomentEntries, mapMomentBodyIndexToFileLine, sortOpenTaskOverview } from "../momentsPanel";
 
 // You can import and use all API from the 'vscode' module
 // as well as import your extension to test it
@@ -94,5 +94,10 @@ suite("Extension Test Suite", () => {
       { date: "2026-03-07", time: "08:30" },
       { date: "2026-03-06", time: "09:00" },
     ]);
+  });
+
+  test("moment body index maps to file line after front matter", () => {
+    const raw = "---\ntype: moments\ndate: 2026-03-07\n---\n\n- [ ] 09:00 task";
+    assert.strictEqual(mapMomentBodyIndexToFileLine(raw, 1), 5);
   });
 });

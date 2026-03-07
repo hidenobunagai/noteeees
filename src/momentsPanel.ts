@@ -15,6 +15,8 @@ interface OpenTaskOverviewItem {
   time: string;
   text: string;
   filePath: string;
+  relativePath: string;
+  fileLineIndex: number;
 }
 
 export type MomentFilter = "all" | "openTasks";
@@ -104,6 +106,18 @@ function readMoments(notesDir: string, date: string): MomentEntry[] {
   return entries;
 }
 
+export function mapMomentBodyIndexToFileLine(raw: string, bodyIndex: number): number {
+  let bodyStart = 0;
+  if (raw.startsWith("---")) {
+    const fmEnd = raw.indexOf("\n---", 3);
+    if (fmEnd !== -1) {
+      bodyStart = raw.slice(0, fmEnd + 4).split("\n").length;
+    }
+  }
+
+  return bodyStart + bodyIndex;
+}
+
 function compareOpenTaskOverview<T extends { date: string; time: string }>(a: T, b: T): number {
   const dateCompare = b.date.localeCompare(a.date);
   if (dateCompare !== 0) {
@@ -137,6 +151,7 @@ function collectOpenTaskOverview(notesDir: string): OpenTaskOverviewItem[] {
     }
 
     const filePath = path.join(momentsDir, file.name);
+    const raw = fs.readFileSync(filePath, "utf8");
     const entries = readMoments(notesDir, date);
 
     for (const entry of entries) {
@@ -146,6 +161,8 @@ function collectOpenTaskOverview(notesDir: string): OpenTaskOverviewItem[] {
           time: entry.time,
           text: entry.text,
           filePath,
+          relativePath: path.relative(notesDir, filePath),
+          fileLineIndex: mapMomentBodyIndexToFileLine(raw, entry.index),
         });
       }
     }
@@ -166,11 +183,11 @@ export async function showOpenTasksOverview(notesDir: string): Promise<void> {
     items.map((item) => ({
       label: `$(checklist) ${item.text}`,
       description: `${item.date} • ${item.time}`,
-      detail: item.filePath,
+      detail: `${item.relativePath}:${item.fileLineIndex + 1}`,
       item,
     })),
     {
-      placeHolder: `${items.length} open tasks across Moments`,
+      placeHolder: `${items.length} open tasks across Moments. Type to filter by text, date, or file.`,
       matchOnDescription: true,
       matchOnDetail: true,
     },
@@ -181,7 +198,11 @@ export async function showOpenTasksOverview(notesDir: string): Promise<void> {
   }
 
   const doc = await vscode.workspace.openTextDocument(picked.item.filePath);
-  await vscode.window.showTextDocument(doc);
+  const editor = await vscode.window.showTextDocument(doc);
+  const line = Math.min(picked.item.fileLineIndex, Math.max(0, doc.lineCount - 1));
+  const range = doc.lineAt(line).range;
+  editor.selection = new vscode.Selection(range.start, range.end);
+  editor.revealRange(range, vscode.TextEditorRevealType.InCenter);
 }
 
 function ensureMomentsFile(notesDir: string, date: string): string {
@@ -220,18 +241,7 @@ function toggleTask(notesDir: string, date: string, index: number): void {
   const raw = fs.readFileSync(filePath, "utf8");
   // Preserve front matter as-is; work on full file lines
   const lines = raw.split("\n");
-  // Find the actual line corresponding to this entry's line index
-  // We need to map entry.index (body line index) back to file line index
-  let bodyStart = 0;
-  if (raw.startsWith("---")) {
-    // Skip front matter: find second ---
-    let fmEnd = raw.indexOf("\n---", 3);
-    if (fmEnd !== -1) {
-      bodyStart = raw.slice(0, fmEnd + 4).split("\n").length;
-    }
-  }
-
-  const fileLineIdx = bodyStart + index;
+  const fileLineIdx = mapMomentBodyIndexToFileLine(raw, index);
   if (fileLineIdx >= lines.length) {
     return;
   }
