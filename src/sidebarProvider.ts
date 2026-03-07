@@ -1,7 +1,12 @@
 import * as fs from "fs";
 import * as path from "path";
 import * as vscode from "vscode";
-import { buildIndexedNotes, collectNoteFiles, type IndexedNote } from "./noteCommands";
+import {
+  buildIndexedNotes,
+  buildQueryExcerpt,
+  collectNoteFiles,
+  type IndexedNote,
+} from "./noteCommands";
 
 export type SidebarTagSortMode = "frequency" | "alphabetical";
 export type MoveDirection = "up" | "down";
@@ -39,6 +44,8 @@ interface SidebarNoteItem {
   absolutePath: string;
   mtime: number;
   tags: string[];
+  preview: string;
+  searchText: string;
   description?: string;
 }
 
@@ -160,6 +167,19 @@ function buildTagTooltip(group: SidebarTagGroup): string {
   return lines.join("\n");
 }
 
+export function buildTagNoteDescription(
+  note: Pick<SidebarNoteItem, "relativePath" | "mtime" | "preview" | "searchText">,
+  activeTag: string,
+): string {
+  const excerpt = buildQueryExcerpt(note.searchText || note.preview, activeTag, 72);
+
+  if (!excerpt) {
+    return [note.relativePath, new Date(note.mtime).toLocaleDateString()].join(" • ");
+  }
+
+  return [note.relativePath, excerpt].join(" • ");
+}
+
 export class NotesTreeProvider implements vscode.TreeDataProvider<NoteTreeItem> {
   private _onDidChangeTreeData = new vscode.EventEmitter<NoteTreeItem | undefined>();
   readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
@@ -273,20 +293,20 @@ export class NotesTreeProvider implements vscode.TreeDataProvider<NoteTreeItem> 
       absolutePath: note.absolutePath,
       mtime: note.mtime,
       tags: note.metadata.tags,
+      preview: note.preview,
+      searchText: note.searchText,
       description: descParts.length > 0 ? descParts.join(" • ") : undefined,
     };
   }
 
   private _createNoteTreeItem(note: SidebarNoteItem, activeTag?: string): NoteTreeItem {
-    const tagDescription = activeTag
-      ? [note.relativePath, new Date(note.mtime).toLocaleDateString()].join(" • ")
-      : note.description;
+    const tagDescription = activeTag ? buildTagNoteDescription(note, activeTag) : note.description;
     const pinned = this.getPinnedRelativePaths().includes(note.relativePath);
 
     return {
       label: note.title,
       description: tagDescription,
-      tooltip: this._buildTooltip(note),
+      tooltip: this._buildTooltip(note, activeTag),
       kind: "noteFile",
       filePath: note.absolutePath,
       relativePath: note.relativePath,
@@ -301,7 +321,7 @@ export class NotesTreeProvider implements vscode.TreeDataProvider<NoteTreeItem> 
     };
   }
 
-  private _buildTooltip(note: SidebarNoteItem): string {
+  private _buildTooltip(note: SidebarNoteItem, activeTag?: string): string {
     const lines = [note.relativePath];
 
     if (note.tags.length > 0) {
@@ -310,10 +330,15 @@ export class NotesTreeProvider implements vscode.TreeDataProvider<NoteTreeItem> 
 
     lines.push(`Updated ${new Date(note.mtime).toLocaleString()}`);
 
-    const raw = fs.readFileSync(note.absolutePath, "utf8");
-    const preview = raw.replace(/^---\s*\n[\s\S]*?\n---\s*\n?/, "").trim();
-    if (preview.length > 0) {
-      lines.push(preview.slice(0, 140).replace(/\n+/g, " "));
+    if (activeTag) {
+      const matchExcerpt = buildQueryExcerpt(note.searchText || note.preview, activeTag, 120);
+      if (matchExcerpt) {
+        lines.push(`Match ${activeTag}: ${matchExcerpt}`);
+      }
+    }
+
+    if (note.preview.length > 0) {
+      lines.push(note.preview);
     }
 
     return lines.join("\n");

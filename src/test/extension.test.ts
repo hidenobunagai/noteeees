@@ -22,6 +22,7 @@ import {
   shouldPromptForTemplateSelection,
 } from "../noteCommands";
 import {
+  buildTagNoteDescription,
   buildSidebarTagGroups,
   buildTagSummary,
   limitSidebarNotes,
@@ -193,6 +194,21 @@ suite("Extension Test Suite", () => {
       latestRelativePath: "projects/alpha.md",
       latestMtime: new Date("2026-03-07T10:00:00Z").getTime(),
     });
+  });
+
+  test("tag note description includes path and tag-aware excerpt", () => {
+    const description = buildTagNoteDescription(
+      {
+        relativePath: "projects/alpha.md",
+        mtime: new Date("2026-03-07T10:00:00Z").getTime(),
+        preview: "Roadmap review for #project launch next week",
+        searchText: "Roadmap review for #project launch next week",
+      },
+      "#project",
+    );
+
+    assert.ok(description.includes("projects/alpha.md"));
+    assert.ok(description.includes("#project launch"));
   });
 
   test("recent notes limit keeps newest items only", () => {
