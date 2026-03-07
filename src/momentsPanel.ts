@@ -180,6 +180,53 @@ export function toggleMomentTaskLine(line: string): { line: string; changed: boo
   return { line, changed: false };
 }
 
+export function replaceMomentEntryText(line: string, nextText: string): { line: string; changed: boolean } {
+  const normalizedText = nextText.trim();
+  if (!normalizedText) {
+    return { line, changed: false };
+  }
+
+  const taskDone = line.match(/^(-\s+\[x\]\s+)(\d{2}:\d{2})\s+(.*)$/i);
+  if (taskDone) {
+    return {
+      line: `${taskDone[1]}${taskDone[2]} ${normalizedText}`,
+      changed: taskDone[3] !== normalizedText,
+    };
+  }
+
+  const taskTodo = line.match(/^(-\s+\[ \]\s+)(\d{2}:\d{2})\s+(.*)$/);
+  if (taskTodo) {
+    return {
+      line: `${taskTodo[1]}${taskTodo[2]} ${normalizedText}`,
+      changed: taskTodo[3] !== normalizedText,
+    };
+  }
+
+  const regular = line.match(/^(-\s+)(\d{2}:\d{2})\s+(.*)$/);
+  if (regular) {
+    return {
+      line: `${regular[1]}${regular[2]} ${normalizedText}`,
+      changed: regular[3] !== normalizedText,
+    };
+  }
+
+  return { line, changed: false };
+}
+
+export function deleteMomentLine(lines: string[], lineIndex: number): {
+  lines: string[];
+  changed: boolean;
+} {
+  if (lineIndex < 0 || lineIndex >= lines.length) {
+    return { lines, changed: false };
+  }
+
+  return {
+    lines: [...lines.slice(0, lineIndex), ...lines.slice(lineIndex + 1)],
+    changed: true,
+  };
+}
+
 function compareOpenTaskOverview<T extends { date: string; time: string; done?: boolean }>(
   a: T,
   b: T,
@@ -466,6 +513,47 @@ function toggleTask(notesDir: string, date: string, index: number): void {
   fs.writeFileSync(filePath, lines.join("\n"), "utf8");
 }
 
+function saveMomentEdit(notesDir: string, date: string, index: number, text: string): boolean {
+  const filePath = getMomentsFilePath(notesDir, date);
+  if (!fs.existsSync(filePath)) {
+    return false;
+  }
+
+  const raw = fs.readFileSync(filePath, "utf8");
+  const lines = raw.split("\n");
+  const fileLineIdx = mapMomentBodyIndexToFileLine(raw, index);
+  if (fileLineIdx < 0 || fileLineIdx >= lines.length) {
+    return false;
+  }
+
+  const result = replaceMomentEntryText(lines[fileLineIdx], text);
+  if (!result.changed) {
+    return false;
+  }
+
+  lines[fileLineIdx] = result.line;
+  fs.writeFileSync(filePath, lines.join("\n"), "utf8");
+  return true;
+}
+
+function deleteMomentEntry(notesDir: string, date: string, index: number): boolean {
+  const filePath = getMomentsFilePath(notesDir, date);
+  if (!fs.existsSync(filePath)) {
+    return false;
+  }
+
+  const raw = fs.readFileSync(filePath, "utf8");
+  const lines = raw.split("\n");
+  const fileLineIdx = mapMomentBodyIndexToFileLine(raw, index);
+  const result = deleteMomentLine(lines, fileLineIdx);
+  if (!result.changed) {
+    return false;
+  }
+
+  fs.writeFileSync(filePath, result.lines.join("\n"), "utf8");
+  return true;
+}
+
 // ---------------------------------------------------------------------------
 // WebviewViewProvider
 // ---------------------------------------------------------------------------
@@ -516,6 +604,41 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
             return;
           }
           toggleTask(notesDir, this._currentDate, message.index);
+          this._sendEntries();
+          break;
+        }
+
+        case "saveEdit": {
+          if (!notesDir) {
+            this._showError("Notes directory is not configured.");
+            return;
+          }
+
+          if (typeof message.text !== "string") {
+            this._showError("Invalid Moment text.");
+            return;
+          }
+
+          if (!saveMomentEdit(notesDir, this._currentDate, message.index, message.text)) {
+            this._showError("Could not save that Moment entry.");
+            return;
+          }
+
+          this._sendEntries();
+          break;
+        }
+
+        case "deleteEntry": {
+          if (!notesDir) {
+            this._showError("Notes directory is not configured.");
+            return;
+          }
+
+          if (!deleteMomentEntry(notesDir, this._currentDate, message.index)) {
+            this._showError("Could not delete that Moment entry.");
+            return;
+          }
+
           this._sendEntries();
           break;
         }
@@ -668,72 +791,73 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
   .timeline {
     flex: 1;
     overflow-y: auto;
-    padding: 8px 6px;
+    padding: 0;
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 0;
   }
 
   .empty-state {
     text-align: center;
     color: var(--vscode-descriptionForeground);
     font-size: 12px;
-    margin-top: 24px;
+    margin: 24px 12px 0;
     opacity: 0.6;
   }
 
   .entry {
     display: flex;
-    align-items: flex-start;
+    flex-direction: column;
     gap: 6px;
-    padding: 5px 8px;
-    border-radius: 6px;
+    padding: 10px 12px 8px;
     background: var(--vscode-editor-background);
-    border: 1px solid var(--vscode-panel-border);
+    border-bottom: 1px solid var(--vscode-panel-border);
     transition: background 0.1s, border-color 0.1s;
     word-break: break-word;
   }
   .entry:hover { background: var(--vscode-list-hoverBackground); }
 
-  .task-check {
+  .entry-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 18px;
+  }
+
+  .entry-meta {
     display: inline-flex;
     align-items: center;
-    justify-content: center;
-    width: 16px;
-    height: 16px;
-    margin-top: 1px;
-    border-radius: 4px;
-    border: 1px solid var(--vscode-input-border, var(--vscode-panel-border));
-    background: transparent;
-    color: var(--vscode-textLink-foreground);
-    cursor: pointer;
-    flex-shrink: 0;
-    transition: border-color 0.15s, background 0.15s, color 0.15s;
-  }
-
-  .task-check:hover {
-    border-color: var(--vscode-textLink-foreground);
-    background: color-mix(in srgb, var(--vscode-textLink-foreground) 10%, transparent);
-  }
-
-  .task-check:focus-visible {
-    outline: 1px solid var(--vscode-focusBorder);
-    outline-offset: 2px;
-  }
-
-  .task-check-icon {
+    gap: 6px;
+    min-width: 0;
+    color: var(--vscode-descriptionForeground);
     font-size: 11px;
-    line-height: 1;
-    opacity: 0;
   }
 
-  .entry.is-task.task-done .task-check {
-    border-color: color-mix(in srgb, var(--vscode-textLink-foreground) 40%, var(--vscode-panel-border));
-    background: color-mix(in srgb, var(--vscode-textLink-foreground) 18%, transparent);
+  .entry-kind {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 999px;
+    padding: 1px 6px;
+    background: color-mix(in srgb, var(--vscode-descriptionForeground) 12%, transparent);
+    color: var(--vscode-descriptionForeground);
+    font-size: 10px;
+    font-weight: 600;
   }
 
-  .entry.is-task.task-done .task-check-icon {
-    opacity: 1;
+  .entry-kind.is-task {
+    background: color-mix(in srgb, var(--vscode-textLink-foreground) 16%, transparent);
+    color: var(--vscode-textLink-foreground);
+  }
+
+  .entry-kind.is-done {
+    background: color-mix(in srgb, var(--vscode-textLink-foreground) 12%, transparent);
+    color: var(--vscode-textLink-foreground);
+  }
+
+  .entry-time {
+    color: var(--vscode-descriptionForeground);
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
   }
 
   .entry.is-task.task-done {
@@ -746,25 +870,58 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     text-decoration: line-through;
   }
 
-  .time-badge {
-    font-size: 10px;
-    color: var(--vscode-descriptionForeground);
-    white-space: nowrap;
-    padding-top: 1px;
-    flex-shrink: 0;
-  }
-
-  .entry-body {
-    flex: 1;
-    display: flex;
-    align-items: flex-start;
-    gap: 5px;
-  }
-
   .entry-text {
-    flex: 1;
     line-height: 1.45;
     font-size: 12.5px;
+  }
+
+  .entry-edit {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .entry-edit textarea {
+    margin-bottom: 0;
+    min-height: 72px;
+    max-height: 180px;
+    font-size: 12.5px;
+  }
+
+  .entry-edit-actions,
+  .entry-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .entry-action {
+    background: none;
+    border: none;
+    color: var(--vscode-descriptionForeground);
+    cursor: pointer;
+    padding: 2px 0;
+    font-size: 11px;
+    opacity: 0.9;
+    transition: color 0.15s, opacity 0.15s;
+  }
+
+  .entry-action:hover {
+    color: var(--vscode-foreground);
+    opacity: 1;
+  }
+
+  .entry-action.primary {
+    color: var(--vscode-textLink-foreground);
+  }
+
+  .entry-action.danger:hover {
+    color: var(--vscode-errorForeground);
+  }
+
+  .entry-action.save {
+    color: var(--vscode-textLink-foreground);
   }
 
   .tag {
@@ -919,6 +1076,8 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
   let latestEntries = [];
   let latestDate = '';
   let latestIsToday = true;
+  let editingEntryIndex = null;
+  let editingText = '';
 
   // Notify extension we're ready
   vscode.postMessage({ command: 'ready' });
@@ -928,9 +1087,17 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     const msg = event.data;
     if (msg.command === 'update') {
       sendOnEnter = msg.sendOnEnter;
+      if (latestDate && latestDate !== msg.date) {
+        editingEntryIndex = null;
+        editingText = '';
+      }
       latestEntries = msg.entries;
       latestDate = msg.date;
       latestIsToday = msg.isToday;
+      if (editingEntryIndex !== null && !latestEntries.some((entry) => entry.index === editingEntryIndex)) {
+        editingEntryIndex = null;
+        editingText = '';
+      }
       updateHint();
       renderTimeline(latestEntries, latestDate, latestIsToday);
     } else if (msg.command === 'error') {
@@ -968,6 +1135,11 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     // Auto-link URLs
     html = html.replace(/(https?:\\/\\/[^\\s<]+)/g, '<a href="$1" style="color:var(--vscode-textLink-foreground)">$1</a>');
     return html;
+  }
+
+  function autoResizeTextarea(textarea) {
+    textarea.style.height = 'auto';
+    textarea.style.height = Math.min(textarea.scrollHeight, 180) + 'px';
   }
 
   function renderTimeline(entries, date, isToday) {
@@ -1009,41 +1181,148 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
       const div = document.createElement('div');
       div.className = 'entry' + (entry.isTask ? ' is-task' : '') + (entry.done ? ' task-done' : '');
 
+      const header = document.createElement('div');
+      header.className = 'entry-header';
+
+      const meta = document.createElement('div');
+      meta.className = 'entry-meta';
+
+      const kind = document.createElement('span');
+      kind.className = 'entry-kind' + (entry.isTask ? ' is-task' : '') + (entry.done ? ' is-done' : '');
+      kind.textContent = entry.isTask ? (entry.done ? 'Task · Done' : 'Task') : 'Moment';
+
       const timeBadge = document.createElement('span');
-      timeBadge.className = 'time-badge';
+      timeBadge.className = 'entry-time';
       timeBadge.textContent = entry.time;
 
-      const body = document.createElement('div');
-      body.className = 'entry-body';
+      meta.appendChild(kind);
+      meta.appendChild(timeBadge);
+      header.appendChild(meta);
+      div.appendChild(header);
 
-      const textSpan = document.createElement('span');
+      if (editingEntryIndex === entry.index) {
+        const editWrap = document.createElement('div');
+        editWrap.className = 'entry-edit';
+
+        const editInput = document.createElement('textarea');
+        editInput.value = editingText;
+        editInput.setAttribute('aria-label', 'Edit Moment entry');
+        editInput.addEventListener('input', () => {
+          editingText = editInput.value;
+          autoResizeTextarea(editInput);
+        });
+        editInput.addEventListener('keydown', (event) => {
+          if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
+            event.preventDefault();
+            const nextText = editInput.value.trim();
+            if (!nextText) {
+              showError('Moment text cannot be empty.');
+              return;
+            }
+            editingEntryIndex = null;
+            editingText = '';
+            vscode.postMessage({ command: 'saveEdit', index: entry.index, text: nextText });
+          }
+          if (event.key === 'Escape') {
+            event.preventDefault();
+            editingEntryIndex = null;
+            editingText = '';
+            renderTimeline(latestEntries, latestDate, latestIsToday);
+          }
+        });
+
+        const editActions = document.createElement('div');
+        editActions.className = 'entry-edit-actions';
+
+        const saveButton = document.createElement('button');
+        saveButton.className = 'entry-action save';
+        saveButton.type = 'button';
+        saveButton.textContent = 'Save';
+        saveButton.addEventListener('click', () => {
+          const nextText = editInput.value.trim();
+          if (!nextText) {
+            showError('Moment text cannot be empty.');
+            return;
+          }
+          editingEntryIndex = null;
+          editingText = '';
+          vscode.postMessage({ command: 'saveEdit', index: entry.index, text: nextText });
+        });
+
+        const cancelButton = document.createElement('button');
+        cancelButton.className = 'entry-action';
+        cancelButton.type = 'button';
+        cancelButton.textContent = 'Cancel';
+        cancelButton.addEventListener('click', () => {
+          editingEntryIndex = null;
+          editingText = '';
+          renderTimeline(latestEntries, latestDate, latestIsToday);
+        });
+
+        editActions.appendChild(saveButton);
+        editActions.appendChild(cancelButton);
+        editWrap.appendChild(editInput);
+        editWrap.appendChild(editActions);
+        div.appendChild(editWrap);
+
+        timeline.appendChild(div);
+        setTimeout(() => {
+          editInput.focus();
+          editInput.selectionStart = editInput.value.length;
+          editInput.selectionEnd = editInput.value.length;
+          autoResizeTextarea(editInput);
+        }, 0);
+        return;
+      }
+
+      const textSpan = document.createElement('div');
       textSpan.className = 'entry-text';
       textSpan.innerHTML = renderText(entry.text);
 
-      if (entry.isTask) {
-        const toggleTask = (event) => {
-          if (event.target instanceof HTMLElement && event.target.closest('a')) {
-            return;
-          }
-          vscode.postMessage({ command: 'toggleTask', index: entry.index });
-        };
+      const actions = document.createElement('div');
+      actions.className = 'entry-actions';
 
+      if (entry.isTask) {
         const toggleButton = document.createElement('button');
-        toggleButton.className = 'task-check';
+        toggleButton.className = 'entry-action primary';
         toggleButton.type = 'button';
-        toggleButton.setAttribute('role', 'checkbox');
-        toggleButton.setAttribute('aria-checked', String(entry.done));
-        toggleButton.setAttribute('aria-label', entry.done ? 'Mark task as not done' : 'Mark task as done');
-        toggleButton.title = entry.done ? 'Mark task as not done' : 'Mark task as done';
-        toggleButton.innerHTML = '<span class="task-check-icon">✓</span>';
-        toggleButton.addEventListener('click', toggleTask);
-        body.appendChild(toggleButton);
+        toggleButton.textContent = entry.done ? 'Mark Open' : 'Mark Done';
+        toggleButton.addEventListener('click', () => {
+          vscode.postMessage({ command: 'toggleTask', index: entry.index });
+        });
+        actions.appendChild(toggleButton);
       }
 
-      body.appendChild(textSpan);
+      const editButton = document.createElement('button');
+      editButton.className = 'entry-action';
+      editButton.type = 'button';
+      editButton.textContent = 'Edit';
+      editButton.addEventListener('click', () => {
+        editingEntryIndex = entry.index;
+        editingText = entry.text;
+        renderTimeline(latestEntries, latestDate, latestIsToday);
+      });
 
-      div.appendChild(timeBadge);
-      div.appendChild(body);
+      const deleteButton = document.createElement('button');
+      deleteButton.className = 'entry-action danger';
+      deleteButton.type = 'button';
+      deleteButton.textContent = 'Delete';
+      deleteButton.addEventListener('click', () => {
+        const confirmed = confirm('Delete this Moment entry?');
+        if (!confirmed) {
+          return;
+        }
+        if (editingEntryIndex === entry.index) {
+          editingEntryIndex = null;
+          editingText = '';
+        }
+        vscode.postMessage({ command: 'deleteEntry', index: entry.index });
+      });
+
+      actions.appendChild(editButton);
+      actions.appendChild(deleteButton);
+      div.appendChild(textSpan);
+      div.appendChild(actions);
       timeline.appendChild(div);
     });
 
@@ -1090,8 +1369,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
   inputBox.addEventListener('input', autoResize);
 
   function autoResize() {
-    inputBox.style.height = 'auto';
-    inputBox.style.height = Math.min(inputBox.scrollHeight, 120) + 'px';
+    autoResizeTextarea(inputBox);
   }
 
   // ---- Navigation ----

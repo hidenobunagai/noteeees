@@ -3,11 +3,13 @@ import * as path from "path";
 import { buildTagSearchItems, createNotesWatcherPattern } from "../extension";
 import {
   buildTaskSearchDetail,
+  deleteMomentLine,
   filterMomentEntries,
   filterTaskOverviewItems,
   getNextInboxFilter,
   mapMomentBodyIndexToFileLine,
   normalizeInboxTaskFilter,
+  replaceMomentEntryText,
   sortOpenTaskOverview,
   toggleMomentTaskLine,
 } from "../momentsPanel";
@@ -276,6 +278,32 @@ suite("Extension Test Suite", () => {
     });
     assert.deepStrictEqual(toggleMomentTaskLine("- 09:00 note"), {
       line: "- 09:00 note",
+      changed: false,
+    });
+  });
+
+  test("moment entry text replacement preserves time and task state", () => {
+    assert.deepStrictEqual(replaceMomentEntryText("- [ ] 09:00 old task", "new task"), {
+      line: "- [ ] 09:00 new task",
+      changed: true,
+    });
+    assert.deepStrictEqual(replaceMomentEntryText("- [x] 09:00 done task", "updated done"), {
+      line: "- [x] 09:00 updated done",
+      changed: true,
+    });
+    assert.deepStrictEqual(replaceMomentEntryText("- 09:00 note text", "updated note"), {
+      line: "- 09:00 updated note",
+      changed: true,
+    });
+  });
+
+  test("moment line deletion removes only the targeted line", () => {
+    assert.deepStrictEqual(deleteMomentLine(["a", "b", "c"], 1), {
+      lines: ["a", "c"],
+      changed: true,
+    });
+    assert.deepStrictEqual(deleteMomentLine(["a", "b", "c"], 10), {
+      lines: ["a", "b", "c"],
       changed: false,
     });
   });
