@@ -1,10 +1,12 @@
 import * as assert from "assert";
+import * as path from "path";
 import {
   filterMomentEntries,
   mapMomentBodyIndexToFileLine,
   sortOpenTaskOverview,
   toggleMomentTaskLine,
 } from "../momentsPanel";
+import { createNotesWatcherPattern } from "../extension";
 
 // You can import and use all API from the 'vscode' module
 // as well as import your extension to test it
@@ -134,5 +136,15 @@ suite("Extension Test Suite", () => {
       line: "- 09:00 note",
       changed: false,
     });
+  });
+
+  test("notes watcher pattern is scoped to notes directory", () => {
+    const notesDir = path.join("/tmp", "notes");
+    const pattern = createNotesWatcherPattern(notesDir);
+
+    assert.ok(pattern instanceof vscode.RelativePattern);
+    assert.strictEqual(pattern.baseUri.fsPath, notesDir);
+    assert.strictEqual(pattern.pattern, "**/*.md");
+    assert.strictEqual(createNotesWatcherPattern(undefined), undefined);
   });
 });

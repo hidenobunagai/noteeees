@@ -12,6 +12,16 @@ import {
 const LEGACY_GLOBAL_STATE_KEY = "notesDirectory";
 const PINNED_NOTES_KEY = "pinnedNotes";
 
+export function createNotesWatcherPattern(
+  notesDir: string | undefined,
+): vscode.GlobPattern | undefined {
+  if (!notesDir) {
+    return undefined;
+  }
+
+  return new vscode.RelativePattern(notesDir, "**/*.md");
+}
+
 export function activate(context: vscode.ExtensionContext) {
   function getNotesDir(): string | undefined {
     const configured = vscode.workspace.getConfiguration("notes").get<string>("notesDirectory");
@@ -172,12 +182,31 @@ export function activate(context: vscode.ExtensionContext) {
     momentsProvider.refresh();
   });
 
-  // Watch for new/deleted/changed .md files for sidebar refresh
-  const mdWatcher = vscode.workspace.createFileSystemWatcher("**/*.md");
-  mdWatcher.onDidCreate(() => notesTreeProvider.refresh());
-  mdWatcher.onDidDelete(() => notesTreeProvider.refresh());
-  mdWatcher.onDidChange(() => notesTreeProvider.refresh());
-  context.subscriptions.push(mdWatcher);
+  let mdWatcher: vscode.FileSystemWatcher | undefined;
+  const refreshNotesViews = () => {
+    notesTreeProvider.refresh();
+    momentsProvider.refresh();
+  };
+
+  const refreshMarkdownWatcher = () => {
+    mdWatcher?.dispose();
+    mdWatcher = undefined;
+
+    const pattern = createNotesWatcherPattern(getNotesDir());
+    if (!pattern) {
+      return;
+    }
+
+    mdWatcher = vscode.workspace.createFileSystemWatcher(pattern);
+    mdWatcher.onDidCreate(refreshNotesViews);
+    mdWatcher.onDidDelete(refreshNotesViews);
+    mdWatcher.onDidChange(refreshNotesViews);
+  };
+
+  refreshMarkdownWatcher();
+  context.subscriptions.push({
+    dispose: () => mdWatcher?.dispose(),
+  });
 
   const configChangeDisposable = vscode.workspace.onDidChangeConfiguration((event) => {
     if (
@@ -186,8 +215,14 @@ export function activate(context: vscode.ExtensionContext) {
       event.affectsConfiguration("notes.sidebarRecentLimit") ||
       event.affectsConfiguration("notes.sidebarTagSort")
     ) {
-      notesTreeProvider.refresh();
-      momentsProvider.refresh();
+      if (
+        event.affectsConfiguration("notes.notesDirectory") ||
+        event.affectsConfiguration("notes.momentsSubfolder")
+      ) {
+        refreshMarkdownWatcher();
+      }
+
+      refreshNotesViews();
     }
   });
 
