@@ -10,17 +10,18 @@ export interface MomentEntry {
   done: boolean;
 }
 
-interface OpenTaskOverviewItem {
+interface TaskOverviewItem {
   date: string;
   time: string;
   text: string;
   filePath: string;
   relativePath: string;
   fileLineIndex: number;
+  done: boolean;
 }
 
 interface OpenTaskQuickPickItem extends vscode.QuickPickItem {
-  task: OpenTaskOverviewItem;
+  task: TaskOverviewItem;
 }
 
 export type MomentFilter = "all" | "openTasks";
@@ -140,7 +141,14 @@ export function toggleMomentTaskLine(line: string): { line: string; changed: boo
   return { line, changed: false };
 }
 
-function compareOpenTaskOverview<T extends { date: string; time: string }>(a: T, b: T): number {
+function compareOpenTaskOverview<T extends { date: string; time: string; done?: boolean }>(
+  a: T,
+  b: T,
+): number {
+  if ((a.done ?? false) !== (b.done ?? false)) {
+    return Number(a.done ?? false) - Number(b.done ?? false);
+  }
+
   const dateCompare = b.date.localeCompare(a.date);
   if (dateCompare !== 0) {
     return dateCompare;
@@ -149,11 +157,13 @@ function compareOpenTaskOverview<T extends { date: string; time: string }>(a: T,
   return b.time.localeCompare(a.time);
 }
 
-export function sortOpenTaskOverview<T extends { date: string; time: string }>(items: T[]): T[] {
+export function sortOpenTaskOverview<T extends { date: string; time: string; done?: boolean }>(
+  items: T[],
+): T[] {
   return [...items].sort((a, b) => compareOpenTaskOverview(a, b));
 }
 
-function openOpenTaskItem(item: OpenTaskOverviewItem): Thenable<vscode.TextEditor> {
+function openOpenTaskItem(item: TaskOverviewItem): Thenable<vscode.TextEditor> {
   return vscode.workspace.openTextDocument(item.filePath).then((doc) => {
     return vscode.window.showTextDocument(doc).then((editor) => {
       const line = Math.min(item.fileLineIndex, Math.max(0, doc.lineCount - 1));
@@ -185,29 +195,29 @@ function toggleTaskAtFileLine(filePath: string, fileLineIndex: number): boolean 
   return true;
 }
 
-function toOpenTaskQuickPickItem(item: OpenTaskOverviewItem): OpenTaskQuickPickItem {
+function toOpenTaskQuickPickItem(item: TaskOverviewItem): OpenTaskQuickPickItem {
   return {
     label: `$(checklist) ${item.text}`,
-    description: `${item.date} • ${item.time}`,
+    description: `${item.date} • ${item.time} • ${item.done ? "Done" : "Open"}`,
     detail: `${item.relativePath}:${item.fileLineIndex + 1}`,
     buttons: [
       {
-        iconPath: new vscode.ThemeIcon("check"),
-        tooltip: "Mark task as done",
+        iconPath: new vscode.ThemeIcon(item.done ? "circle-large-outline" : "check"),
+        tooltip: item.done ? "Mark task as open" : "Mark task as done",
       },
     ],
     task: item,
   };
 }
 
-function collectOpenTaskOverview(notesDir: string): OpenTaskOverviewItem[] {
+function collectOpenTaskOverview(notesDir: string): TaskOverviewItem[] {
   const momentsDir = getMomentsDirectory(notesDir);
   if (!fs.existsSync(momentsDir)) {
     return [];
   }
 
   const files = fs.readdirSync(momentsDir, { withFileTypes: true });
-  const items: OpenTaskOverviewItem[] = [];
+  const items: TaskOverviewItem[] = [];
 
   for (const file of files) {
     if (!file.isFile() || !file.name.endsWith(".md")) {
@@ -224,7 +234,7 @@ function collectOpenTaskOverview(notesDir: string): OpenTaskOverviewItem[] {
     const entries = readMoments(notesDir, date);
 
     for (const entry of entries) {
-      if (entry.isTask && !entry.done) {
+      if (entry.isTask) {
         items.push({
           date,
           time: entry.time,
@@ -232,6 +242,7 @@ function collectOpenTaskOverview(notesDir: string): OpenTaskOverviewItem[] {
           filePath,
           relativePath: path.relative(notesDir, filePath),
           fileLineIndex: mapMomentBodyIndexToFileLine(raw, entry.index),
+          done: entry.done,
         });
       }
     }
@@ -249,13 +260,15 @@ export async function showOpenTasksOverview(notesDir: string): Promise<void> {
   const refreshItems = (): number => {
     const items = collectOpenTaskOverview(notesDir);
     quickPick.items = items.map((item) => toOpenTaskQuickPickItem(item));
-    quickPick.placeholder = `${items.length} open tasks across Moments. Type to filter by text, date, or file.`;
+    const openCount = items.filter((item) => !item.done).length;
+    const doneCount = items.length - openCount;
+    quickPick.placeholder = `${openCount} open • ${doneCount} done across Moments. Type to filter by text, date, state, or file.`;
     return items.length;
   };
 
   if (refreshItems() === 0) {
     quickPick.dispose();
-    vscode.window.showInformationMessage("No open tasks across Moments.");
+    vscode.window.showInformationMessage("No tasks across Moments.");
     return;
   }
 
@@ -275,11 +288,7 @@ export async function showOpenTasksOverview(notesDir: string): Promise<void> {
 
     try {
       toggleTaskAtFileLine(event.item.task.filePath, event.item.task.fileLineIndex);
-      const remaining = refreshItems();
-      if (remaining === 0) {
-        quickPick.hide();
-        vscode.window.showInformationMessage("All open tasks are complete.");
-      }
+      refreshItems();
     } finally {
       quickPick.busy = false;
       quickPick.enabled = true;

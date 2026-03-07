@@ -102,15 +102,17 @@ suite("Extension Test Suite", () => {
 
   test("open task overview is sorted by date and time desc", () => {
     const sorted = sortOpenTaskOverview([
-      { date: "2026-03-06", time: "09:00" },
-      { date: "2026-03-07", time: "08:30" },
-      { date: "2026-03-07", time: "10:15" },
+      { date: "2026-03-06", time: "09:00", done: true },
+      { date: "2026-03-07", time: "08:30", done: false },
+      { date: "2026-03-07", time: "10:15", done: false },
+      { date: "2026-03-07", time: "12:00", done: true },
     ]);
 
     assert.deepStrictEqual(sorted, [
-      { date: "2026-03-07", time: "10:15" },
-      { date: "2026-03-07", time: "08:30" },
-      { date: "2026-03-06", time: "09:00" },
+      { date: "2026-03-07", time: "10:15", done: false },
+      { date: "2026-03-07", time: "08:30", done: false },
+      { date: "2026-03-07", time: "12:00", done: true },
+      { date: "2026-03-06", time: "09:00", done: true },
     ]);
   });
 

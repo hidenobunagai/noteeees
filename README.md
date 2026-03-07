@@ -14,7 +14,7 @@ A quick-capture timeline panel for fleeting thoughts, tasks, and ideas — alway
 - **Quick input**: Type a thought, press `Enter` to save instantly
 - **Task mode**: Toggle the `Task` button to create `[ ]` items; click the checkbox to mark done
 - **Open-task filter**: Toggle `Open` to focus only on unfinished tasks for the current day
-- **Inbox overview**: Open `Inbox` to browse unfinished tasks across all Moments files, mark them done inline, or jump to the exact line
+- **Inbox overview**: Open `Inbox` to browse all Moments tasks, toggle done or undone inline, or jump to the exact line
 - **Date navigation**: Browse previous / next days with `◀ ▶` or jump back to Today
 - **Tag highlighting**: `#tag` tokens are rendered as color badges
 - **Open in editor**: `↗` opens the day's raw Markdown file for editing
