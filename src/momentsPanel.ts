@@ -180,7 +180,10 @@ export function toggleMomentTaskLine(line: string): { line: string; changed: boo
   return { line, changed: false };
 }
 
-export function replaceMomentEntryText(line: string, nextText: string): { line: string; changed: boolean } {
+export function replaceMomentEntryText(
+  line: string,
+  nextText: string,
+): { line: string; changed: boolean } {
   const normalizedText = nextText.trim();
   if (!normalizedText) {
     return { line, changed: false };
@@ -213,7 +216,10 @@ export function replaceMomentEntryText(line: string, nextText: string): { line: 
   return { line, changed: false };
 }
 
-export function deleteMomentLine(lines: string[], lineIndex: number): {
+export function deleteMomentLine(
+  lines: string[],
+  lineIndex: number,
+): {
   lines: string[];
   changed: boolean;
 } {
