@@ -4,6 +4,12 @@ All notable changes to the "notes" extension will be documented in this file.
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## [0.0.34] - 2026-03-07
+
+### Fix: Moments Task button label no longer reverts to a checkbox-style state
+
+- The input-area Task button now keeps the label fixed as `Task` and no longer switches to `✓ Task`, which also prevents the button width from growing when task mode is enabled.
+
 ## [0.0.33] - 2026-03-07
 
 ### Improved: Faster note discovery and Moments triage
