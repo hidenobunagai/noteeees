@@ -10,7 +10,7 @@ import {
   pickIndexedNote,
 } from "./noteCommands";
 import {
-  buildTagSummary,
+  buildSidebarTagGroups,
   movePinnedItem,
   NotesTreeProvider,
   type SidebarTagSortMode,
@@ -33,20 +33,24 @@ export function buildTagSearchItems(
   indexedNotes: IndexedNote[],
   sortMode: SidebarTagSortMode,
 ): vscode.QuickPickItem[] {
-  const summary = buildTagSummary(
-    indexedNotes.map((note) => ({ tags: note.metadata.tags })),
+  const summary = buildSidebarTagGroups(
+    indexedNotes.map((note) => ({
+      tags: note.metadata.tags,
+      title: note.metadata.title,
+      relativePath: note.relativePath,
+      mtime: note.mtime,
+    })),
     sortMode,
   );
 
-  return summary.map(({ tag, count }) => {
-    const latestNote = indexedNotes.find((note) => note.metadata.tags.includes(tag));
-
+  return summary.map(({ tag, count, latestTitle, latestMtime, latestRelativePath }) => {
     return {
       label: tag,
       description: `${count} note${count === 1 ? "" : "s"}`,
-      detail: latestNote
-        ? `Latest: ${latestNote.metadata.title} • ${new Date(latestNote.mtime).toLocaleDateString()}`
-        : undefined,
+      detail:
+        latestTitle && typeof latestMtime === "number"
+          ? `Latest: ${latestTitle} • ${new Date(latestMtime).toLocaleDateString()}${latestRelativePath ? ` • ${latestRelativePath}` : ""}`
+          : undefined,
     };
   });
 }

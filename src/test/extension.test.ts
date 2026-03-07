@@ -19,7 +19,12 @@ import {
   extractPreviewText,
   shouldPromptForTemplateSelection,
 } from "../noteCommands";
-import { buildTagSummary, limitSidebarNotes, movePinnedItem } from "../sidebarProvider";
+import {
+  buildSidebarTagGroups,
+  buildTagSummary,
+  limitSidebarNotes,
+  movePinnedItem,
+} from "../sidebarProvider";
 // import * as myExtension from '../../extension';
 
 suite("Extension Test Suite", () => {
@@ -59,7 +64,10 @@ suite("Extension Test Suite", () => {
       30,
     );
 
-    assert.strictEqual(excerpt, "…gamma delta roadmap epsilon…");
+    assert.ok(excerpt.startsWith("…"));
+    assert.ok(excerpt.endsWith("…"));
+    assert.ok(excerpt.includes("roadmap"));
+    assert.ok(!excerpt.includes("amma delta"));
   });
 
   test("note search detail includes query-matched excerpt", () => {
@@ -122,6 +130,34 @@ suite("Extension Test Suite", () => {
       { tag: "#beta", count: 1 },
       { tag: "#zeta", count: 1 },
     ]);
+  });
+
+  test("sidebar tag groups include latest note context", () => {
+    const groups = buildSidebarTagGroups(
+      [
+        {
+          tags: ["#project"],
+          title: "Beta",
+          relativePath: "projects/beta.md",
+          mtime: new Date("2026-03-06T10:00:00Z").getTime(),
+        },
+        {
+          tags: ["#project", "#todo"],
+          title: "Alpha",
+          relativePath: "projects/alpha.md",
+          mtime: new Date("2026-03-07T10:00:00Z").getTime(),
+        },
+      ],
+      "frequency",
+    );
+
+    assert.deepStrictEqual(groups[0], {
+      tag: "#project",
+      count: 2,
+      latestTitle: "Alpha",
+      latestRelativePath: "projects/alpha.md",
+      latestMtime: new Date("2026-03-07T10:00:00Z").getTime(),
+    });
   });
 
   test("recent notes limit keeps newest items only", () => {
@@ -222,5 +258,6 @@ suite("Extension Test Suite", () => {
     assert.strictEqual(items[0].label, "#project");
     assert.strictEqual(items[0].description, "2 notes");
     assert.ok(items[0].detail?.includes("Latest: Alpha"));
+    assert.ok(items[0].detail?.includes("projects/alpha.md"));
   });
 });

@@ -81,14 +81,30 @@ export function buildQueryExcerpt(text: string, query: string, maxLength: number
   const contextPadding = Math.max(0, Math.floor((maxLength - matchLength) / 2));
   const start = Math.max(0, matchIndex - contextPadding);
   const end = Math.min(normalized.length, start + maxLength);
-  const adjustedStart = Math.max(0, end - maxLength);
-  let excerpt = normalized.slice(adjustedStart, end).trim();
+  let adjustedStart = Math.max(0, end - maxLength);
+  let adjustedEnd = end;
+
+  if (adjustedStart > 0) {
+    const nextWordBoundary = normalized.indexOf(" ", adjustedStart);
+    if (nextWordBoundary !== -1 && nextWordBoundary < matchIndex) {
+      adjustedStart = nextWordBoundary + 1;
+    }
+  }
+
+  if (adjustedEnd < normalized.length) {
+    const previousWordBoundary = normalized.lastIndexOf(" ", adjustedEnd);
+    if (previousWordBoundary !== -1 && previousWordBoundary > matchIndex + matchLength) {
+      adjustedEnd = previousWordBoundary;
+    }
+  }
+
+  let excerpt = normalized.slice(adjustedStart, adjustedEnd).trim();
 
   if (adjustedStart > 0) {
     excerpt = `…${excerpt}`;
   }
 
-  if (end < normalized.length) {
+  if (adjustedEnd < normalized.length) {
     excerpt = `${excerpt}…`;
   }
 

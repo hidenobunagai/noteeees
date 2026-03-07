@@ -42,6 +42,14 @@ interface SidebarNoteItem {
   description?: string;
 }
 
+export interface SidebarTagGroup {
+  tag: string;
+  count: number;
+  latestTitle?: string;
+  latestRelativePath?: string;
+  latestMtime?: number;
+}
+
 export function limitSidebarNotes<T>(notes: T[], limit: number): T[] {
   if (limit <= 0) {
     return notes;
@@ -86,6 +94,44 @@ export function buildTagSummary(
   return summary.sort((a, b) => b.count - a.count || a.tag.localeCompare(b.tag));
 }
 
+export function buildSidebarTagGroups(
+  notes: Array<{
+    tags: string[];
+    title?: string;
+    relativePath?: string;
+    mtime?: number;
+  }>,
+  sortMode: SidebarTagSortMode = "frequency",
+): SidebarTagGroup[] {
+  const groups = new Map<string, SidebarTagGroup>();
+
+  for (const note of notes) {
+    for (const tag of note.tags) {
+      const current = groups.get(tag) ?? { tag, count: 0 };
+      current.count += 1;
+
+      if (
+        typeof note.mtime === "number" &&
+        (typeof current.latestMtime !== "number" || note.mtime > current.latestMtime)
+      ) {
+        current.latestMtime = note.mtime;
+        current.latestTitle = note.title;
+        current.latestRelativePath = note.relativePath;
+      }
+
+      groups.set(tag, current);
+    }
+  }
+
+  const summary = [...groups.values()];
+
+  if (sortMode === "alphabetical") {
+    return summary.sort((a, b) => a.tag.localeCompare(b.tag));
+  }
+
+  return summary.sort((a, b) => b.count - a.count || a.tag.localeCompare(b.tag));
+}
+
 function getRecentNotesLimit(): number {
   const config = vscode.workspace.getConfiguration("notes");
   return Math.max(0, config.get<number>("sidebarRecentLimit") ?? 20);
@@ -93,6 +139,25 @@ function getRecentNotesLimit(): number {
 
 function formatTagCount(count: number): string {
   return `${count} note${count === 1 ? "" : "s"}`;
+}
+
+function buildTagTooltip(group: SidebarTagGroup): string {
+  const lines = [`${formatTagCount(group.count)} tagged ${group.tag}`];
+
+  if (group.latestTitle) {
+    const latestLine = ["Latest", group.latestTitle].join(": ");
+    lines.push(latestLine);
+  }
+
+  if (group.latestRelativePath) {
+    lines.push(group.latestRelativePath);
+  }
+
+  if (typeof group.latestMtime === "number") {
+    lines.push(`Updated ${new Date(group.latestMtime).toLocaleString()}`);
+  }
+
+  return lines.join("\n");
 }
 
 export class NotesTreeProvider implements vscode.TreeDataProvider<NoteTreeItem> {
@@ -163,11 +228,11 @@ export class NotesTreeProvider implements vscode.TreeDataProvider<NoteTreeItem> 
     }
 
     if (element.kind === "tagsRoot") {
-      return buildTagSummary(notes, this.getTagSortMode()).map(({ tag, count }) => ({
-        label: tag,
-        description: formatTagCount(count),
-        tooltip: `${formatTagCount(count)} tagged ${tag}`,
-        tag,
+      return buildSidebarTagGroups(notes, this.getTagSortMode()).map((group) => ({
+        label: group.tag,
+        description: formatTagCount(group.count),
+        tooltip: buildTagTooltip(group),
+        tag: group.tag,
         kind: "tagGroup" as const,
         collapsibleState: vscode.TreeItemCollapsibleState.Collapsed,
         iconPath: new vscode.ThemeIcon("tag"),
