@@ -3,8 +3,9 @@ import * as path from "path";
 import { buildTagSearchItems, createNotesWatcherPattern } from "../extension";
 import {
   buildTaskSearchDetail,
-  filterTaskOverviewItems,
   filterMomentEntries,
+  filterTaskOverviewItems,
+  getNextInboxFilter,
   mapMomentBodyIndexToFileLine,
   sortOpenTaskOverview,
   toggleMomentTaskLine,
@@ -131,6 +132,12 @@ suite("Extension Test Suite", () => {
     assert.deepStrictEqual(filterTaskOverviewItems(items, "open"), [items[0]]);
     assert.deepStrictEqual(filterTaskOverviewItems(items, "done"), [items[1]]);
     assert.deepStrictEqual(filterTaskOverviewItems(items, "all"), items);
+  });
+
+  test("inbox filter cycles all -> open -> done -> all", () => {
+    assert.strictEqual(getNextInboxFilter("all"), "open");
+    assert.strictEqual(getNextInboxFilter("open"), "done");
+    assert.strictEqual(getNextInboxFilter("done"), "all");
   });
 
   test("tag summary is sorted by frequency", () => {

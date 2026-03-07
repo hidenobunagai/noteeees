@@ -28,6 +28,8 @@ interface OpenTaskQuickPickItem extends vscode.QuickPickItem {
 export type MomentFilter = "all" | "openTasks";
 export type InboxTaskFilter = "all" | "open" | "done";
 
+let lastInboxTaskFilter: InboxTaskFilter = "all";
+
 export function filterMomentEntries(entries: MomentEntry[], filter: MomentFilter): MomentEntry[] {
   if (filter === "openTasks") {
     return entries.filter((entry) => entry.isTask && !entry.done);
@@ -248,7 +250,7 @@ function toOpenTaskQuickPickItem(
   };
 }
 
-function getNextInboxFilter(filter: InboxTaskFilter): InboxTaskFilter {
+export function getNextInboxFilter(filter: InboxTaskFilter): InboxTaskFilter {
   if (filter === "all") {
     return "open";
   }
@@ -322,7 +324,7 @@ function collectOpenTaskOverview(notesDir: string): TaskOverviewItem[] {
 
 export async function showOpenTasksOverview(notesDir: string): Promise<void> {
   const quickPick = vscode.window.createQuickPick<OpenTaskQuickPickItem>();
-  let activeFilter: InboxTaskFilter = "all";
+  let activeFilter: InboxTaskFilter = lastInboxTaskFilter;
   quickPick.matchOnDescription = true;
   quickPick.matchOnDetail = true;
   quickPick.buttons = [buildInboxFilterButton(activeFilter)];
@@ -367,6 +369,7 @@ export async function showOpenTasksOverview(notesDir: string): Promise<void> {
 
   quickPick.onDidTriggerButton(() => {
     activeFilter = getNextInboxFilter(activeFilter);
+    lastInboxTaskFilter = activeFilter;
     refreshItems(quickPick.value);
   });
 
@@ -384,6 +387,7 @@ export async function showOpenTasksOverview(notesDir: string): Promise<void> {
   });
 
   quickPick.onDidHide(() => {
+    lastInboxTaskFilter = activeFilter;
     quickPick.dispose();
   });
 
