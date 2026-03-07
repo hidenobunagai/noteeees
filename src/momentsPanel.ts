@@ -26,6 +26,7 @@ interface OpenTaskQuickPickItem extends vscode.QuickPickItem {
 }
 
 export type MomentFilter = "all" | "openTasks";
+export type InboxTaskFilter = "all" | "open" | "done";
 
 export function filterMomentEntries(entries: MomentEntry[], filter: MomentFilter): MomentEntry[] {
   if (filter === "openTasks") {
@@ -33,6 +34,21 @@ export function filterMomentEntries(entries: MomentEntry[], filter: MomentFilter
   }
 
   return entries;
+}
+
+export function filterTaskOverviewItems(
+  items: TaskOverviewItem[],
+  filter: InboxTaskFilter,
+): TaskOverviewItem[] {
+  if (filter === "open") {
+    return items.filter((item) => !item.done);
+  }
+
+  if (filter === "done") {
+    return items.filter((item) => item.done);
+  }
+
+  return items;
 }
 
 // ---------------------------------------------------------------------------
@@ -214,7 +230,10 @@ export function buildTaskSearchDetail(item: TaskOverviewItem, query: string = ""
   return details.join("  •  ");
 }
 
-function toOpenTaskQuickPickItem(item: TaskOverviewItem, query: string = ""): OpenTaskQuickPickItem {
+function toOpenTaskQuickPickItem(
+  item: TaskOverviewItem,
+  query: string = "",
+): OpenTaskQuickPickItem {
   return {
     label: `$(checklist) ${item.text}`,
     description: `${item.date} • ${item.time} • ${item.done ? "Done" : "Open"}`,
@@ -226,6 +245,37 @@ function toOpenTaskQuickPickItem(item: TaskOverviewItem, query: string = ""): Op
       },
     ],
     task: item,
+  };
+}
+
+function getNextInboxFilter(filter: InboxTaskFilter): InboxTaskFilter {
+  if (filter === "all") {
+    return "open";
+  }
+
+  if (filter === "open") {
+    return "done";
+  }
+
+  return "all";
+}
+
+function getInboxFilterLabel(filter: InboxTaskFilter): string {
+  if (filter === "open") {
+    return "Open Only";
+  }
+
+  if (filter === "done") {
+    return "Done Only";
+  }
+
+  return "All Tasks";
+}
+
+function buildInboxFilterButton(filter: InboxTaskFilter): vscode.QuickInputButton {
+  return {
+    iconPath: new vscode.ThemeIcon("filter"),
+    tooltip: `Switch inbox filter (${getInboxFilterLabel(filter)})`,
   };
 }
 
@@ -272,16 +322,26 @@ function collectOpenTaskOverview(notesDir: string): TaskOverviewItem[] {
 
 export async function showOpenTasksOverview(notesDir: string): Promise<void> {
   const quickPick = vscode.window.createQuickPick<OpenTaskQuickPickItem>();
-  quickPick.title = "Moments Inbox";
+  let activeFilter: InboxTaskFilter = "all";
   quickPick.matchOnDescription = true;
   quickPick.matchOnDetail = true;
+  quickPick.buttons = [buildInboxFilterButton(activeFilter)];
 
   const refreshItems = (query: string = quickPick.value): number => {
     const items = collectOpenTaskOverview(notesDir);
-    quickPick.items = items.map((item) => toOpenTaskQuickPickItem(item, query));
+    const filteredItems = filterTaskOverviewItems(items, activeFilter);
+    quickPick.title = `Moments Inbox • ${getInboxFilterLabel(activeFilter)}`;
+    quickPick.buttons = [buildInboxFilterButton(activeFilter)];
+    quickPick.items = filteredItems.map((item) => toOpenTaskQuickPickItem(item, query));
     const openCount = items.filter((item) => !item.done).length;
     const doneCount = items.length - openCount;
-    quickPick.placeholder = `${openCount} open • ${doneCount} done across Moments. Type to filter by text, date, state, or file.`;
+
+    if (filteredItems.length === 0 && items.length > 0) {
+      quickPick.placeholder = `No ${getInboxFilterLabel(activeFilter).toLowerCase()} match the current filter. Type to search by text, date, state, or file.`;
+    } else {
+      quickPick.placeholder = `${openCount} open • ${doneCount} done across Moments. Type to filter by text, date, state, or file.`;
+    }
+
     return items.length;
   };
 
@@ -303,6 +363,11 @@ export async function showOpenTasksOverview(notesDir: string): Promise<void> {
 
   quickPick.onDidChangeValue((value) => {
     refreshItems(value);
+  });
+
+  quickPick.onDidTriggerButton(() => {
+    activeFilter = getNextInboxFilter(activeFilter);
+    refreshItems(quickPick.value);
   });
 
   quickPick.onDidTriggerItemButton((event) => {

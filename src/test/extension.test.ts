@@ -3,6 +3,7 @@ import * as path from "path";
 import { buildTagSearchItems, createNotesWatcherPattern } from "../extension";
 import {
   buildTaskSearchDetail,
+  filterTaskOverviewItems,
   filterMomentEntries,
   mapMomentBodyIndexToFileLine,
   sortOpenTaskOverview,
@@ -103,6 +104,33 @@ suite("Extension Test Suite", () => {
 
     assert.ok(detail.includes("moments/2026-03-07.md:6"));
     assert.ok(detail.includes("roadmap milestone"));
+  });
+
+  test("inbox task filter narrows open and done items", () => {
+    const items = [
+      {
+        date: "2026-03-07",
+        time: "09:00",
+        text: "Open task",
+        filePath: "/tmp/moments/2026-03-07.md",
+        relativePath: "moments/2026-03-07.md",
+        fileLineIndex: 5,
+        done: false,
+      },
+      {
+        date: "2026-03-07",
+        time: "10:00",
+        text: "Done task",
+        filePath: "/tmp/moments/2026-03-07.md",
+        relativePath: "moments/2026-03-07.md",
+        fileLineIndex: 8,
+        done: true,
+      },
+    ];
+
+    assert.deepStrictEqual(filterTaskOverviewItems(items, "open"), [items[0]]);
+    assert.deepStrictEqual(filterTaskOverviewItems(items, "done"), [items[1]]);
+    assert.deepStrictEqual(filterTaskOverviewItems(items, "all"), items);
   });
 
   test("tag summary is sorted by frequency", () => {
