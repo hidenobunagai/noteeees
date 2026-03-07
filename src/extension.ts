@@ -5,6 +5,7 @@ import {
   buildIndexedNotes,
   collectNoteFiles,
   createNewNote,
+  type IndexedNote,
   listNotes,
   pickIndexedNote,
 } from "./noteCommands";
@@ -26,6 +27,28 @@ export function createNotesWatcherPattern(
   }
 
   return new vscode.RelativePattern(notesDir, "**/*.md");
+}
+
+export function buildTagSearchItems(
+  indexedNotes: IndexedNote[],
+  sortMode: SidebarTagSortMode,
+): vscode.QuickPickItem[] {
+  const summary = buildTagSummary(
+    indexedNotes.map((note) => ({ tags: note.metadata.tags })),
+    sortMode,
+  );
+
+  return summary.map(({ tag, count }) => {
+    const latestNote = indexedNotes.find((note) => note.metadata.tags.includes(tag));
+
+    return {
+      label: tag,
+      description: `${count} note${count === 1 ? "" : "s"}`,
+      detail: latestNote
+        ? `Latest: ${latestNote.metadata.title} • ${new Date(latestNote.mtime).toLocaleDateString()}`
+        : undefined,
+    };
+  });
 }
 
 export function activate(context: vscode.ExtensionContext) {
@@ -104,26 +127,18 @@ export function activate(context: vscode.ExtensionContext) {
 
   async function searchTags(notesDir: string): Promise<void> {
     const indexedNotes = getIndexedNotes(notesDir);
-    const tags = buildTagSummary(
-      indexedNotes.map((note) => ({ tags: note.metadata.tags })),
-      getSidebarTagSort(),
-    );
+    const tagItems = buildTagSearchItems(indexedNotes, getSidebarTagSort());
 
-    if (tags.length === 0) {
+    if (tagItems.length === 0) {
       vscode.window.showInformationMessage("No tags found.");
       return;
     }
 
-    const selectedTag = await vscode.window.showQuickPick(
-      tags.map(({ tag, count }) => ({
-        label: tag,
-        description: `${count} note${count === 1 ? "" : "s"}`,
-      })),
-      {
-        placeHolder: "Search tags",
-        matchOnDescription: true,
-      },
-    );
+    const selectedTag = await vscode.window.showQuickPick(tagItems, {
+      placeHolder: "Search tags",
+      matchOnDescription: true,
+      matchOnDetail: true,
+    });
 
     if (!selectedTag) {
       return;

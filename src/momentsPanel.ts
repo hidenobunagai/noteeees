@@ -1,6 +1,7 @@
 import * as fs from "fs";
 import * as path from "path";
 import * as vscode from "vscode";
+import { buildQueryExcerpt } from "./noteCommands";
 
 export interface MomentEntry {
   index: number; // 0-based line index in the body
@@ -10,7 +11,7 @@ export interface MomentEntry {
   done: boolean;
 }
 
-interface TaskOverviewItem {
+export interface TaskOverviewItem {
   date: string;
   time: string;
   text: string;
@@ -195,11 +196,29 @@ function toggleTaskAtFileLine(filePath: string, fileLineIndex: number): boolean 
   return true;
 }
 
-function toOpenTaskQuickPickItem(item: TaskOverviewItem): OpenTaskQuickPickItem {
+export function buildTaskSearchDetail(item: TaskOverviewItem, query: string = ""): string {
+  const details = [`${item.relativePath}:${item.fileLineIndex + 1}`];
+  const normalizedQuery = query.trim();
+
+  if (normalizedQuery) {
+    const excerpt = buildQueryExcerpt(
+      `${item.relativePath} ${item.date} ${item.time} ${item.done ? "done" : "open"} ${item.text}`,
+      normalizedQuery,
+      90,
+    );
+    if (excerpt) {
+      details.push(excerpt);
+    }
+  }
+
+  return details.join("  •  ");
+}
+
+function toOpenTaskQuickPickItem(item: TaskOverviewItem, query: string = ""): OpenTaskQuickPickItem {
   return {
     label: `$(checklist) ${item.text}`,
     description: `${item.date} • ${item.time} • ${item.done ? "Done" : "Open"}`,
-    detail: `${item.relativePath}:${item.fileLineIndex + 1}`,
+    detail: buildTaskSearchDetail(item, query),
     buttons: [
       {
         iconPath: new vscode.ThemeIcon(item.done ? "circle-large-outline" : "check"),
@@ -257,9 +276,9 @@ export async function showOpenTasksOverview(notesDir: string): Promise<void> {
   quickPick.matchOnDescription = true;
   quickPick.matchOnDetail = true;
 
-  const refreshItems = (): number => {
+  const refreshItems = (query: string = quickPick.value): number => {
     const items = collectOpenTaskOverview(notesDir);
-    quickPick.items = items.map((item) => toOpenTaskQuickPickItem(item));
+    quickPick.items = items.map((item) => toOpenTaskQuickPickItem(item, query));
     const openCount = items.filter((item) => !item.done).length;
     const doneCount = items.length - openCount;
     quickPick.placeholder = `${openCount} open • ${doneCount} done across Moments. Type to filter by text, date, state, or file.`;
@@ -282,13 +301,17 @@ export async function showOpenTasksOverview(notesDir: string): Promise<void> {
     quickPick.hide();
   });
 
+  quickPick.onDidChangeValue((value) => {
+    refreshItems(value);
+  });
+
   quickPick.onDidTriggerItemButton((event) => {
     quickPick.busy = true;
     quickPick.enabled = false;
 
     try {
       toggleTaskAtFileLine(event.item.task.filePath, event.item.task.fileLineIndex);
-      refreshItems();
+      refreshItems(quickPick.value);
     } finally {
       quickPick.busy = false;
       quickPick.enabled = true;

@@ -1,12 +1,13 @@
 import * as assert from "assert";
 import * as path from "path";
+import { buildTagSearchItems, createNotesWatcherPattern } from "../extension";
 import {
+  buildTaskSearchDetail,
   filterMomentEntries,
   mapMomentBodyIndexToFileLine,
   sortOpenTaskOverview,
   toggleMomentTaskLine,
 } from "../momentsPanel";
-import { createNotesWatcherPattern } from "../extension";
 
 // You can import and use all API from the 'vscode' module
 // as well as import your extension to test it
@@ -76,6 +77,24 @@ suite("Extension Test Suite", () => {
 
     assert.ok(detail.includes("#project"));
     assert.ok(detail.includes("roadmap milestones"));
+  });
+
+  test("task search detail includes query-aware excerpt", () => {
+    const detail = buildTaskSearchDetail(
+      {
+        date: "2026-03-07",
+        time: "09:00",
+        text: "Follow up on roadmap milestone alignment",
+        filePath: "/tmp/moments/2026-03-07.md",
+        relativePath: "moments/2026-03-07.md",
+        fileLineIndex: 5,
+        done: false,
+      },
+      "roadmap",
+    );
+
+    assert.ok(detail.includes("moments/2026-03-07.md:6"));
+    assert.ok(detail.includes("roadmap milestone"));
   });
 
   test("tag summary is sorted by frequency", () => {
@@ -175,5 +194,33 @@ suite("Extension Test Suite", () => {
     assert.strictEqual(pattern.baseUri.fsPath, notesDir);
     assert.strictEqual(pattern.pattern, "**/*.md");
     assert.strictEqual(createNotesWatcherPattern(undefined), undefined);
+  });
+
+  test("tag search items include latest note context", () => {
+    const items = buildTagSearchItems(
+      [
+        {
+          relativePath: "projects/alpha.md",
+          absolutePath: "/tmp/projects/alpha.md",
+          mtime: new Date("2026-03-07T10:00:00Z").getTime(),
+          metadata: { title: "Alpha", tags: ["#project"] },
+          preview: "Alpha preview",
+          searchText: "Alpha preview",
+        },
+        {
+          relativePath: "projects/beta.md",
+          absolutePath: "/tmp/projects/beta.md",
+          mtime: new Date("2026-03-06T10:00:00Z").getTime(),
+          metadata: { title: "Beta", tags: ["#project", "#todo"] },
+          preview: "Beta preview",
+          searchText: "Beta preview",
+        },
+      ],
+      "frequency",
+    );
+
+    assert.strictEqual(items[0].label, "#project");
+    assert.strictEqual(items[0].description, "2 notes");
+    assert.ok(items[0].detail?.includes("Latest: Alpha"));
   });
 });
