@@ -4,6 +4,14 @@ All notable changes to the "notes" extension will be documented in this file.
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## [0.0.35] - 2026-03-08
+
+### Improved: Moments feed interactions and editing
+
+- Moments entries now render in a cleaner feed-style layout that makes each post easier to scan.
+- You can edit a Moment inline without leaving the panel and save or cancel directly in place.
+- You can delete a Moment from the panel with confirmation, and task rows now share a more consistent active-state treatment.
+
 ## [0.0.34] - 2026-03-07
 
 ### Fix: Moments Task button label no longer reverts to a checkbox-style state
