@@ -4,6 +4,14 @@ All notable changes to the "notes" extension will be documented in this file.
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## [0.0.33] - 2026-03-07
+
+### Improved: Faster note discovery and Moments triage
+
+- Search results now show query-aware excerpts so matching terms are easier to spot before opening a note.
+- The sidebar is richer and more actionable, with pinned-note ordering shortcuts, recent-note limits, and tag context that highlights activity and matching note excerpts.
+- The Moments Inbox now supports all/open/done filters, inline task toggles, exact line jumps, and remembers the selected filter between launches.
+
 ## [0.0.31] - 2026-03-03
 
 ## [0.0.32] - 2026-03-06
