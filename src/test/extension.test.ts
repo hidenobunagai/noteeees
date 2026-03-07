@@ -7,6 +7,7 @@ import {
   filterTaskOverviewItems,
   getNextInboxFilter,
   mapMomentBodyIndexToFileLine,
+  normalizeInboxTaskFilter,
   sortOpenTaskOverview,
   toggleMomentTaskLine,
 } from "../momentsPanel";
@@ -22,8 +23,8 @@ import {
   shouldPromptForTemplateSelection,
 } from "../noteCommands";
 import {
-  buildTagNoteDescription,
   buildSidebarTagGroups,
+  buildTagNoteDescription,
   buildTagSummary,
   limitSidebarNotes,
   movePinnedItem,
@@ -139,6 +140,12 @@ suite("Extension Test Suite", () => {
     assert.strictEqual(getNextInboxFilter("all"), "open");
     assert.strictEqual(getNextInboxFilter("open"), "done");
     assert.strictEqual(getNextInboxFilter("done"), "all");
+  });
+
+  test("invalid inbox filter setting falls back to all", () => {
+    assert.strictEqual(normalizeInboxTaskFilter("invalid"), "all");
+    assert.strictEqual(normalizeInboxTaskFilter("done"), "done");
+    assert.strictEqual(normalizeInboxTaskFilter(undefined), "all");
   });
 
   test("tag summary is sorted by frequency", () => {

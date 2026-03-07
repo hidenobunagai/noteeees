@@ -30,6 +30,14 @@ export type InboxTaskFilter = "all" | "open" | "done";
 
 let lastInboxTaskFilter: InboxTaskFilter = "all";
 
+export function normalizeInboxTaskFilter(filter: string | undefined): InboxTaskFilter {
+  if (filter === "open" || filter === "done" || filter === "all") {
+    return filter;
+  }
+
+  return "all";
+}
+
 export function filterMomentEntries(entries: MomentEntry[], filter: MomentFilter): MomentEntry[] {
   if (filter === "openTasks") {
     return entries.filter((entry) => entry.isTask && !entry.done);
@@ -65,6 +73,18 @@ function getMomentsSubfolder(): string {
 function getSendOnEnter(): boolean {
   const config = vscode.workspace.getConfiguration("notes");
   return config.get<boolean>("momentsSendOnEnter") ?? true;
+}
+
+function getConfiguredInboxTaskFilter(): InboxTaskFilter {
+  const config = vscode.workspace.getConfiguration("notes");
+  return normalizeInboxTaskFilter(config.get<string>("momentsInboxFilter"));
+}
+
+function persistInboxTaskFilter(filter: InboxTaskFilter): Thenable<void> {
+  lastInboxTaskFilter = filter;
+  return vscode.workspace
+    .getConfiguration("notes")
+    .update("momentsInboxFilter", filter, vscode.ConfigurationTarget.Global);
 }
 
 function getMomentsFilePath(notesDir: string, date: string): string {
@@ -324,7 +344,8 @@ function collectOpenTaskOverview(notesDir: string): TaskOverviewItem[] {
 
 export async function showOpenTasksOverview(notesDir: string): Promise<void> {
   const quickPick = vscode.window.createQuickPick<OpenTaskQuickPickItem>();
-  let activeFilter: InboxTaskFilter = lastInboxTaskFilter;
+  let activeFilter: InboxTaskFilter = getConfiguredInboxTaskFilter();
+  lastInboxTaskFilter = activeFilter;
   quickPick.matchOnDescription = true;
   quickPick.matchOnDetail = true;
   quickPick.buttons = [buildInboxFilterButton(activeFilter)];
@@ -369,7 +390,7 @@ export async function showOpenTasksOverview(notesDir: string): Promise<void> {
 
   quickPick.onDidTriggerButton(() => {
     activeFilter = getNextInboxFilter(activeFilter);
-    lastInboxTaskFilter = activeFilter;
+    void persistInboxTaskFilter(activeFilter);
     refreshItems(quickPick.value);
   });
 
@@ -387,7 +408,7 @@ export async function showOpenTasksOverview(notesDir: string): Promise<void> {
   });
 
   quickPick.onDidHide(() => {
-    lastInboxTaskFilter = activeFilter;
+    void persistInboxTaskFilter(activeFilter);
     quickPick.dispose();
   });
 

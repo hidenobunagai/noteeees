@@ -254,6 +254,16 @@
           "type": "boolean",
           "default": true,
           "description": "If true, pressing Enter sends the Moment entry. Use Shift+Enter for a newline. If false, use Ctrl+Enter / Cmd+Enter to send."
+        },
+        "notes.momentsInboxFilter": {
+          "type": "string",
+          "default": "all",
+          "enum": [
+            "all",
+            "open",
+            "done"
+          ],
+          "description": "Default filter for the Moments Inbox overview. The last selected value is saved here and reused the next time Inbox opens."
         }
       }
     }

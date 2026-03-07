@@ -14,7 +14,7 @@ A quick-capture timeline panel for fleeting thoughts, tasks, and ideas — alway
 - **Quick input**: Type a thought, press `Enter` to save instantly
 - **Task mode**: Toggle the `Task` button to create `[ ]` items; click the checkbox to mark done
 - **Open-task filter**: Toggle `Open` to focus only on unfinished tasks for the current day
-- **Inbox overview**: Open `Inbox` to browse all Moments tasks, switch between all/open/done views, keep that filter for the current session, toggle done or undone inline, or jump to the exact line
+- **Inbox overview**: Open `Inbox` to browse all Moments tasks, switch between all/open/done views, remember that filter between launches, toggle done or undone inline, or jump to the exact line
 - **Date navigation**: Browse previous / next days with `◀ ▶` or jump back to Today
 - **Tag highlighting**: `#tag` tokens are rendered as color badges
 - **Open in editor**: `↗` opens the day's raw Markdown file for editing
@@ -127,6 +127,7 @@ When `notes.templates` is set, a picker will appear on note creation to choose b
 | `notes.templates` | Custom template names (maps to `noteeees_template_{name}` snippets) |
 | `notes.sidebarRecentLimit` | Number of notes shown in the sidebar Recent section (`0` = all) |
 | `notes.sidebarTagSort` | Sort mode for the sidebar Tags section (`frequency` or `alphabetical`) |
+| `notes.momentsInboxFilter` | Default filter for the Moments Inbox (`all`, `open`, or `done`) |
 
 ## Supercharge with MCP
 
