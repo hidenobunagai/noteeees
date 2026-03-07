@@ -1,7 +1,13 @@
 import * as fs from "fs";
 import * as vscode from "vscode";
 import { MomentsViewProvider, showOpenTasksOverview } from "./momentsPanel";
-import { buildIndexedNotes, collectNoteFiles, createNewNote, listNotes } from "./noteCommands";
+import {
+  buildIndexedNotes,
+  collectNoteFiles,
+  createNewNote,
+  listNotes,
+  pickIndexedNote,
+} from "./noteCommands";
 import {
   buildTagSummary,
   movePinnedItem,
@@ -126,31 +132,13 @@ export function activate(context: vscode.ExtensionContext) {
     const matchingNotes = indexedNotes.filter((note) =>
       note.metadata.tags.includes(selectedTag.label),
     );
-    const selectedNote = await vscode.window.showQuickPick(
-      matchingNotes.map((note) => ({
-        label: `$(file) ${note.metadata.title}`,
-        description: note.relativePath,
-        detail: [
-          note.metadata.tags.join(" "),
-          `Updated ${new Date(note.mtime).toLocaleString()}`,
-          note.preview,
-        ]
-          .filter(Boolean)
-          .join("  •  "),
-        filePath: note.absolutePath,
-      })),
-      {
-        placeHolder: `Notes tagged ${selectedTag.label}`,
-        matchOnDescription: true,
-        matchOnDetail: true,
-      },
-    );
+    const selectedNote = await pickIndexedNote(matchingNotes, `Notes tagged ${selectedTag.label}`);
 
     if (!selectedNote) {
       return;
     }
 
-    const doc = await vscode.workspace.openTextDocument(selectedNote.filePath);
+    const doc = await vscode.workspace.openTextDocument(selectedNote.absolutePath);
     await vscode.window.showTextDocument(doc);
   }
 

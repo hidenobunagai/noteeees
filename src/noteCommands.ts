@@ -31,6 +31,70 @@ export function extractPreviewText(rawContent: string, maxLength: number = 140):
   return `${preview.slice(0, maxLength - 1).trimEnd()}…`;
 }
 
+function normalizeSearchText(text: string): string {
+  return text.replace(/\n+/g, " ").trim();
+}
+
+function getSearchTerms(query: string): string[] {
+  return query
+    .toLowerCase()
+    .split(/\s+/)
+    .map((term) => term.trim())
+    .filter((term) => term.length > 0);
+}
+
+export function buildQueryExcerpt(text: string, query: string, maxLength: number = 100): string {
+  const normalized = normalizeSearchText(text);
+  if (!normalized) {
+    return "";
+  }
+
+  const terms = getSearchTerms(query);
+  if (terms.length === 0) {
+    if (normalized.length <= maxLength) {
+      return normalized;
+    }
+
+    return `${normalized.slice(0, maxLength - 1).trimEnd()}…`;
+  }
+
+  const lowered = normalized.toLowerCase();
+  let matchIndex = -1;
+  let matchLength = 0;
+
+  for (const term of terms) {
+    const index = lowered.indexOf(term);
+    if (index !== -1 && (matchIndex === -1 || index < matchIndex)) {
+      matchIndex = index;
+      matchLength = term.length;
+    }
+  }
+
+  if (matchIndex === -1) {
+    if (normalized.length <= maxLength) {
+      return normalized;
+    }
+
+    return `${normalized.slice(0, maxLength - 1).trimEnd()}…`;
+  }
+
+  const contextPadding = Math.max(0, Math.floor((maxLength - matchLength) / 2));
+  const start = Math.max(0, matchIndex - contextPadding);
+  const end = Math.min(normalized.length, start + maxLength);
+  const adjustedStart = Math.max(0, end - maxLength);
+  let excerpt = normalized.slice(adjustedStart, end).trim();
+
+  if (adjustedStart > 0) {
+    excerpt = `…${excerpt}`;
+  }
+
+  if (end < normalized.length) {
+    excerpt = `${excerpt}…`;
+  }
+
+  return excerpt;
+}
+
 const DEFAULT_TOKENS: FilenameToken[] = [
   { type: "datetime", token: "{dt}", format: "YYYY-MM-DD_HH-mm" },
   { type: "title", token: "{title}", format: "Untitled" },
@@ -173,6 +237,79 @@ export interface IndexedNote {
   mtime: number;
   metadata: NoteMetadata;
   preview: string;
+  searchText: string;
+}
+
+interface NoteQuickPickItem extends vscode.QuickPickItem {
+  note: IndexedNote;
+}
+
+export function buildNoteSearchDetail(note: IndexedNote, query: string = ""): string {
+  const details = [`Updated ${formatModifiedAt(note.mtime)}`];
+
+  if (note.metadata.tags.length > 0) {
+    details.unshift(note.metadata.tags.join(" "));
+  }
+
+  const excerpt = buildQueryExcerpt(note.searchText || note.preview, query);
+  if (excerpt) {
+    details.push(excerpt);
+  }
+
+  return details.join("  •  ");
+}
+
+function toNoteQuickPickItem(note: IndexedNote, query: string = ""): NoteQuickPickItem {
+  return {
+    label: `$(file) ${note.metadata.title}`,
+    description: note.relativePath,
+    detail: buildNoteSearchDetail(note, query),
+    note,
+  };
+}
+
+export async function pickIndexedNote(
+  notes: IndexedNote[],
+  placeHolder: string,
+): Promise<IndexedNote | undefined> {
+  return new Promise<IndexedNote | undefined>((resolve) => {
+    const quickPick = vscode.window.createQuickPick<NoteQuickPickItem>();
+    let resolved = false;
+
+    const finish = (note?: IndexedNote) => {
+      if (resolved) {
+        return;
+      }
+
+      resolved = true;
+      quickPick.hide();
+      quickPick.dispose();
+      resolve(note);
+    };
+
+    const updateItems = (query: string) => {
+      quickPick.items = notes.map((note) => toNoteQuickPickItem(note, query));
+    };
+
+    quickPick.matchOnDescription = true;
+    quickPick.matchOnDetail = true;
+    quickPick.placeholder = placeHolder;
+    updateItems(quickPick.value);
+
+    quickPick.onDidChangeValue((value) => {
+      updateItems(value);
+    });
+
+    quickPick.onDidAccept(() => {
+      finish(quickPick.selectedItems[0]?.note);
+    });
+
+    quickPick.onDidHide(() => {
+      finish(undefined);
+    });
+
+    quickPick.show();
+  });
 }
 
 export function buildIndexedNotes(noteFiles: NoteFile[]): IndexedNote[] {
@@ -181,11 +318,13 @@ export function buildIndexedNotes(noteFiles: NoteFile[]): IndexedNote[] {
     const fallbackTitle = path.basename(file.relativePath, ".md");
     const metadata = extractNoteMetadata(rawContent, fallbackTitle);
     const preview = extractPreviewText(rawContent);
+    const searchText = normalizeSearchText(stripFrontMatter(rawContent));
 
     return {
       ...file,
       metadata,
       preview,
+      searchText,
     };
   });
 }
@@ -298,34 +437,14 @@ export async function listNotes(notesDir: string): Promise<void> {
   // Sort by modification time, newest first
   noteFiles.sort((a, b) => b.mtime - a.mtime);
 
-  const items: vscode.QuickPickItem[] = buildIndexedNotes(noteFiles).map((note) => {
-    const details = [`Updated ${formatModifiedAt(note.mtime)}`];
-
-    if (note.metadata.tags.length > 0) {
-      details.unshift(note.metadata.tags.join(" "));
-    }
-
-     if (note.preview) {
-      details.push(note.preview);
-    }
-
-    return {
-      label: `$(file) ${note.metadata.title}`,
-      description: note.relativePath,
-      detail: details.join("  •  "),
-    };
-  });
-
-  const selected = await vscode.window.showQuickPick(items, {
-    placeHolder: `${noteFiles.length} notes found. Search by title, path, or tag.`,
-    matchOnDescription: true,
-    matchOnDetail: true,
-  });
+  const indexedNotes = buildIndexedNotes(noteFiles);
+  const selected = await pickIndexedNote(
+    indexedNotes,
+    `${noteFiles.length} notes found. Search by title, path, tag, or body text.`,
+  );
 
   if (selected) {
-    const relativePath = selected.description || selected.label.replace("$(file) ", "");
-    const filePath = path.join(notesDir, relativePath);
-    const doc = await vscode.workspace.openTextDocument(filePath);
+    const doc = await vscode.workspace.openTextDocument(selected.absolutePath);
     await vscode.window.showTextDocument(doc);
   }
 }

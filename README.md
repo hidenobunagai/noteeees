@@ -42,13 +42,13 @@ Moments are excluded from the regular Notes sidebar but are **fully searchable v
 - **Templates**: Create and use custom templates with VS Code snippets
 - **Subfolder Support**: Use `/` in title to auto-create subfolders (e.g., `projects/MyNote`)
 - **Search Notes**: Search notes by title, path, or tag from the command palette
-- **Preview-rich search**: Search results include timestamps, tags, and content preview so matches are easier to scan
+- **Preview-rich search**: Search results include timestamps, tags, and query-aware content excerpts so matches are easier to scan
 
 ### Sidebar
 - **Pinned**: Pin frequently used notes from the sidebar context menu
 - **Pinned ordering**: Move pinned notes up or down from the sidebar context menu or with `Cmd+Opt+↑ / ↓`
 - **Recent**: Browse your latest notes with a configurable item limit
-- **Tags**: Open notes grouped by tag, with usage counts in the sidebar, toggle sort order, and search tags directly
+- **Tags**: Open notes grouped by tag, with usage counts in the sidebar, toggle sort order, search tags directly, and scan query-matched excerpts before opening a note
 
 ## Usage
 

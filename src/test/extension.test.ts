@@ -12,6 +12,8 @@ import { createNotesWatcherPattern } from "../extension";
 // as well as import your extension to test it
 import * as vscode from "vscode";
 import {
+  buildNoteSearchDetail,
+  buildQueryExcerpt,
   extractNoteMetadata,
   extractPreviewText,
   shouldPromptForTemplateSelection,
@@ -47,6 +49,33 @@ suite("Extension Test Suite", () => {
     );
 
     assert.strictEqual(preview, "# Weekly Sync Discuss roadmap Next actions");
+  });
+
+  test("query excerpt centers around the first match", () => {
+    const excerpt = buildQueryExcerpt(
+      "alpha beta gamma delta roadmap epsilon zeta eta theta iota kappa",
+      "roadmap",
+      30,
+    );
+
+    assert.strictEqual(excerpt, "…gamma delta roadmap epsilon…");
+  });
+
+  test("note search detail includes query-matched excerpt", () => {
+    const detail = buildNoteSearchDetail(
+      {
+        relativePath: "projects/weekly-sync.md",
+        absolutePath: "/tmp/projects/weekly-sync.md",
+        mtime: new Date("2026-03-07T10:00:00Z").getTime(),
+        metadata: { title: "Weekly Sync", tags: ["#project"] },
+        preview: "General planning note",
+        searchText: "General planning note with roadmap milestones and follow ups",
+      },
+      "roadmap",
+    );
+
+    assert.ok(detail.includes("#project"));
+    assert.ok(detail.includes("roadmap milestones"));
   });
 
   test("tag summary is sorted by frequency", () => {
