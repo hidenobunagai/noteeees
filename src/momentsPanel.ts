@@ -845,8 +845,8 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
   }
   .task-toggle.active {
     opacity: 1;
-    background: color-mix(in srgb, var(--vscode-textLink-foreground) 15%, transparent);
-    border-color: var(--vscode-textLink-foreground);
+    background: color-mix(in srgb, var(--vscode-textLink-foreground) 12%, transparent);
+    border-color: var(--vscode-input-border, var(--vscode-panel-border));
     color: var(--vscode-textLink-foreground);
   }
   .task-toggle:hover { opacity: 1; }
