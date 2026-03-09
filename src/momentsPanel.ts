@@ -255,6 +255,14 @@ export function sortOpenTaskOverview<T extends { date: string; time: string; don
   return [...items].sort((a, b) => compareOpenTaskOverview(a, b));
 }
 
+export function buildMomentsDateLabel(date: string, today: string): string {
+  if (date === today) {
+    return `Today · ${date}`;
+  }
+
+  return date;
+}
+
 function openOpenTaskItem(item: TaskOverviewItem): Thenable<vscode.TextEditor> {
   return vscode.workspace.openTextDocument(item.filePath).then((doc) => {
     return vscode.window.showTextDocument(doc).then((editor) => {
@@ -634,18 +642,26 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
           break;
         }
 
-        case "deleteEntry": {
+        case "requestDeleteEntry": {
           if (!notesDir) {
             this._showError("Notes directory is not configured.");
             return;
           }
 
-          if (!deleteMomentEntry(notesDir, this._currentDate, message.index)) {
-            this._showError("Could not delete that Moment entry.");
-            return;
-          }
+          void vscode.window
+            .showWarningMessage("Delete this Moment entry?", { modal: true }, "Delete")
+            .then((selection) => {
+              if (selection !== "Delete") {
+                return;
+              }
 
-          this._sendEntries();
+              if (!deleteMomentEntry(notesDir, this._currentDate, message.index)) {
+                this._showError("Could not delete that Moment entry.");
+                return;
+              }
+
+              this._sendEntries();
+            });
           break;
         }
 
@@ -709,6 +725,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
       command: "update",
       entries,
       date: this._currentDate,
+      dateLabel: buildMomentsDateLabel(this._currentDate, today),
       isToday: this._currentDate === today,
       sendOnEnter,
     });
@@ -742,13 +759,28 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
   /* ---- Top bar ---- */
   .topbar {
     display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 6px 8px;
+    flex-direction: column;
+    align-items: stretch;
+    padding: 6px 8px 4px;
     background: var(--vscode-sideBarSectionHeader-background, var(--vscode-editor-background));
     border-bottom: 1px solid var(--vscode-sideBarSectionHeader-border, var(--vscode-panel-border));
     flex-shrink: 0;
     gap: 4px;
+  }
+
+  .topbar-row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+  }
+
+  .topbar-row-main {
+    justify-content: space-between;
+  }
+
+  .topbar-row-actions {
+    flex-wrap: wrap;
   }
 
   .nav-btn {
@@ -777,6 +809,9 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     flex: 1;
     text-align: center;
     white-space: nowrap;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   .date-label.is-today { color: var(--vscode-textLink-foreground); }
 
@@ -1035,13 +1070,17 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
 </head>
 <body>
 <div class="topbar">
-  <button class="nav-btn" id="prevBtn" title="Previous day">&#8249;</button>
-  <span class="date-label" id="dateLabel">—</span>
-  <button class="nav-btn" id="inboxBtn" title="Show open tasks across all days">Inbox</button>
-  <button class="nav-btn" id="openTasksBtn" title="Show open tasks only">Open</button>
-  <button class="nav-btn" id="todayBtn" title="Go to today">Today</button>
-  <button class="nav-btn" id="nextBtn" title="Next day">&#8250;</button>
-  <button class="open-btn" id="openFileBtn" title="Open file in editor">&#8599;</button>
+  <div class="topbar-row topbar-row-main">
+    <button class="nav-btn" id="prevBtn" title="Previous day">&#8249;</button>
+    <span class="date-label" id="dateLabel">—</span>
+    <button class="nav-btn" id="nextBtn" title="Next day">&#8250;</button>
+    <button class="open-btn" id="openFileBtn" title="Open file in editor">&#8599;</button>
+  </div>
+  <div class="topbar-row topbar-row-actions">
+    <button class="nav-btn" id="inboxBtn" title="Show open tasks across all days">Inbox</button>
+    <button class="nav-btn" id="openTasksBtn" title="Show open tasks only">Open</button>
+    <button class="nav-btn" id="todayBtn" title="Go to today">Today</button>
+  </div>
 </div>
 
 <div class="timeline" id="timeline">
@@ -1081,6 +1120,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
   let activeFilter = 'all';
   let latestEntries = [];
   let latestDate = '';
+  let latestDateLabel = '';
   let latestIsToday = true;
   let editingEntryIndex = null;
   let editingText = '';
@@ -1099,13 +1139,14 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
       }
       latestEntries = msg.entries;
       latestDate = msg.date;
+      latestDateLabel = msg.dateLabel;
       latestIsToday = msg.isToday;
       if (editingEntryIndex !== null && !latestEntries.some((entry) => entry.index === editingEntryIndex)) {
         editingEntryIndex = null;
         editingText = '';
       }
       updateHint();
-      renderTimeline(latestEntries, latestDate, latestIsToday);
+      renderTimeline(latestEntries, latestDate, latestIsToday, latestDateLabel);
     } else if (msg.command === 'error') {
       showError(msg.message);
     }
@@ -1148,18 +1189,12 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     textarea.style.height = Math.min(textarea.scrollHeight, 180) + 'px';
   }
 
-  function renderTimeline(entries, date, isToday) {
+  function renderTimeline(entries, date, isToday, dateLabelText) {
     const visibleEntries = activeFilter === 'openTasks'
       ? entries.filter((entry) => entry.isTask && !entry.done)
       : entries;
 
-    // Update date header
-    const today = new Date();
-    const todayStr = formatDateLocal(today);
-    let label = date;
-    if (isToday) label = 'Today · ' + date;
-    else if (date === offsetDate(todayStr, -1)) label = 'Yesterday · ' + date;
-    dateLabel.textContent = label;
+    dateLabel.textContent = dateLabelText || date;
     dateLabel.className = 'date-label' + (isToday ? ' is-today' : '');
     openTasksBtn.classList.toggle('active', activeFilter === 'openTasks');
     openTasksBtn.setAttribute('aria-pressed', String(activeFilter === 'openTasks'));
@@ -1233,7 +1268,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
             event.preventDefault();
             editingEntryIndex = null;
             editingText = '';
-            renderTimeline(latestEntries, latestDate, latestIsToday);
+            renderTimeline(latestEntries, latestDate, latestIsToday, latestDateLabel);
           }
         });
 
@@ -1262,7 +1297,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
         cancelButton.addEventListener('click', () => {
           editingEntryIndex = null;
           editingText = '';
-          renderTimeline(latestEntries, latestDate, latestIsToday);
+          renderTimeline(latestEntries, latestDate, latestIsToday, latestDateLabel);
         });
 
         editActions.appendChild(saveButton);
@@ -1306,7 +1341,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
       editButton.addEventListener('click', () => {
         editingEntryIndex = entry.index;
         editingText = entry.text;
-        renderTimeline(latestEntries, latestDate, latestIsToday);
+        renderTimeline(latestEntries, latestDate, latestIsToday, latestDateLabel);
       });
 
       const deleteButton = document.createElement('button');
@@ -1314,15 +1349,11 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
       deleteButton.type = 'button';
       deleteButton.textContent = 'Delete';
       deleteButton.addEventListener('click', () => {
-        const confirmed = confirm('Delete this Moment entry?');
-        if (!confirmed) {
-          return;
-        }
         if (editingEntryIndex === entry.index) {
           editingEntryIndex = null;
           editingText = '';
         }
-        vscode.postMessage({ command: 'deleteEntry', index: entry.index });
+        vscode.postMessage({ command: 'requestDeleteEntry', index: entry.index });
       });
 
       actions.appendChild(editButton);
@@ -1386,22 +1417,8 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
   inboxBtn.addEventListener('click', () => vscode.postMessage({ command: 'showOpenTasksOverview' }));
   openTasksBtn.addEventListener('click', () => {
     activeFilter = activeFilter === 'openTasks' ? 'all' : 'openTasks';
-    renderTimeline(latestEntries, latestDate, latestIsToday);
+    renderTimeline(latestEntries, latestDate, latestIsToday, latestDateLabel);
   });
-
-  // ---- Date helpers (browser-side) ----
-  function formatDateLocal(d) {
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return y + '-' + m + '-' + day;
-  }
-
-  function offsetDate(date, days) {
-    const d = new Date(date + 'T00:00:00');
-    d.setDate(d.getDate() + days);
-    return formatDateLocal(d);
-  }
 </script>
 </body>
 </html>`;

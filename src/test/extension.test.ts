@@ -2,6 +2,7 @@ import * as assert from "assert";
 import * as path from "path";
 import { buildTagSearchItems, createNotesWatcherPattern } from "../extension";
 import {
+  buildMomentsDateLabel,
   buildTaskSearchDetail,
   deleteMomentLine,
   filterMomentEntries,
@@ -265,6 +266,11 @@ suite("Extension Test Suite", () => {
   test("moment body index maps to file line after front matter", () => {
     const raw = "---\ntype: moments\ndate: 2026-03-07\n---\n\n- [ ] 09:00 task";
     assert.strictEqual(mapMomentBodyIndexToFileLine(raw, 1), 5);
+  });
+
+  test("moments date label only prefixes today", () => {
+    assert.strictEqual(buildMomentsDateLabel("2026-03-09", "2026-03-09"), "Today · 2026-03-09");
+    assert.strictEqual(buildMomentsDateLabel("2026-03-08", "2026-03-09"), "2026-03-08");
   });
 
   test("task line toggle flips checkbox state", () => {
