@@ -1,10 +1,7 @@
 #!/usr/bin/env node
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
-import {
-  CallToolRequestSchema,
-  ListToolsRequestSchema,
-} from "@modelcontextprotocol/sdk/types.js";
+import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import {
   executeStructuredSearch,
   extractSnippet,
@@ -26,16 +23,14 @@ function getNotesDir(): string {
   return notesDir;
 }
 
-const server = new Server(
-  { name: "notes-mcp", version: "3.0.0" },
-  { capabilities: { tools: {} } },
-);
+const server = new Server({ name: "notes-mcp", version: "3.0.0" }, { capabilities: { tools: {} } });
 
 server.setRequestHandler(ListToolsRequestSchema, async () => ({
   tools: [
     {
       name: "search_notes",
-      description: "Search notes by keyword, tag, or filename. Returns metadata + a snippet around each match.",
+      description:
+        "Search notes by keyword, tag, or filename. Returns metadata + a snippet around each match.",
       inputSchema: {
         type: "object" as const,
         properties: {
@@ -68,7 +63,8 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     },
     {
       name: "get_notes_by_date",
-      description: "Get notes created within a date range (based on filename date or modification time)",
+      description:
+        "Get notes created within a date range (based on filename date or modification time)",
       inputSchema: {
         type: "object" as const,
         properties: {
@@ -80,7 +76,8 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     },
     {
       name: "list_notes",
-      description: "List all notes with metadata only (filename, title, tags, createdAt, mtime). Lightweight overview.",
+      description:
+        "List all notes with metadata only (filename, title, tags, createdAt, mtime). Lightweight overview.",
       inputSchema: {
         type: "object" as const,
         properties: {
@@ -98,17 +95,22 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     },
     {
       name: "structure_search_notes",
-      description: "Score-ranked search with strategy selection, tunable weights, synonym expansion, optional explanations, and recency bonus. Returns snippet per result.",
+      description:
+        "Score-ranked search with strategy selection, tunable weights, synonym expansion, optional explanations, and recency bonus. Returns snippet per result.",
       inputSchema: {
         type: "object" as const,
         properties: {
           query: { type: "string", description: "Search query (e.g. '#todo meeting 経費')" },
           limit: { type: "number", description: "Max results (default 10, range 1-200)" },
-          include_recency_bonus: { type: "boolean", description: "Apply recency bonus (default true)" },
+          include_recency_bonus: {
+            type: "boolean",
+            description: "Apply recency bonus (default true)",
+          },
           search_strategy: {
             type: "string",
             enum: ["auto", "classic", "hybrid_bm25"],
-            description: "Ranking strategy. auto chooses classic for small or tag-heavy searches and hybrid_bm25 for larger free-text searches.",
+            description:
+              "Ranking strategy. auto chooses classic for small or tag-heavy searches and hybrid_bm25 for larger free-text searches.",
           },
           explain: {
             type: "boolean",
@@ -152,7 +154,10 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
       inputSchema: {
         type: "object" as const,
         properties: {
-          filename: { type: "string", description: "Relative filename of the note (as returned by other tools)" },
+          filename: {
+            type: "string",
+            description: "Relative filename of the note (as returned by other tools)",
+          },
         },
         required: ["filename"],
       },
@@ -166,9 +171,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const entries = getSearchIndexNotes(searchIndex);
 
   switch (request.params.name) {
-
     case "search_notes": {
-      const { query, tag, limit = 10 } = request.params.arguments as {
+      const {
+        query,
+        tag,
+        limit = 10,
+      } = request.params.arguments as {
         query?: string;
         tag?: string;
         limit?: number;
@@ -188,34 +196,42 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           const fn = e.filename.toLowerCase();
           const ti = e.title.toLowerCase();
           const tg = e.tags.join(" ").toLowerCase();
-          return tokens.some((t) => lc.includes(t) || fn.includes(t) || ti.includes(t) || tg.includes(t));
+          return tokens.some(
+            (t) => lc.includes(t) || fn.includes(t) || ti.includes(t) || tg.includes(t),
+          );
         });
       }
 
       return {
-        content: [{
-          type: "text" as const,
-          text: JSON.stringify(
-            filtered.slice(0, limit).map(({ filePath: _, content, ...rest }) => ({
-              ...rest,
-              snippet: extractSnippet(content, tokens),
-            })),
-            null, 2,
-          ),
-        }],
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify(
+              filtered.slice(0, limit).map(({ filePath: _, content, ...rest }) => ({
+                ...rest,
+                snippet: extractSnippet(content, tokens),
+              })),
+              null,
+              2,
+            ),
+          },
+        ],
       };
     }
 
     case "get_recent_notes": {
       const { limit = 10 } = request.params.arguments as { limit?: number };
       return {
-        content: [{
-          type: "text" as const,
-          text: JSON.stringify(
-            entries.slice(0, limit).map(({ filePath: _, content: __, ...rest }) => rest),
-            null, 2,
-          ),
-        }],
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify(
+              entries.slice(0, limit).map(({ filePath: _, content: __, ...rest }) => rest),
+              null,
+              2,
+            ),
+          },
+        ],
       };
     }
 
@@ -223,34 +239,44 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const { tag } = request.params.arguments as { tag: string };
       const filtered = entries.filter((e) => e.tags.includes(`#${tag}`));
       return {
-        content: [{
-          type: "text" as const,
-          text: JSON.stringify(
-            filtered.map(({ filePath: _, content, ...rest }) => ({
-              ...rest,
-              snippet: extractSnippet(content, []),
-            })),
-            null, 2,
-          ),
-        }],
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify(
+              filtered.map(({ filePath: _, content, ...rest }) => ({
+                ...rest,
+                snippet: extractSnippet(content, []),
+              })),
+              null,
+              2,
+            ),
+          },
+        ],
       };
     }
 
     case "get_notes_by_date": {
-      const { from, to, limit = 20 } = request.params.arguments as {
+      const {
+        from,
+        to,
+        limit = 20,
+      } = request.params.arguments as {
         from?: string;
         to?: string;
         limit?: number;
       };
       const filtered = entries.filter((e) => noteMatchesDateRange(e, from, to));
       return {
-        content: [{
-          type: "text" as const,
-          text: JSON.stringify(
-            filtered.slice(0, limit).map(({ filePath: _, content: __, ...rest }) => rest),
-            null, 2,
-          ),
-        }],
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify(
+              filtered.slice(0, limit).map(({ filePath: _, content: __, ...rest }) => rest),
+              null,
+              2,
+            ),
+          },
+        ],
       };
     }
 
@@ -258,13 +284,16 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const { limit = 50 } = request.params.arguments as { limit?: number };
       const items = limit === 0 ? entries : entries.slice(0, limit);
       return {
-        content: [{
-          type: "text" as const,
-          text: JSON.stringify(
-            items.map(({ filePath: _, content: __, ...rest }) => rest),
-            null, 2,
-          ),
-        }],
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify(
+              items.map(({ filePath: _, content: __, ...rest }) => rest),
+              null,
+              2,
+            ),
+          },
+        ],
       };
     }
 
@@ -316,10 +345,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       });
 
       return {
-        content: [{
-          type: "text" as const,
-          text: JSON.stringify(response, null, 2),
-        }],
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify(response, null, 2),
+          },
+        ],
       };
     }
 
@@ -328,7 +359,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const entry = entries.find((e) => e.filename === filename);
       if (!entry) {
         return {
-          content: [{ type: "text" as const, text: JSON.stringify({ error: `Note not found: ${filename}` }) }],
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify({ error: `Note not found: ${filename}` }),
+            },
+          ],
         };
       }
       return {

@@ -198,7 +198,10 @@ function createSearchEntry(note: NoteEntry): SearchEntry {
   };
 }
 
-function parseAllNoteFiles(notesDir: string, files: { filePath: string; mtime: number }[]): NoteEntry[] {
+function parseAllNoteFiles(
+  notesDir: string,
+  files: { filePath: string; mtime: number }[],
+): NoteEntry[] {
   const entries: NoteEntry[] = [];
 
   for (const { filePath, mtime } of files) {
@@ -226,13 +229,19 @@ function parseAllNoteFiles(notesDir: string, files: { filePath: string; mtime: n
   return entries;
 }
 
-function buildFileSignature(notesDir: string, files: { filePath: string; mtime: number }[]): string {
+function buildFileSignature(
+  notesDir: string,
+  files: { filePath: string; mtime: number }[],
+): string {
   return files
     .map(({ filePath, mtime }) => `${path.relative(notesDir, filePath)}:${mtime}`)
     .join("|");
 }
 
-export function createSearchIndexSnapshot(notesDir: string, notes: NoteEntry[]): SearchIndexSnapshot {
+export function createSearchIndexSnapshot(
+  notesDir: string,
+  notes: NoteEntry[],
+): SearchIndexSnapshot {
   const entries = notes.map(createSearchEntry);
   const totalDocumentLength = entries.reduce((sum, entry) => sum + entry.documentLength, 0);
 
@@ -254,9 +263,9 @@ export function getCachedSearchIndex(notesDir: string): SearchIndexSnapshot {
   const fileSignature = buildFileSignature(notesDir, files);
 
   if (
-    cachedSearchIndex
-    && cachedSearchIndex.notesDir === notesDir
-    && cachedSearchIndex.fileSignature === fileSignature
+    cachedSearchIndex &&
+    cachedSearchIndex.notesDir === notesDir &&
+    cachedSearchIndex.fileSignature === fileSignature
   ) {
     return cachedSearchIndex;
   }
@@ -283,7 +292,10 @@ export function extractSnippet(content: string, tokens: string[]): string {
   }
 
   if (bestIndex === -1) {
-    return content.slice(0, SNIPPET_RADIUS * 2).replace(/\n+/g, " ").trim();
+    return content
+      .slice(0, SNIPPET_RADIUS * 2)
+      .replace(/\n+/g, " ")
+      .trim();
   }
 
   const start = Math.max(0, bestIndex - SNIPPET_RADIUS);
@@ -307,12 +319,42 @@ export function toBoundedInt(value: number, fallback: number, min: number, max: 
 
 export function getEffectiveWeights(overrides?: Partial<SearchWeights>): SearchWeights {
   return {
-    tagExact: toBoundedInt(overrides?.tagExact ?? DEFAULT_WEIGHTS.tagExact, DEFAULT_WEIGHTS.tagExact, 1, 20),
-    filenameMatch: toBoundedInt(overrides?.filenameMatch ?? DEFAULT_WEIGHTS.filenameMatch, DEFAULT_WEIGHTS.filenameMatch, 1, 20),
-    tagPartial: toBoundedInt(overrides?.tagPartial ?? DEFAULT_WEIGHTS.tagPartial, DEFAULT_WEIGHTS.tagPartial, 1, 20),
-    contentMatch: toBoundedInt(overrides?.contentMatch ?? DEFAULT_WEIGHTS.contentMatch, DEFAULT_WEIGHTS.contentMatch, 1, 20),
-    multiTokenBonus: toBoundedInt(overrides?.multiTokenBonus ?? DEFAULT_WEIGHTS.multiTokenBonus, DEFAULT_WEIGHTS.multiTokenBonus, 0, 20),
-    allTokensBonus: toBoundedInt(overrides?.allTokensBonus ?? DEFAULT_WEIGHTS.allTokensBonus, DEFAULT_WEIGHTS.allTokensBonus, 0, 20),
+    tagExact: toBoundedInt(
+      overrides?.tagExact ?? DEFAULT_WEIGHTS.tagExact,
+      DEFAULT_WEIGHTS.tagExact,
+      1,
+      20,
+    ),
+    filenameMatch: toBoundedInt(
+      overrides?.filenameMatch ?? DEFAULT_WEIGHTS.filenameMatch,
+      DEFAULT_WEIGHTS.filenameMatch,
+      1,
+      20,
+    ),
+    tagPartial: toBoundedInt(
+      overrides?.tagPartial ?? DEFAULT_WEIGHTS.tagPartial,
+      DEFAULT_WEIGHTS.tagPartial,
+      1,
+      20,
+    ),
+    contentMatch: toBoundedInt(
+      overrides?.contentMatch ?? DEFAULT_WEIGHTS.contentMatch,
+      DEFAULT_WEIGHTS.contentMatch,
+      1,
+      20,
+    ),
+    multiTokenBonus: toBoundedInt(
+      overrides?.multiTokenBonus ?? DEFAULT_WEIGHTS.multiTokenBonus,
+      DEFAULT_WEIGHTS.multiTokenBonus,
+      0,
+      20,
+    ),
+    allTokensBonus: toBoundedInt(
+      overrides?.allTokensBonus ?? DEFAULT_WEIGHTS.allTokensBonus,
+      DEFAULT_WEIGHTS.allTokensBonus,
+      0,
+      20,
+    ),
   };
 }
 
@@ -431,9 +473,10 @@ function getDocumentFrequency(index: SearchIndexSnapshot, token: string): number
   const cached = index.documentFrequencyCache.get(token);
   if (cached !== undefined) return cached;
 
-  const documentFrequency = index.entries.reduce((count, entry) => (
-    entry.normalizedContent.includes(token) ? count + 1 : count
-  ), 0);
+  const documentFrequency = index.entries.reduce(
+    (count, entry) => (entry.normalizedContent.includes(token) ? count + 1 : count),
+    0,
+  );
 
   index.documentFrequencyCache.set(token, documentFrequency);
   return documentFrequency;
@@ -452,9 +495,13 @@ function bm25ContentScore(
   const documentFrequency = getDocumentFrequency(index, token);
   if (documentCount === 0 || documentFrequency === 0) return 0;
 
-  const inverseDocumentFrequency = Math.log(1 + ((documentCount - documentFrequency + 0.5) / (documentFrequency + 0.5)));
-  const lengthNormalization = 1 - bm25.b + (bm25.b * (entry.documentLength / Math.max(index.averageDocumentLength, 1)));
-  const termWeight = (termFrequency * (bm25.k1 + 1)) / (termFrequency + (bm25.k1 * lengthNormalization));
+  const inverseDocumentFrequency = Math.log(
+    1 + (documentCount - documentFrequency + 0.5) / (documentFrequency + 0.5),
+  );
+  const lengthNormalization =
+    1 - bm25.b + bm25.b * (entry.documentLength / Math.max(index.averageDocumentLength, 1));
+  const termWeight =
+    (termFrequency * (bm25.k1 + 1)) / (termFrequency + bm25.k1 * lengthNormalization);
   const rawScore = inverseDocumentFrequency * termWeight;
   return entry.isMoments ? rawScore * bm25.momentsPenalty : rawScore;
 }
@@ -501,10 +548,18 @@ function scoreEntryClassic(
       tokenMatched = true;
     }
 
-    const frequencyScore = contentFrequencyScore(entry.normalizedContent, token, weights.contentMatch);
+    const frequencyScore = contentFrequencyScore(
+      entry.normalizedContent,
+      token,
+      weights.contentMatch,
+    );
     if (frequencyScore > 0) {
       score += frequencyScore;
-      maybePushReason(reasons, explain, `content:${token}(x${Math.round(frequencyScore / weights.contentMatch)})`);
+      maybePushReason(
+        reasons,
+        explain,
+        `content:${token}(x${Math.round(frequencyScore / weights.contentMatch)})`,
+      );
       tokenMatched = true;
     }
 
@@ -616,7 +671,8 @@ export function resolveSearchStrategy(
 ): Exclude<SearchStrategy, "auto"> {
   if (strategy === "classic" || strategy === "hybrid_bm25") return strategy;
 
-  const hasOnlyTagTokens = queryTokens.length > 0 && queryTokens.every((token) => token.startsWith("#"));
+  const hasOnlyTagTokens =
+    queryTokens.length > 0 && queryTokens.every((token) => token.startsWith("#"));
   if (hasOnlyTagTokens) return "classic";
   if (index.entries.length < bm25.minDocumentCountForAuto) return "classic";
   if (queryTokens.length >= bm25.minQueryTokensForAuto) return "hybrid_bm25";
@@ -643,11 +699,19 @@ export function executeStructuredSearch(
   const appliedStrategy = resolveSearchStrategy(request.search_strategy, queryTokens, index, bm25);
 
   const ranked = index.entries
-    .map((entry) => (
+    .map((entry) =>
       appliedStrategy === "classic"
         ? scoreEntryClassic(entry, expandedTokens, weights, includeRecencyBonus, explain)
-        : scoreEntryHybridBm25(entry, expandedTokens, index, weights, bm25, includeRecencyBonus, explain)
-    ))
+        : scoreEntryHybridBm25(
+            entry,
+            expandedTokens,
+            index,
+            weights,
+            bm25,
+            includeRecencyBonus,
+            explain,
+          ),
+    )
     .filter((result) => result.score > 0)
     .sort((left, right) => right.score - left.score || right.entry.mtime - left.entry.mtime)
     .slice(0, safeLimit);

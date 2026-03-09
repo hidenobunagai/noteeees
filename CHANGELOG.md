@@ -13,6 +13,7 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 - notes-mcp now reuses an in-process search index cache so repeated MCP searches avoid re-reading every Markdown file on each request.
 - `structure_search_notes` now supports `explain` and `bm25` options for controlling explanation verbosity and BM25 tuning.
 - Added notes-mcp dedicated search tests so MCP ranking changes are verified independently from the VS Code extension test suite.
+- Root scripts now include `compile:mcp` and `test:mcp`, and the main compile / pretest flow also validates notes-mcp.
 
 ## [0.0.36] - 2026-03-09
 

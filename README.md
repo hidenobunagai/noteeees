@@ -144,6 +144,13 @@ This repository includes `notes-mcp/`, an MCP server that exposes your notes to 
    cd notes-mcp && bun install && bun run build
    ```
 
+For repository-level validation from the root, you can also run:
+
+```bash
+bun run compile:mcp
+bun run test:mcp
+```
+
 2. Add to your MCP configuration:
 
 **Example (GitHub Copilot `mcp.json`)**:

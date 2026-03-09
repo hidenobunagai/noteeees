@@ -79,20 +79,27 @@ describe("notes-mcp structured search", () => {
       createNote({ filename: "b.md", content: "misc" }),
     ]);
 
-    expect(resolveSearchStrategy("auto", ["#todo"], smallIndex, {
-      k1: 1.2,
-      b: 0.75,
-      minDocumentCountForAuto: 10,
-      minQueryTokensForAuto: 2,
-      momentsPenalty: 0.9,
-    })).toBe("classic");
+    expect(
+      resolveSearchStrategy("auto", ["#todo"], smallIndex, {
+        k1: 1.2,
+        b: 0.75,
+        minDocumentCountForAuto: 10,
+        minQueryTokensForAuto: 2,
+        momentsPenalty: 0.9,
+      }),
+    ).toBe("classic");
   });
 
   test("auto strategy escalates to hybrid bm25 for larger free-text queries", () => {
-    const notes = Array.from({ length: 30 }, (_, index) => createNote({
-      filename: `note-${index}.md`,
-      content: index === 0 ? "deployment rollback checklist and verification" : `background note ${index}`,
-    }));
+    const notes = Array.from({ length: 30 }, (_, index) =>
+      createNote({
+        filename: `note-${index}.md`,
+        content:
+          index === 0
+            ? "deployment rollback checklist and verification"
+            : `background note ${index}`,
+      }),
+    );
     const index = createSearchIndexSnapshot("/tmp", notes);
 
     const response = executeStructuredSearch(index, {
