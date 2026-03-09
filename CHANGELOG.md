@@ -4,6 +4,16 @@ All notable changes to the "notes" extension will be documented in this file.
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## [Unreleased]
+
+### Improved: notes-mcp search strategy and ranking
+
+- `structure_search_notes` now supports `search_strategy` with `auto`, `classic`, and `hybrid_bm25` modes.
+- Hybrid ranking now uses BM25-style body scoring while keeping tag, filename, title, and recency signals from the classic strategy.
+- notes-mcp now reuses an in-process search index cache so repeated MCP searches avoid re-reading every Markdown file on each request.
+- `structure_search_notes` now supports `explain` and `bm25` options for controlling explanation verbosity and BM25 tuning.
+- Added notes-mcp dedicated search tests so MCP ranking changes are verified independently from the VS Code extension test suite.
+
 ## [0.0.36] - 2026-03-09
 
 ### Fix: Moments narrow-width header and delete action

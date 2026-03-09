@@ -173,7 +173,7 @@ This repository includes `notes-mcp/`, an MCP server that exposes your notes to 
 | `get_notes_by_date` | Filter notes by date range (`from`/`to` YYYY-MM-DD) using filename date or mtime |
 | `list_notes` | Lightweight metadata-only listing of all notes (filename, title, tags, createdAt, mtime) |
 | `list_tags` | List all unique tags with usage counts sorted by frequency |
-| `structure_search_notes` | Score-ranked search with tunable weights, recency bonus, and synonym expansion |
+| `structure_search_notes` | Score-ranked search with `auto` / `classic` / `hybrid_bm25` strategies, tunable weights, BM25 body ranking, recency bonus, synonym expansion, and optional explanations |
 | `get_note_content` | Get the full content of a specific note by filename |
 
 ### What You Can Do
@@ -181,8 +181,10 @@ This repository includes `notes-mcp/`, an MCP server that exposes your notes to 
 - **Context Awareness**: "Search my notes for anything about last week's deployment."
 - **Tag-based Retrieval**: "Show me all notes tagged #todo."
 - **Date-based Lookup**: "Show me notes from January."
-- **Smart Search**: Use `structure_search_notes` to get scored results with reasons, synonym expansion (e.g. 経費→精算), and tunable weights.
+- **Smart Search**: Use `structure_search_notes` to get scored results with reasons, synonym expansion (e.g. 経費→精算), tunable weights, and `search_strategy` set to `auto`, `classic`, or `hybrid_bm25`.
 - **Full Content Access**: Use `get_note_content` to read a specific note in full.
+
+`structure_search_notes` defaults to `search_strategy: "auto"`. In `auto`, smaller or tag-heavy searches stay on the legacy classic ranking, while broader free-text searches on larger corpora switch to `hybrid_bm25` for stronger body relevance. Set `explain: false` to keep the same response shape while omitting verbose ranking reasons.
 
 ### Tags
 
