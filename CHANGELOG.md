@@ -4,6 +4,14 @@ All notable changes to the "notes" extension will be documented in this file.
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## [0.0.36] - 2026-03-09
+
+### Fix: Moments narrow-width header and delete action
+
+- The Moments header now wraps into a tighter two-row layout so the date and actions fit narrow sidebar widths more cleanly.
+- Non-today dates are shown as plain dates, without the extra Yesterday label.
+- Deleting a Moment entry now uses a host-side confirmation dialog so the action works reliably from the panel.
+
 ## [0.0.35] - 2026-03-08
 
 ### Improved: Moments feed interactions and editing
