@@ -6,6 +6,8 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.0.38] - 2026-03-10
+
 ### Fix: Notes directory stays local per machine again
 
 - `Run Setup` now stores the selected notes folder in extension-local machine storage again, instead of relying on the synced settings path as the primary source.
