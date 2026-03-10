@@ -2,8 +2,8 @@ import * as assert from "assert";
 import * as path from "path";
 import { buildTagSearchItems, createNotesWatcherPattern } from "../extension";
 import {
-  buildMomentsFeedDates,
   buildMomentsDateLabel,
+  buildMomentsFeedDates,
   buildTaskSearchDetail,
   deleteMomentLine,
   filterMomentEntries,
@@ -11,6 +11,7 @@ import {
   getNextInboxFilter,
   mapMomentBodyIndexToFileLine,
   normalizeInboxTaskFilter,
+  normalizeMomentsFeedDayCount,
   replaceMomentEntryText,
   sortOpenTaskOverview,
   toggleMomentTaskLine,
@@ -281,6 +282,13 @@ suite("Extension Test Suite", () => {
       "2026-03-07",
       "2026-03-06",
     ]);
+  });
+
+  test("moments feed day count is clamped to a practical range", () => {
+    assert.strictEqual(normalizeMomentsFeedDayCount(undefined), 7);
+    assert.strictEqual(normalizeMomentsFeedDayCount(0), 1);
+    assert.strictEqual(normalizeMomentsFeedDayCount(4.8), 4);
+    assert.strictEqual(normalizeMomentsFeedDayCount(80), 30);
   });
 
   test("task line toggle flips checkbox state", () => {

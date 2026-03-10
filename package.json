@@ -255,6 +255,13 @@
           "default": true,
           "description": "If true, pressing Enter sends the Moment entry. Use Shift+Enter for a newline. If false, use Ctrl+Enter / Cmd+Enter to send."
         },
+        "notes.momentsFeedDays": {
+          "type": "number",
+          "default": 7,
+          "minimum": 1,
+          "maximum": 30,
+          "description": "Number of days shown in the stacked Moments feed, counting backward from the current anchor day."
+        },
         "notes.momentsInboxFilter": {
           "type": "string",
           "default": "all",

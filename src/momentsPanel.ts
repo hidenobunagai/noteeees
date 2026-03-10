@@ -84,6 +84,19 @@ function getSendOnEnter(): boolean {
   return config.get<boolean>("momentsSendOnEnter") ?? true;
 }
 
+export function normalizeMomentsFeedDayCount(value: number | undefined): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return MOMENTS_FEED_DAY_COUNT;
+  }
+
+  return Math.min(Math.max(Math.floor(value), 1), 30);
+}
+
+function getMomentsFeedDayCount(): number {
+  const config = vscode.workspace.getConfiguration("notes");
+  return normalizeMomentsFeedDayCount(config.get<number>("momentsFeedDays"));
+}
+
 function getConfiguredInboxTaskFilter(): InboxTaskFilter {
   const config = vscode.workspace.getConfiguration("notes");
   return normalizeInboxTaskFilter(config.get<string>("momentsInboxFilter"));
@@ -126,7 +139,8 @@ export function buildMomentsFeedDates(
   anchorDate: string,
   dayCount: number = MOMENTS_FEED_DAY_COUNT,
 ): string[] {
-  return Array.from({ length: Math.max(dayCount, 1) }, (_, index) => offsetDate(anchorDate, -index));
+  const safeDayCount = normalizeMomentsFeedDayCount(dayCount);
+  return Array.from({ length: safeDayCount }, (_, index) => offsetDate(anchorDate, -index));
 }
 
 function readMoments(notesDir: string, date: string): MomentEntry[] {
@@ -281,8 +295,9 @@ export function buildMomentsDateLabel(date: string, today: string): string {
 
 function collectMomentsFeed(notesDir: string, anchorDate: string): MomentDaySection[] {
   const today = formatDate(new Date());
+  const feedDayCount = getMomentsFeedDayCount();
 
-  return buildMomentsFeedDates(anchorDate)
+  return buildMomentsFeedDates(anchorDate, feedDayCount)
     .map((date) => ({
       date,
       dateLabel: buildMomentsDateLabel(date, today),
@@ -662,7 +677,14 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
             return;
           }
 
-          if (!saveMomentEdit(notesDir, message.date ?? this._currentDate, message.index, message.text)) {
+          if (
+            !saveMomentEdit(
+              notesDir,
+              message.date ?? this._currentDate,
+              message.index,
+              message.text,
+            )
+          ) {
             this._showError("Could not save that Moment entry.");
             return;
           }
@@ -879,6 +901,9 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     align-items: center;
     justify-content: center;
     padding: 10px 12px 6px;
+    position: sticky;
+    top: 0;
+    z-index: 1;
     background: var(--vscode-sideBar-background, var(--vscode-editor-background));
     border-bottom: 1px solid var(--vscode-panel-border);
   }

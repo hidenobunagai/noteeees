@@ -18,6 +18,7 @@ A quick-capture timeline panel for fleeting thoughts, tasks, and ideas — alway
 - **Open-task filter**: Toggle `Open` to focus only on unfinished tasks across the current feed window
 - **Inbox overview**: Open `Inbox` to browse all Moments tasks, switch between all/open/done views, remember that filter between launches, toggle done or undone inline, or jump to the exact line
 - **Date navigation**: Shift the feed anchor with `◀ ▶` or jump back to Today while keeping recent days stacked vertically
+- **Sticky date markers**: Each day label stays visible while you scroll through the feed
 - **Tag highlighting**: `#tag` tokens are rendered as color badges
 - **Open in editor**: `↗` opens the day's raw Markdown file for editing
 
@@ -130,6 +131,7 @@ When `notes.templates` is set, a picker will appear on note creation to choose b
 | `notes.sidebarRecentLimit` | Number of notes shown in the sidebar Recent section (`0` = all) |
 | `notes.sidebarTagSort` | Sort mode for the sidebar Tags section (`frequency` or `alphabetical`) |
 | `notes.momentsInboxFilter` | Default filter for the Moments Inbox (`all`, `open`, or `done`) |
+| `notes.momentsFeedDays` | Number of days shown in the stacked Moments feed (`1`-`30`) |
 
 ## Supercharge with MCP
 
