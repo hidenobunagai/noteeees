@@ -1,6 +1,10 @@
 import * as assert from "assert";
 import * as path from "path";
-import { buildTagSearchItems, createNotesWatcherPattern, resolveNotesDirectory } from "../extension";
+import {
+  buildTagSearchItems,
+  createNotesWatcherPattern,
+  resolveNotesDirectory,
+} from "../extension";
 import {
   buildMomentsDateLabel,
   buildMomentsFeedDates,
