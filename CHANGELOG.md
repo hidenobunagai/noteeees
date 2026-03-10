@@ -6,6 +6,8 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.0.37] - 2026-03-10
+
 ### Improved: Moments multi-day feed layout
 
 - The Moments panel now shows a stacked multi-day feed instead of a single-day-only timeline, so recent days are easier to scan in one pass.
