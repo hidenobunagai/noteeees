@@ -6,6 +6,11 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+### Fix: Notes directory stays local per machine again
+
+- `Run Setup` now stores the selected notes folder in extension-local machine storage again, instead of relying on the synced settings path as the primary source.
+- Older `notes.notesDirectory` values are migrated into local storage and then cleared so Mac and Windows setups stop overriding each other.
+
 ### Changed: Moments continuous feed
 
 - The Moments panel no longer uses left-right day navigation and now behaves like a continuous recent feed from today backward.

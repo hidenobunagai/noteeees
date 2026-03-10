@@ -1,6 +1,6 @@
 import * as assert from "assert";
 import * as path from "path";
-import { buildTagSearchItems, createNotesWatcherPattern } from "../extension";
+import { buildTagSearchItems, createNotesWatcherPattern, resolveNotesDirectory } from "../extension";
 import {
   buildMomentsDateLabel,
   buildMomentsFeedDates,
@@ -45,6 +45,12 @@ suite("Extension Test Suite", () => {
 
   test("template picker is shown with custom templates", () => {
     assert.strictEqual(shouldPromptForTemplateSelection(["meeting"]), true);
+  });
+
+  test("notes directory prefers local storage over synced settings", () => {
+    assert.strictEqual(resolveNotesDirectory("/local/notes", "/synced/notes"), "/local/notes");
+    assert.strictEqual(resolveNotesDirectory(undefined, "/synced/notes"), "/synced/notes");
+    assert.strictEqual(resolveNotesDirectory(undefined, undefined), undefined);
   });
 
   test("note metadata prefers heading title and merges tags", () => {

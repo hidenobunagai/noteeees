@@ -16,8 +16,15 @@ import {
   type SidebarTagSortMode,
 } from "./sidebarProvider";
 
-const LEGACY_GLOBAL_STATE_KEY = "notesDirectory";
+const NOTES_DIRECTORY_STORAGE_KEY = "notesDirectory";
 const PINNED_NOTES_KEY = "pinnedNotes";
+
+export function resolveNotesDirectory(
+  stored: string | undefined,
+  configured: string | undefined,
+): string | undefined {
+  return stored || configured || undefined;
+}
 
 export function createNotesWatcherPattern(
   notesDir: string | undefined,
@@ -56,16 +63,26 @@ export function buildTagSearchItems(
 }
 
 export function activate(context: vscode.ExtensionContext) {
-  function getNotesDir(): string | undefined {
+  function getConfiguredNotesDir(): string | undefined {
     const configured = vscode.workspace.getConfiguration("notes").get<string>("notesDirectory");
     return configured || undefined;
   }
 
+  function getNotesDir(): string | undefined {
+    return resolveNotesDirectory(
+      context.globalState.get<string>(NOTES_DIRECTORY_STORAGE_KEY),
+      getConfiguredNotesDir(),
+    );
+  }
+
   async function setNotesDir(notesDir: string): Promise<void> {
-    await vscode.workspace
-      .getConfiguration("notes")
-      .update("notesDirectory", notesDir, vscode.ConfigurationTarget.Global);
-    await context.globalState.update(LEGACY_GLOBAL_STATE_KEY, undefined);
+    await context.globalState.update(NOTES_DIRECTORY_STORAGE_KEY, notesDir);
+
+    if (getConfiguredNotesDir()) {
+      await vscode.workspace
+        .getConfiguration("notes")
+        .update("notesDirectory", undefined, vscode.ConfigurationTarget.Global);
+    }
   }
 
   function getPinnedRelativePaths(): string[] {
@@ -83,12 +100,19 @@ export function activate(context: vscode.ExtensionContext) {
     );
   }
 
-  async function migrateLegacyNotesDirectory(): Promise<void> {
-    const configured = getNotesDir();
-    const legacy = context.globalState.get<string>(LEGACY_GLOBAL_STATE_KEY);
+  async function migrateNotesDirectoryStorage(): Promise<void> {
+    const stored = context.globalState.get<string>(NOTES_DIRECTORY_STORAGE_KEY);
+    const configured = getConfiguredNotesDir();
 
-    if (!configured && legacy) {
-      await setNotesDir(legacy);
+    if (!stored && configured) {
+      await setNotesDir(configured);
+      return;
+    }
+
+    if (stored && configured) {
+      await vscode.workspace
+        .getConfiguration("notes")
+        .update("notesDirectory", undefined, vscode.ConfigurationTarget.Global);
     }
   }
 
@@ -184,7 +208,7 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.window.registerWebviewViewProvider(MomentsViewProvider.viewType, momentsProvider),
   );
 
-  void migrateLegacyNotesDirectory().then(() => {
+  void migrateNotesDirectoryStorage().then(() => {
     notesTreeProvider.refresh();
     momentsProvider.refresh();
   });
@@ -216,16 +240,20 @@ export function activate(context: vscode.ExtensionContext) {
   });
 
   const configChangeDisposable = vscode.workspace.onDidChangeConfiguration((event) => {
+    if (event.affectsConfiguration("notes.notesDirectory")) {
+      void migrateNotesDirectoryStorage().then(() => {
+        refreshMarkdownWatcher();
+        refreshNotesViews();
+      });
+      return;
+    }
+
     if (
-      event.affectsConfiguration("notes.notesDirectory") ||
       event.affectsConfiguration("notes.momentsSubfolder") ||
       event.affectsConfiguration("notes.sidebarRecentLimit") ||
       event.affectsConfiguration("notes.sidebarTagSort")
     ) {
-      if (
-        event.affectsConfiguration("notes.notesDirectory") ||
-        event.affectsConfiguration("notes.momentsSubfolder")
-      ) {
+      if (event.affectsConfiguration("notes.momentsSubfolder")) {
         refreshMarkdownWatcher();
       }
 
@@ -237,7 +265,8 @@ export function activate(context: vscode.ExtensionContext) {
   const runSetupDisposable = vscode.commands.registerCommand("notes.runSetup", async () => {
     const notesDir = await selectNotesDirectory();
     if (notesDir) {
-      notesTreeProvider.refresh();
+      refreshMarkdownWatcher();
+      refreshNotesViews();
       vscode.window.showInformationMessage(`Notes directory set to: ${notesDir}`);
     }
   });

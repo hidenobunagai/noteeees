@@ -180,7 +180,7 @@
           "type": "string",
           "default": "",
           "scope": "machine",
-          "description": "Directory where notes are stored. If empty, the extension will prompt to select a folder on first use."
+          "description": "Legacy fallback setting for importing older Notes directory values. Run Setup now stores the selected folder locally per machine in extension storage."
         },
         "notes.dateFormat": {
           "type": "string",
