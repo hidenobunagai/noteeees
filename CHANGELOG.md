@@ -11,6 +11,7 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 - The Moments panel now shows a stacked multi-day feed instead of a single-day-only timeline, so recent days are easier to scan in one pass.
 - Header actions such as `Inbox`, `Open`, and `Today` are now centered for a more balanced layout in narrow sidebar widths.
 - Day labels now stay sticky while scrolling, and the feed window can be adjusted with the new `notes.momentsFeedDays` setting.
+- Task creation and completion now use simpler checkbox-style controls in both the composer and the feed, reducing the need for separate Task / Mark Done button labels.
 
 ### Improved: notes-mcp search strategy and ranking
 

@@ -944,13 +944,6 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     border-bottom: none;
   }
 
-  .entry-header {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    min-height: 18px;
-  }
-
   .entry-meta {
     display: inline-flex;
     align-items: center;
@@ -960,31 +953,33 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     font-size: 11px;
   }
 
-  .entry-kind {
-    display: inline-flex;
-    align-items: center;
-    border-radius: 999px;
-    padding: 1px 6px;
-    background: color-mix(in srgb, var(--vscode-descriptionForeground) 12%, transparent);
-    color: var(--vscode-descriptionForeground);
-    font-size: 10px;
-    font-weight: 600;
-  }
-
-  .entry-kind.is-task {
-    background: color-mix(in srgb, var(--vscode-textLink-foreground) 16%, transparent);
-    color: var(--vscode-textLink-foreground);
-  }
-
-  .entry-kind.is-done {
-    background: color-mix(in srgb, var(--vscode-textLink-foreground) 12%, transparent);
-    color: var(--vscode-textLink-foreground);
-  }
-
   .entry-time {
     color: var(--vscode-descriptionForeground);
     white-space: nowrap;
     font-variant-numeric: tabular-nums;
+  }
+
+  .entry-main {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .entry-checkbox {
+    flex: none;
+    width: 15px;
+    height: 15px;
+    margin: 2px 0 0;
+    accent-color: var(--vscode-textLink-foreground);
+    cursor: pointer;
+  }
+
+  .entry-content {
+    min-width: 0;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
   }
 
   .entry.is-task.task-done {
@@ -1116,24 +1111,33 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
   .send-btn:hover { background: var(--vscode-button-hoverBackground); }
 
   .task-toggle {
-    background: none;
-    border: 1px solid var(--vscode-input-border, var(--vscode-panel-border));
-    color: var(--vscode-foreground);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--vscode-descriptionForeground);
     border-radius: 5px;
-    padding: 4px 8px;
+    padding: 4px 6px;
     cursor: pointer;
     font-size: 11px;
     opacity: 0.6;
-    transition: opacity 0.15s, background 0.15s, border-color 0.15s;
+    transition: opacity 0.15s, background 0.15s, color 0.15s;
     white-space: nowrap;
+    user-select: none;
   }
   .task-toggle.active {
     opacity: 1;
     background: color-mix(in srgb, var(--vscode-textLink-foreground) 12%, transparent);
-    border-color: var(--vscode-input-border, var(--vscode-panel-border));
     color: var(--vscode-textLink-foreground);
   }
   .task-toggle:hover { opacity: 1; }
+
+  .task-toggle input {
+    width: 15px;
+    height: 15px;
+    margin: 0;
+    accent-color: var(--vscode-textLink-foreground);
+    cursor: pointer;
+  }
 
   .hint {
     font-size: 10px;
@@ -1177,7 +1181,10 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
   <div id="errorBanner" style="display:none"></div>
   <textarea id="inputBox" rows="1" placeholder="Capture a thought…"></textarea>
   <div class="input-actions">
-    <button class="task-toggle" id="taskToggle" title="Toggle task mode" aria-pressed="false">Task</button>
+    <label class="task-toggle" id="taskToggleLabel" title="Add the next item as a task">
+      <input type="checkbox" id="taskToggle" aria-label="Add the next item as a task">
+      <span>Add as task</span>
+    </label>
     <button class="send-btn" id="sendBtn">Send &#10148;</button>
   </div>
   <div class="hint" id="hintText">Enter to send · Shift+Enter for newline</div>
@@ -1192,6 +1199,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
   const inputBox = document.getElementById('inputBox');
   const sendBtn = document.getElementById('sendBtn');
   const taskToggle = document.getElementById('taskToggle');
+  const taskToggleLabel = document.getElementById('taskToggleLabel');
   const timeline = document.getElementById('timeline');
   const emptyState = document.getElementById('emptyState');
   const dateLabel = document.getElementById('dateLabel');
@@ -1335,24 +1343,14 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
       const div = document.createElement('div');
       div.className = 'entry' + (entry.isTask ? ' is-task' : '') + (entry.done ? ' task-done' : '');
 
-      const header = document.createElement('div');
-      header.className = 'entry-header';
-
       const meta = document.createElement('div');
       meta.className = 'entry-meta';
-
-      const kind = document.createElement('span');
-      kind.className = 'entry-kind' + (entry.isTask ? ' is-task' : '') + (entry.done ? ' is-done' : '');
-      kind.textContent = entry.isTask ? (entry.done ? 'Task · Done' : 'Task') : 'Moment';
 
       const timeBadge = document.createElement('span');
       timeBadge.className = 'entry-time';
       timeBadge.textContent = entry.time;
 
-      meta.appendChild(kind);
       meta.appendChild(timeBadge);
-      header.appendChild(meta);
-      div.appendChild(header);
 
       if (editingEntryKey === entryKey) {
         const editWrap = document.createElement('div');
@@ -1433,19 +1431,31 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
       textSpan.className = 'entry-text';
       textSpan.innerHTML = renderText(entry.text);
 
-      const actions = document.createElement('div');
-      actions.className = 'entry-actions';
+      const content = document.createElement('div');
+      content.className = 'entry-content';
+      content.appendChild(meta);
+      content.appendChild(textSpan);
+
+      const main = document.createElement('div');
+      main.className = 'entry-main';
 
       if (entry.isTask) {
-        const toggleButton = document.createElement('button');
-        toggleButton.className = 'entry-action primary';
-        toggleButton.type = 'button';
-        toggleButton.textContent = entry.done ? 'Mark Open' : 'Mark Done';
-        toggleButton.addEventListener('click', () => {
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.className = 'entry-checkbox';
+        checkbox.checked = entry.done;
+        checkbox.title = entry.done ? 'Mark task as open' : 'Mark task as done';
+        checkbox.setAttribute('aria-label', entry.done ? 'Mark task as open' : 'Mark task as done');
+        checkbox.addEventListener('change', () => {
           vscode.postMessage({ command: 'toggleTask', date: section.date, index: entry.index });
         });
-        actions.appendChild(toggleButton);
+        main.appendChild(checkbox);
       }
+
+      main.appendChild(content);
+
+      const actions = document.createElement('div');
+      actions.className = 'entry-actions';
 
       const editButton = document.createElement('button');
       editButton.className = 'entry-action';
@@ -1471,7 +1481,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
 
       actions.appendChild(editButton);
       actions.appendChild(deleteButton);
-      div.appendChild(textSpan);
+      div.appendChild(main);
       div.appendChild(actions);
       sectionEl.appendChild(div);
     });
@@ -1481,10 +1491,9 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
   }
 
   // ---- Input ----
-  taskToggle.addEventListener('click', () => {
-    isTaskMode = !isTaskMode;
-    taskToggle.classList.toggle('active', isTaskMode);
-    taskToggle.setAttribute('aria-pressed', String(isTaskMode));
+  taskToggle.addEventListener('change', () => {
+    isTaskMode = taskToggle.checked;
+    taskToggleLabel.classList.toggle('active', isTaskMode);
   });
 
   function send() {

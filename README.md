@@ -12,7 +12,7 @@ A quick-capture timeline panel for fleeting thoughts, tasks, and ideas — alway
 - **`Cmd+Shift+M`**: Open the Moments panel from the Activity Bar (⚡ lightning icon)
 - **Timeline view**: Entries displayed as a compact multi-day feed with timestamps, task status, and quick actions
 - **Quick input**: Type a thought, press `Enter` to save instantly
-- **Task mode**: Toggle the `Task` button to create `[ ]` items; use the row actions to mark tasks done or open
+- **Task checkboxes**: Use the input checkbox to add the next item as a task, then tick tasks directly in the feed to mark them done or open
 - **Inline editing**: Edit a Moment in place and save without leaving the panel
 - **Safe deletion**: Delete a Moment from the panel with a confirmation step
 - **Open-task filter**: Toggle `Open` to focus only on unfinished tasks across the current feed window
