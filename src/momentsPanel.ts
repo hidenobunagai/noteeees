@@ -11,6 +11,13 @@ export interface MomentEntry {
   done: boolean;
 }
 
+export interface MomentDaySection {
+  date: string;
+  dateLabel: string;
+  isToday: boolean;
+  entries: MomentEntry[];
+}
+
 export interface TaskOverviewItem {
   date: string;
   time: string;
@@ -27,6 +34,8 @@ interface OpenTaskQuickPickItem extends vscode.QuickPickItem {
 
 export type MomentFilter = "all" | "openTasks";
 export type InboxTaskFilter = "all" | "open" | "done";
+
+const MOMENTS_FEED_DAY_COUNT = 7;
 
 let lastInboxTaskFilter: InboxTaskFilter = "all";
 
@@ -111,6 +120,13 @@ function offsetDate(date: string, days: number): string {
   const d = new Date(`${date}T00:00:00`);
   d.setDate(d.getDate() + days);
   return formatDate(d);
+}
+
+export function buildMomentsFeedDates(
+  anchorDate: string,
+  dayCount: number = MOMENTS_FEED_DAY_COUNT,
+): string[] {
+  return Array.from({ length: Math.max(dayCount, 1) }, (_, index) => offsetDate(anchorDate, -index));
 }
 
 function readMoments(notesDir: string, date: string): MomentEntry[] {
@@ -261,6 +277,19 @@ export function buildMomentsDateLabel(date: string, today: string): string {
   }
 
   return date;
+}
+
+function collectMomentsFeed(notesDir: string, anchorDate: string): MomentDaySection[] {
+  const today = formatDate(new Date());
+
+  return buildMomentsFeedDates(anchorDate)
+    .map((date) => ({
+      date,
+      dateLabel: buildMomentsDateLabel(date, today),
+      isToday: date === today,
+      entries: readMoments(notesDir, date),
+    }))
+    .filter((section, index) => index === 0 || section.entries.length > 0);
 }
 
 function openOpenTaskItem(item: TaskOverviewItem): Thenable<vscode.TextEditor> {
@@ -617,7 +646,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
           if (!notesDir) {
             return;
           }
-          toggleTask(notesDir, this._currentDate, message.index);
+          toggleTask(notesDir, message.date ?? this._currentDate, message.index);
           this._sendEntries();
           break;
         }
@@ -633,7 +662,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
             return;
           }
 
-          if (!saveMomentEdit(notesDir, this._currentDate, message.index, message.text)) {
+          if (!saveMomentEdit(notesDir, message.date ?? this._currentDate, message.index, message.text)) {
             this._showError("Could not save that Moment entry.");
             return;
           }
@@ -655,7 +684,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
                 return;
               }
 
-              if (!deleteMomentEntry(notesDir, this._currentDate, message.index)) {
+              if (!deleteMomentEntry(notesDir, message.date ?? this._currentDate, message.index)) {
                 this._showError("Could not delete that Moment entry.");
                 return;
               }
@@ -717,16 +746,16 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
       return;
     }
     const notesDir = this._getNotesDir();
-    const entries = notesDir ? readMoments(notesDir, this._currentDate) : [];
+    const sections = notesDir ? collectMomentsFeed(notesDir, this._currentDate) : [];
     const today = formatDate(new Date());
     const sendOnEnter = getSendOnEnter();
 
     this._view.webview.postMessage({
       command: "update",
-      entries,
-      date: this._currentDate,
-      dateLabel: buildMomentsDateLabel(this._currentDate, today),
-      isToday: this._currentDate === today,
+      sections,
+      anchorDate: this._currentDate,
+      anchorDateLabel: buildMomentsDateLabel(this._currentDate, today),
+      anchorIsToday: this._currentDate === today,
       sendOnEnter,
     });
   }
@@ -781,6 +810,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
 
   .topbar-row-actions {
     flex-wrap: wrap;
+    justify-content: center;
   }
 
   .nav-btn {
@@ -836,6 +866,33 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     display: flex;
     flex-direction: column;
     gap: 0;
+    scroll-behavior: smooth;
+  }
+
+  .day-section {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .day-section-header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 12px 6px;
+    background: var(--vscode-sideBar-background, var(--vscode-editor-background));
+    border-bottom: 1px solid var(--vscode-panel-border);
+  }
+
+  .day-section-label {
+    color: var(--vscode-descriptionForeground);
+    font-size: 11px;
+    font-weight: 600;
+    text-align: center;
+    white-space: nowrap;
+  }
+
+  .day-section-label.is-today {
+    color: var(--vscode-textLink-foreground);
   }
 
   .empty-state {
@@ -857,6 +914,10 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     word-break: break-word;
   }
   .entry:hover { background: var(--vscode-list-hoverBackground); }
+
+  .day-section .entry:last-child {
+    border-bottom: none;
+  }
 
   .entry-header {
     display: flex;
@@ -1118,12 +1179,13 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
   const hintText = document.getElementById('hintText');
   const errorBanner = document.getElementById('errorBanner');
   let activeFilter = 'all';
-  let latestEntries = [];
-  let latestDate = '';
-  let latestDateLabel = '';
-  let latestIsToday = true;
-  let editingEntryIndex = null;
+  let latestSections = [];
+  let latestAnchorDate = '';
+  let latestAnchorDateLabel = '';
+  let latestAnchorIsToday = true;
+  let editingEntryKey = null;
   let editingText = '';
+  let pendingScrollMode = 'top';
 
   // Notify extension we're ready
   vscode.postMessage({ command: 'ready' });
@@ -1133,20 +1195,27 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     const msg = event.data;
     if (msg.command === 'update') {
       sendOnEnter = msg.sendOnEnter;
-      if (latestDate && latestDate !== msg.date) {
-        editingEntryIndex = null;
+      if (latestAnchorDate && latestAnchorDate !== msg.anchorDate) {
+        editingEntryKey = null;
         editingText = '';
       }
-      latestEntries = msg.entries;
-      latestDate = msg.date;
-      latestDateLabel = msg.dateLabel;
-      latestIsToday = msg.isToday;
-      if (editingEntryIndex !== null && !latestEntries.some((entry) => entry.index === editingEntryIndex)) {
-        editingEntryIndex = null;
+      latestSections = msg.sections;
+      latestAnchorDate = msg.anchorDate;
+      latestAnchorDateLabel = msg.anchorDateLabel;
+      latestAnchorIsToday = msg.anchorIsToday;
+      if (
+        editingEntryKey !== null
+        && !latestSections.some((section) => section.entries.some((entry) => (section.date + ':' + entry.index) === editingEntryKey))
+      ) {
+        editingEntryKey = null;
         editingText = '';
       }
       updateHint();
-      renderTimeline(latestEntries, latestDate, latestIsToday, latestDateLabel);
+      renderTimeline(latestSections, latestAnchorDate, latestAnchorIsToday, latestAnchorDateLabel);
+      if (pendingScrollMode === 'top') {
+        timeline.scrollTop = 0;
+      }
+      pendingScrollMode = null;
     } else if (msg.command === 'error') {
       showError(msg.message);
     }
@@ -1189,36 +1258,55 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     textarea.style.height = Math.min(textarea.scrollHeight, 180) + 'px';
   }
 
-  function renderTimeline(entries, date, isToday, dateLabelText) {
-    const visibleEntries = activeFilter === 'openTasks'
-      ? entries.filter((entry) => entry.isTask && !entry.done)
-      : entries;
+  function renderTimeline(sections, anchorDate, anchorIsToday, anchorDateLabelText) {
+    const visibleSections = sections
+      .map((section) => ({
+        ...section,
+        entries: (activeFilter === 'openTasks'
+          ? section.entries.filter((entry) => entry.isTask && !entry.done)
+          : section.entries
+        ).slice().reverse(),
+      }))
+      .filter((section) => section.entries.length > 0);
 
-    dateLabel.textContent = dateLabelText || date;
-    dateLabel.className = 'date-label' + (isToday ? ' is-today' : '');
+    dateLabel.textContent = anchorDateLabelText || anchorDate;
+    dateLabel.className = 'date-label' + (anchorIsToday ? ' is-today' : '');
     openTasksBtn.classList.toggle('active', activeFilter === 'openTasks');
     openTasksBtn.setAttribute('aria-pressed', String(activeFilter === 'openTasks'));
 
-    // Update Today button visibility
-    todayBtn.style.display = isToday ? 'none' : '';
+    todayBtn.style.display = anchorIsToday ? 'none' : '';
 
-    if (visibleEntries.length === 0) {
+    if (visibleSections.length === 0) {
       emptyState.style.display = 'block';
-      timeline.querySelectorAll('.entry').forEach(e => e.remove());
+      timeline.querySelectorAll('.day-section').forEach(e => e.remove());
       if (activeFilter === 'openTasks') {
-        emptyState.textContent = isToday ? 'No open tasks today' : 'No open tasks on this day';
+        emptyState.textContent = 'No open tasks in this feed';
       } else {
-        emptyState.textContent = isToday ? 'No moments yet — capture your first thought!' : 'No moments on this day';
+        emptyState.textContent = anchorIsToday ? 'No moments yet — capture your first thought!' : 'No moments in this feed window';
       }
       return;
     }
 
     emptyState.style.display = 'none';
 
-    // Rebuild entries
-    timeline.querySelectorAll('.entry').forEach(e => e.remove());
+    timeline.querySelectorAll('.day-section').forEach(e => e.remove());
 
-    visibleEntries.forEach((entry) => {
+    visibleSections.forEach((section) => {
+      const sectionEl = document.createElement('section');
+      sectionEl.className = 'day-section';
+
+      const sectionHeader = document.createElement('div');
+      sectionHeader.className = 'day-section-header';
+
+      const sectionLabel = document.createElement('span');
+      sectionLabel.className = 'day-section-label' + (section.isToday ? ' is-today' : '');
+      sectionLabel.textContent = section.dateLabel;
+
+      sectionHeader.appendChild(sectionLabel);
+      sectionEl.appendChild(sectionHeader);
+
+      section.entries.forEach((entry) => {
+      const entryKey = section.date + ':' + entry.index;
       const div = document.createElement('div');
       div.className = 'entry' + (entry.isTask ? ' is-task' : '') + (entry.done ? ' task-done' : '');
 
@@ -1241,7 +1329,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
       header.appendChild(meta);
       div.appendChild(header);
 
-      if (editingEntryIndex === entry.index) {
+      if (editingEntryKey === entryKey) {
         const editWrap = document.createElement('div');
         editWrap.className = 'entry-edit';
 
@@ -1260,15 +1348,15 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
               showError('Moment text cannot be empty.');
               return;
             }
-            editingEntryIndex = null;
+            editingEntryKey = null;
             editingText = '';
-            vscode.postMessage({ command: 'saveEdit', index: entry.index, text: nextText });
+            vscode.postMessage({ command: 'saveEdit', date: section.date, index: entry.index, text: nextText });
           }
           if (event.key === 'Escape') {
             event.preventDefault();
-            editingEntryIndex = null;
+            editingEntryKey = null;
             editingText = '';
-            renderTimeline(latestEntries, latestDate, latestIsToday, latestDateLabel);
+            renderTimeline(latestSections, latestAnchorDate, latestAnchorIsToday, latestAnchorDateLabel);
           }
         });
 
@@ -1285,9 +1373,9 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
             showError('Moment text cannot be empty.');
             return;
           }
-          editingEntryIndex = null;
+          editingEntryKey = null;
           editingText = '';
-          vscode.postMessage({ command: 'saveEdit', index: entry.index, text: nextText });
+          vscode.postMessage({ command: 'saveEdit', date: section.date, index: entry.index, text: nextText });
         });
 
         const cancelButton = document.createElement('button');
@@ -1295,9 +1383,9 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
         cancelButton.type = 'button';
         cancelButton.textContent = 'Cancel';
         cancelButton.addEventListener('click', () => {
-          editingEntryIndex = null;
+          editingEntryKey = null;
           editingText = '';
-          renderTimeline(latestEntries, latestDate, latestIsToday, latestDateLabel);
+          renderTimeline(latestSections, latestAnchorDate, latestAnchorIsToday, latestAnchorDateLabel);
         });
 
         editActions.appendChild(saveButton);
@@ -1306,7 +1394,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
         editWrap.appendChild(editActions);
         div.appendChild(editWrap);
 
-        timeline.appendChild(div);
+        sectionEl.appendChild(div);
         setTimeout(() => {
           editInput.focus();
           editInput.selectionStart = editInput.value.length;
@@ -1329,7 +1417,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
         toggleButton.type = 'button';
         toggleButton.textContent = entry.done ? 'Mark Open' : 'Mark Done';
         toggleButton.addEventListener('click', () => {
-          vscode.postMessage({ command: 'toggleTask', index: entry.index });
+          vscode.postMessage({ command: 'toggleTask', date: section.date, index: entry.index });
         });
         actions.appendChild(toggleButton);
       }
@@ -1339,9 +1427,9 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
       editButton.type = 'button';
       editButton.textContent = 'Edit';
       editButton.addEventListener('click', () => {
-        editingEntryIndex = entry.index;
+        editingEntryKey = entryKey;
         editingText = entry.text;
-        renderTimeline(latestEntries, latestDate, latestIsToday, latestDateLabel);
+        renderTimeline(latestSections, latestAnchorDate, latestAnchorIsToday, latestAnchorDateLabel);
       });
 
       const deleteButton = document.createElement('button');
@@ -1349,22 +1437,22 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
       deleteButton.type = 'button';
       deleteButton.textContent = 'Delete';
       deleteButton.addEventListener('click', () => {
-        if (editingEntryIndex === entry.index) {
-          editingEntryIndex = null;
+        if (editingEntryKey === entryKey) {
+          editingEntryKey = null;
           editingText = '';
         }
-        vscode.postMessage({ command: 'requestDeleteEntry', index: entry.index });
+        vscode.postMessage({ command: 'requestDeleteEntry', date: section.date, index: entry.index });
       });
 
       actions.appendChild(editButton);
       actions.appendChild(deleteButton);
       div.appendChild(textSpan);
       div.appendChild(actions);
-      timeline.appendChild(div);
+      sectionEl.appendChild(div);
     });
 
-    // Scroll to bottom
-    timeline.scrollTop = timeline.scrollHeight;
+      timeline.appendChild(sectionEl);
+    });
   }
 
   // ---- Input ----
@@ -1377,6 +1465,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
   function send() {
     const text = inputBox.value.trim();
     if (!text) return;
+    pendingScrollMode = 'top';
     vscode.postMessage({ command: 'addMoment', text, isTask: isTaskMode });
     inputBox.value = '';
     autoResize();
@@ -1410,14 +1499,23 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
   }
 
   // ---- Navigation ----
-  prevBtn.addEventListener('click', () => vscode.postMessage({ command: 'navigate', delta: -1 }));
-  nextBtn.addEventListener('click', () => vscode.postMessage({ command: 'navigate', delta: 1 }));
-  todayBtn.addEventListener('click', () => vscode.postMessage({ command: 'goToday' }));
+  prevBtn.addEventListener('click', () => {
+    pendingScrollMode = 'top';
+    vscode.postMessage({ command: 'navigate', delta: -1 });
+  });
+  nextBtn.addEventListener('click', () => {
+    pendingScrollMode = 'top';
+    vscode.postMessage({ command: 'navigate', delta: 1 });
+  });
+  todayBtn.addEventListener('click', () => {
+    pendingScrollMode = 'top';
+    vscode.postMessage({ command: 'goToday' });
+  });
   openFileBtn.addEventListener('click', () => vscode.postMessage({ command: 'openFile' }));
   inboxBtn.addEventListener('click', () => vscode.postMessage({ command: 'showOpenTasksOverview' }));
   openTasksBtn.addEventListener('click', () => {
     activeFilter = activeFilter === 'openTasks' ? 'all' : 'openTasks';
-    renderTimeline(latestEntries, latestDate, latestIsToday, latestDateLabel);
+    renderTimeline(latestSections, latestAnchorDate, latestAnchorIsToday, latestAnchorDateLabel);
   });
 </script>
 </body>

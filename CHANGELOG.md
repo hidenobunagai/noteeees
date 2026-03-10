@@ -6,6 +6,11 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+### Improved: Moments multi-day feed layout
+
+- The Moments panel now shows a stacked multi-day feed instead of a single-day-only timeline, so recent days are easier to scan in one pass.
+- Header actions such as `Inbox`, `Open`, and `Today` are now centered for a more balanced layout in narrow sidebar widths.
+
 ### Improved: notes-mcp search strategy and ranking
 
 - `structure_search_notes` now supports `search_strategy` with `auto`, `classic`, and `hybrid_bm25` modes.

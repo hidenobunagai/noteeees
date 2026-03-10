@@ -2,6 +2,7 @@ import * as assert from "assert";
 import * as path from "path";
 import { buildTagSearchItems, createNotesWatcherPattern } from "../extension";
 import {
+  buildMomentsFeedDates,
   buildMomentsDateLabel,
   buildTaskSearchDetail,
   deleteMomentLine,
@@ -271,6 +272,15 @@ suite("Extension Test Suite", () => {
   test("moments date label only prefixes today", () => {
     assert.strictEqual(buildMomentsDateLabel("2026-03-09", "2026-03-09"), "Today · 2026-03-09");
     assert.strictEqual(buildMomentsDateLabel("2026-03-08", "2026-03-09"), "2026-03-08");
+  });
+
+  test("moments feed dates stack backward from the anchor date", () => {
+    assert.deepStrictEqual(buildMomentsFeedDates("2026-03-09", 4), [
+      "2026-03-09",
+      "2026-03-08",
+      "2026-03-07",
+      "2026-03-06",
+    ]);
   });
 
   test("task line toggle flips checkbox state", () => {

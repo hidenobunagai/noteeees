@@ -10,14 +10,14 @@ Simple markdown notes extension. Accumulate individual note files and search the
 A quick-capture timeline panel for fleeting thoughts, tasks, and ideas — always one keypress away.
 
 - **`Cmd+Shift+M`**: Open the Moments panel from the Activity Bar (⚡ lightning icon)
-- **Timeline view**: Entries displayed as a compact feed with timestamps, task status, and quick actions
+- **Timeline view**: Entries displayed as a compact multi-day feed with timestamps, task status, and quick actions
 - **Quick input**: Type a thought, press `Enter` to save instantly
 - **Task mode**: Toggle the `Task` button to create `[ ]` items; use the row actions to mark tasks done or open
 - **Inline editing**: Edit a Moment in place and save without leaving the panel
 - **Safe deletion**: Delete a Moment from the panel with a confirmation step
-- **Open-task filter**: Toggle `Open` to focus only on unfinished tasks for the current day
+- **Open-task filter**: Toggle `Open` to focus only on unfinished tasks across the current feed window
 - **Inbox overview**: Open `Inbox` to browse all Moments tasks, switch between all/open/done views, remember that filter between launches, toggle done or undone inline, or jump to the exact line
-- **Date navigation**: Browse previous / next days with `◀ ▶` or jump back to Today
+- **Date navigation**: Shift the feed anchor with `◀ ▶` or jump back to Today while keeping recent days stacked vertically
 - **Tag highlighting**: `#tag` tokens are rendered as color badges
 - **Open in editor**: `↗` opens the day's raw Markdown file for editing
 
