@@ -620,7 +620,6 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
   public static readonly viewType = "notesMomentsView";
 
   private _view?: vscode.WebviewView;
-  private _currentDate: string = formatDate(new Date());
   private readonly _getNotesDir: () => string | undefined;
 
   constructor(getNotesDir: () => string | undefined) {
@@ -652,7 +651,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
             this._showError("Notes directory is not configured.");
             return;
           }
-          appendMoment(notesDir, this._currentDate, message.text, message.isTask ?? false);
+          appendMoment(notesDir, formatDate(new Date()), message.text, message.isTask ?? false);
           this._sendEntries();
           break;
         }
@@ -661,7 +660,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
           if (!notesDir) {
             return;
           }
-          toggleTask(notesDir, message.date ?? this._currentDate, message.index);
+          toggleTask(notesDir, message.date ?? formatDate(new Date()), message.index);
           this._sendEntries();
           break;
         }
@@ -680,7 +679,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
           if (
             !saveMomentEdit(
               notesDir,
-              message.date ?? this._currentDate,
+              message.date ?? formatDate(new Date()),
               message.index,
               message.text,
             )
@@ -706,7 +705,9 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
                 return;
               }
 
-              if (!deleteMomentEntry(notesDir, message.date ?? this._currentDate, message.index)) {
+              if (
+                !deleteMomentEntry(notesDir, message.date ?? formatDate(new Date()), message.index)
+              ) {
                 this._showError("Could not delete that Moment entry.");
                 return;
               }
@@ -716,25 +717,14 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
           break;
         }
 
-        case "navigate": {
-          this._currentDate = offsetDate(this._currentDate, message.delta);
-          this._sendEntries();
-          break;
-        }
-
-        case "goToday": {
-          this._currentDate = formatDate(new Date());
-          this._sendEntries();
-          break;
-        }
-
         case "openFile": {
           if (!notesDir) {
             return;
           }
-          const filePath = getMomentsFilePath(notesDir, this._currentDate);
+          const currentDate = formatDate(new Date());
+          const filePath = getMomentsFilePath(notesDir, currentDate);
           if (!fs.existsSync(filePath)) {
-            ensureMomentsFile(notesDir, this._currentDate);
+            ensureMomentsFile(notesDir, currentDate);
           }
           vscode.workspace.openTextDocument(filePath).then((doc) => {
             vscode.window.showTextDocument(doc);
@@ -768,16 +758,13 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
       return;
     }
     const notesDir = this._getNotesDir();
-    const sections = notesDir ? collectMomentsFeed(notesDir, this._currentDate) : [];
     const today = formatDate(new Date());
+    const sections = notesDir ? collectMomentsFeed(notesDir, today) : [];
     const sendOnEnter = getSendOnEnter();
 
     this._view.webview.postMessage({
       command: "update",
       sections,
-      anchorDate: this._currentDate,
-      anchorDateLabel: buildMomentsDateLabel(this._currentDate, today),
-      anchorIsToday: this._currentDate === today,
       sendOnEnter,
     });
   }
@@ -826,10 +813,6 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     min-width: 0;
   }
 
-  .topbar-row-main {
-    justify-content: space-between;
-  }
-
   .topbar-row-actions {
     flex-wrap: wrap;
     justify-content: center;
@@ -853,19 +836,6 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     color: var(--vscode-textLink-foreground);
     background: color-mix(in srgb, var(--vscode-textLink-foreground) 12%, transparent);
   }
-
-  .date-label {
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--vscode-foreground);
-    flex: 1;
-    text-align: center;
-    white-space: nowrap;
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-  .date-label.is-today { color: var(--vscode-textLink-foreground); }
 
   .open-btn {
     background: none;
@@ -1160,16 +1130,10 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
 </head>
 <body>
 <div class="topbar">
-  <div class="topbar-row topbar-row-main">
-    <button class="nav-btn" id="prevBtn" title="Previous day">&#8249;</button>
-    <span class="date-label" id="dateLabel">—</span>
-    <button class="nav-btn" id="nextBtn" title="Next day">&#8250;</button>
-    <button class="open-btn" id="openFileBtn" title="Open file in editor">&#8599;</button>
-  </div>
   <div class="topbar-row topbar-row-actions">
     <button class="nav-btn" id="inboxBtn" title="Show open tasks across all days">Inbox</button>
     <button class="nav-btn" id="openTasksBtn" title="Show open tasks only">Open</button>
-    <button class="nav-btn" id="todayBtn" title="Go to today">Today</button>
+    <button class="open-btn" id="openFileBtn" title="Open today's file in editor">&#8599;</button>
   </div>
 </div>
 
@@ -1202,20 +1166,13 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
   const taskToggleLabel = document.getElementById('taskToggleLabel');
   const timeline = document.getElementById('timeline');
   const emptyState = document.getElementById('emptyState');
-  const dateLabel = document.getElementById('dateLabel');
   const inboxBtn = document.getElementById('inboxBtn');
   const openTasksBtn = document.getElementById('openTasksBtn');
-  const todayBtn = document.getElementById('todayBtn');
-  const prevBtn = document.getElementById('prevBtn');
-  const nextBtn = document.getElementById('nextBtn');
   const openFileBtn = document.getElementById('openFileBtn');
   const hintText = document.getElementById('hintText');
   const errorBanner = document.getElementById('errorBanner');
   let activeFilter = 'all';
   let latestSections = [];
-  let latestAnchorDate = '';
-  let latestAnchorDateLabel = '';
-  let latestAnchorIsToday = true;
   let editingEntryKey = null;
   let editingText = '';
   let pendingScrollMode = 'top';
@@ -1228,14 +1185,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     const msg = event.data;
     if (msg.command === 'update') {
       sendOnEnter = msg.sendOnEnter;
-      if (latestAnchorDate && latestAnchorDate !== msg.anchorDate) {
-        editingEntryKey = null;
-        editingText = '';
-      }
       latestSections = msg.sections;
-      latestAnchorDate = msg.anchorDate;
-      latestAnchorDateLabel = msg.anchorDateLabel;
-      latestAnchorIsToday = msg.anchorIsToday;
       if (
         editingEntryKey !== null
         && !latestSections.some((section) => section.entries.some((entry) => (section.date + ':' + entry.index) === editingEntryKey))
@@ -1244,7 +1194,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
         editingText = '';
       }
       updateHint();
-      renderTimeline(latestSections, latestAnchorDate, latestAnchorIsToday, latestAnchorDateLabel);
+      renderTimeline(latestSections);
       if (pendingScrollMode === 'top') {
         timeline.scrollTop = 0;
       }
@@ -1291,7 +1241,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     textarea.style.height = Math.min(textarea.scrollHeight, 180) + 'px';
   }
 
-  function renderTimeline(sections, anchorDate, anchorIsToday, anchorDateLabelText) {
+  function renderTimeline(sections) {
     const visibleSections = sections
       .map((section) => ({
         ...section,
@@ -1302,20 +1252,16 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
       }))
       .filter((section) => section.entries.length > 0);
 
-    dateLabel.textContent = anchorDateLabelText || anchorDate;
-    dateLabel.className = 'date-label' + (anchorIsToday ? ' is-today' : '');
     openTasksBtn.classList.toggle('active', activeFilter === 'openTasks');
     openTasksBtn.setAttribute('aria-pressed', String(activeFilter === 'openTasks'));
-
-    todayBtn.style.display = anchorIsToday ? 'none' : '';
 
     if (visibleSections.length === 0) {
       emptyState.style.display = 'block';
       timeline.querySelectorAll('.day-section').forEach(e => e.remove());
       if (activeFilter === 'openTasks') {
-        emptyState.textContent = 'No open tasks in this feed';
+        emptyState.textContent = 'No open tasks in this recent feed';
       } else {
-        emptyState.textContent = anchorIsToday ? 'No moments yet — capture your first thought!' : 'No moments in this feed window';
+        emptyState.textContent = 'No moments yet — capture your first thought!';
       }
       return;
     }
@@ -1379,7 +1325,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
             event.preventDefault();
             editingEntryKey = null;
             editingText = '';
-            renderTimeline(latestSections, latestAnchorDate, latestAnchorIsToday, latestAnchorDateLabel);
+            renderTimeline(latestSections);
           }
         });
 
@@ -1408,7 +1354,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
         cancelButton.addEventListener('click', () => {
           editingEntryKey = null;
           editingText = '';
-          renderTimeline(latestSections, latestAnchorDate, latestAnchorIsToday, latestAnchorDateLabel);
+          renderTimeline(latestSections);
         });
 
         editActions.appendChild(saveButton);
@@ -1464,7 +1410,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
       editButton.addEventListener('click', () => {
         editingEntryKey = entryKey;
         editingText = entry.text;
-        renderTimeline(latestSections, latestAnchorDate, latestAnchorIsToday, latestAnchorDateLabel);
+        renderTimeline(latestSections);
       });
 
       const deleteButton = document.createElement('button');
@@ -1532,24 +1478,11 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     autoResizeTextarea(inputBox);
   }
 
-  // ---- Navigation ----
-  prevBtn.addEventListener('click', () => {
-    pendingScrollMode = 'top';
-    vscode.postMessage({ command: 'navigate', delta: -1 });
-  });
-  nextBtn.addEventListener('click', () => {
-    pendingScrollMode = 'top';
-    vscode.postMessage({ command: 'navigate', delta: 1 });
-  });
-  todayBtn.addEventListener('click', () => {
-    pendingScrollMode = 'top';
-    vscode.postMessage({ command: 'goToday' });
-  });
   openFileBtn.addEventListener('click', () => vscode.postMessage({ command: 'openFile' }));
   inboxBtn.addEventListener('click', () => vscode.postMessage({ command: 'showOpenTasksOverview' }));
   openTasksBtn.addEventListener('click', () => {
     activeFilter = activeFilter === 'openTasks' ? 'all' : 'openTasks';
-    renderTimeline(latestSections, latestAnchorDate, latestAnchorIsToday, latestAnchorDateLabel);
+    renderTimeline(latestSections);
   });
 </script>
 </body>

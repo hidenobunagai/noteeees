@@ -6,6 +6,11 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+### Changed: Moments continuous feed
+
+- The Moments panel no longer uses left-right day navigation and now behaves like a continuous recent feed from today backward.
+- The top bar now keeps only feed-level actions, and the editor shortcut opens today's raw Moments file.
+
 ## [0.0.37] - 2026-03-10
 
 ### Improved: Moments multi-day feed layout
