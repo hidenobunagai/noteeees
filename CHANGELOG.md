@@ -6,6 +6,10 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+### Improved: Moments can become tasks later
+
+- Regular Moments now expose a `Make Task` action in the feed, so you can promote an existing thought into an open task without retyping it.
+
 ## [0.0.39] - 2026-03-11
 
 ### Improved: Moments hashtag feed filters

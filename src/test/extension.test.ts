@@ -9,6 +9,7 @@ import {
   buildMomentsDateLabel,
   buildMomentsFeedDates,
   buildTaskSearchDetail,
+  convertMomentLineToTask,
   deleteMomentLine,
   extractMomentTags,
   filterMomentEntries,
@@ -321,6 +322,21 @@ suite("Extension Test Suite", () => {
     });
     assert.deepStrictEqual(toggleMomentTaskLine("- 09:00 note"), {
       line: "- 09:00 note",
+      changed: false,
+    });
+  });
+
+  test("regular moment lines can be converted into open tasks", () => {
+    assert.deepStrictEqual(convertMomentLineToTask("- 09:00 note"), {
+      line: "- [ ] 09:00 note",
+      changed: true,
+    });
+    assert.deepStrictEqual(convertMomentLineToTask("- [ ] 09:00 task"), {
+      line: "- [ ] 09:00 task",
+      changed: false,
+    });
+    assert.deepStrictEqual(convertMomentLineToTask("not a moment line"), {
+      line: "not a moment line",
       changed: false,
     });
   });

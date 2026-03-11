@@ -236,6 +236,18 @@ export function toggleMomentTaskLine(line: string): { line: string; changed: boo
   return { line, changed: false };
 }
 
+export function convertMomentLineToTask(line: string): { line: string; changed: boolean } {
+  const regular = line.match(/^(-\s+)(\d{2}:\d{2}\s+.*)$/);
+  if (!regular) {
+    return { line, changed: false };
+  }
+
+  return {
+    line: `${regular[1]}[ ] ${regular[2]}`,
+    changed: true,
+  };
+}
+
 export function replaceMomentEntryText(
   line: string,
   nextText: string,
@@ -597,6 +609,29 @@ function toggleTask(notesDir: string, date: string, index: number): void {
   fs.writeFileSync(filePath, lines.join("\n"), "utf8");
 }
 
+function convertMomentEntryToTask(notesDir: string, date: string, index: number): boolean {
+  const filePath = getMomentsFilePath(notesDir, date);
+  if (!fs.existsSync(filePath)) {
+    return false;
+  }
+
+  const raw = fs.readFileSync(filePath, "utf8");
+  const lines = raw.split("\n");
+  const fileLineIdx = mapMomentBodyIndexToFileLine(raw, index);
+  if (fileLineIdx < 0 || fileLineIdx >= lines.length) {
+    return false;
+  }
+
+  const result = convertMomentLineToTask(lines[fileLineIdx]);
+  if (!result.changed) {
+    return false;
+  }
+
+  lines[fileLineIdx] = result.line;
+  fs.writeFileSync(filePath, lines.join("\n"), "utf8");
+  return true;
+}
+
 function saveMomentEdit(notesDir: string, date: string, index: number, text: string): boolean {
   const filePath = getMomentsFilePath(notesDir, date);
   if (!fs.existsSync(filePath)) {
@@ -687,6 +722,27 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
             return;
           }
           toggleTask(notesDir, message.date ?? formatDate(new Date()), message.index);
+          this._sendEntries();
+          break;
+        }
+
+        case "convertToTask": {
+          if (!notesDir) {
+            this._showError("Notes directory is not configured.");
+            return;
+          }
+
+          if (
+            !convertMomentEntryToTask(
+              notesDir,
+              message.date ?? formatDate(new Date()),
+              message.index,
+            )
+          ) {
+            this._showError("Could not convert that Moment into a task.");
+            return;
+          }
+
           this._sendEntries();
           break;
         }
@@ -1480,6 +1536,17 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
 
       const actions = document.createElement('div');
       actions.className = 'entry-actions';
+
+      if (!entry.isTask) {
+        const convertButton = document.createElement('button');
+        convertButton.className = 'entry-action primary';
+        convertButton.type = 'button';
+        convertButton.textContent = 'Make Task';
+        convertButton.addEventListener('click', () => {
+          vscode.postMessage({ command: 'convertToTask', date: section.date, index: entry.index });
+        });
+        actions.appendChild(convertButton);
+      }
 
       const editButton = document.createElement('button');
       editButton.className = 'entry-action';
