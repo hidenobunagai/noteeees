@@ -6,6 +6,11 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+### Improved: Moments hashtag feed filters
+
+- Hashtags inside Moments entries are now clickable, so you can jump into a tag-specific recent feed directly from the post body.
+- Active hashtag filters are shown in the header and can be cleared without leaving the Moments view.
+
 ## [0.0.38] - 2026-03-10
 
 ### Fix: Notes directory stays local per machine again

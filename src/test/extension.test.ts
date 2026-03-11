@@ -10,6 +10,7 @@ import {
   buildMomentsFeedDates,
   buildTaskSearchDetail,
   deleteMomentLine,
+  extractMomentTags,
   filterMomentEntries,
   filterTaskOverviewItems,
   getNextInboxFilter,
@@ -122,6 +123,14 @@ suite("Extension Test Suite", () => {
 
     assert.ok(detail.includes("moments/2026-03-07.md:6"));
     assert.ok(detail.includes("roadmap milestone"));
+  });
+
+  test("moment tag extraction keeps unique normalized hashtags", () => {
+    assert.deepStrictEqual(extractMomentTags("Discuss #AI and #notes with #AI again"), [
+      "#ai",
+      "#notes",
+    ]);
+    assert.deepStrictEqual(extractMomentTags("No tags here"), []);
   });
 
   test("inbox task filter narrows open and done items", () => {

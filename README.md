@@ -18,7 +18,7 @@ A quick-capture timeline panel for fleeting thoughts, tasks, and ideas — alway
 - **Open-task filter**: Toggle `Open` to focus only on unfinished tasks across the recent feed
 - **Inbox overview**: Open `Inbox` to browse all Moments tasks, switch between all/open/done views, remember that filter between launches, toggle done or undone inline, or jump to the exact line
 - **Sticky date markers**: Each day label stays visible while you scroll through the feed
-- **Tag highlighting**: `#tag` tokens are rendered as color badges
+- **Hashtag feed filters**: Click a `#tag` in Moments to filter the current feed to that hashtag, then clear it from the header
 - **Open in editor**: `↗` opens today's raw Markdown file for editing
 
 #### Storage format

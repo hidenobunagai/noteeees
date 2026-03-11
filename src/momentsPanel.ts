@@ -9,6 +9,7 @@ export interface MomentEntry {
   text: string; // content after the time
   isTask: boolean;
   done: boolean;
+  tags?: string[];
 }
 
 export interface MomentDaySection {
@@ -53,6 +54,10 @@ export function filterMomentEntries(entries: MomentEntry[], filter: MomentFilter
   }
 
   return entries;
+}
+
+export function extractMomentTags(text: string): string[] {
+  return [...new Set((text.match(/#[\w-]+/g) ?? []).map((tag) => tag.toLowerCase()))];
 }
 
 export function filterTaskOverviewItems(
@@ -169,11 +174,32 @@ function readMoments(notesDir: string, date: string): MomentEntry[] {
     const regular = line.match(/^-\s+(\d{2}:\d{2})\s+(.*)/);
 
     if (taskDone) {
-      entries.push({ index: i, time: taskDone[1], text: taskDone[2], isTask: true, done: true });
+      entries.push({
+        index: i,
+        time: taskDone[1],
+        text: taskDone[2],
+        isTask: true,
+        done: true,
+        tags: extractMomentTags(taskDone[2]),
+      });
     } else if (taskTodo) {
-      entries.push({ index: i, time: taskTodo[1], text: taskTodo[2], isTask: true, done: false });
+      entries.push({
+        index: i,
+        time: taskTodo[1],
+        text: taskTodo[2],
+        isTask: true,
+        done: false,
+        tags: extractMomentTags(taskTodo[2]),
+      });
     } else if (regular) {
-      entries.push({ index: i, time: regular[1], text: regular[2], isTask: false, done: false });
+      entries.push({
+        index: i,
+        time: regular[1],
+        text: regular[2],
+        isTask: false,
+        done: false,
+        tags: extractMomentTags(regular[2]),
+      });
     }
   }
 
@@ -1018,6 +1044,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
 
   .tag {
     display: inline-block;
+    border: none;
     padding: 0 5px;
     border-radius: 3px;
     background: color-mix(in srgb, var(--vscode-textLink-foreground) 18%, transparent);
@@ -1026,6 +1053,13 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     font-weight: 500;
     margin: 0 1px;
     text-decoration: none;
+    font-family: inherit;
+    line-height: 1.4;
+    cursor: pointer;
+  }
+
+  .tag:hover {
+    background: color-mix(in srgb, var(--vscode-textLink-foreground) 26%, transparent);
   }
 
   /* ---- Input area ---- */
@@ -1133,6 +1167,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
   <div class="topbar-row topbar-row-actions">
     <button class="nav-btn" id="inboxBtn" title="Show open tasks across all days">Inbox</button>
     <button class="nav-btn" id="openTasksBtn" title="Show open tasks only">Open</button>
+    <button class="nav-btn active" id="activeTagBtn" title="Clear active hashtag filter" style="display:none"></button>
     <button class="open-btn" id="openFileBtn" title="Open today's file in editor">&#8599;</button>
   </div>
 </div>
@@ -1168,10 +1203,13 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
   const emptyState = document.getElementById('emptyState');
   const inboxBtn = document.getElementById('inboxBtn');
   const openTasksBtn = document.getElementById('openTasksBtn');
+  const activeTagBtn = document.getElementById('activeTagBtn');
   const openFileBtn = document.getElementById('openFileBtn');
   const hintText = document.getElementById('hintText');
   const errorBanner = document.getElementById('errorBanner');
   let activeFilter = 'all';
+  let activeTag = null;
+  let activeTagLabel = '';
   let latestSections = [];
   let editingEntryKey = null;
   let editingText = '';
@@ -1230,10 +1268,36 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
   function renderText(text) {
     // Highlight #tags
     let html = escapeHtml(text);
-    html = html.replace(/(#[\\w-]+)/g, '<span class="tag">$1</span>');
+    html = html.replace(/(#[\\w-]+)/g, '<button class="tag" type="button" data-tag="$1">$1</button>');
     // Auto-link URLs
     html = html.replace(/(https?:\\/\\/[^\\s<]+)/g, '<a href="$1" style="color:var(--vscode-textLink-foreground)">$1</a>');
     return html;
+  }
+
+  function normalizeTag(tag) {
+    return String(tag || '').toLowerCase();
+  }
+
+  function getEntryTags(entry) {
+    if (Array.isArray(entry.tags) && entry.tags.length > 0) {
+      return entry.tags.map((tag) => normalizeTag(tag));
+    }
+
+    return (entry.text.match(/#[\w-]+/g) || []).map((tag) => normalizeTag(tag));
+  }
+
+  function setActiveTag(tag) {
+    const normalizedTag = normalizeTag(tag);
+    if (!normalizedTag || activeTag === normalizedTag) {
+      activeTag = null;
+      activeTagLabel = '';
+    } else {
+      activeTag = normalizedTag;
+      activeTagLabel = tag;
+    }
+
+    timeline.scrollTop = 0;
+    renderTimeline(latestSections);
   }
 
   function autoResizeTextarea(textarea) {
@@ -1245,20 +1309,27 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     const visibleSections = sections
       .map((section) => ({
         ...section,
-        entries: (activeFilter === 'openTasks'
-          ? section.entries.filter((entry) => entry.isTask && !entry.done)
-          : section.entries
-        ).slice().reverse(),
+        entries: section.entries
+          .filter((entry) => activeFilter !== 'openTasks' || (entry.isTask && !entry.done))
+          .filter((entry) => !activeTag || getEntryTags(entry).includes(activeTag))
+          .slice()
+          .reverse(),
       }))
       .filter((section) => section.entries.length > 0);
 
     openTasksBtn.classList.toggle('active', activeFilter === 'openTasks');
     openTasksBtn.setAttribute('aria-pressed', String(activeFilter === 'openTasks'));
+    activeTagBtn.style.display = activeTag ? '' : 'none';
+    activeTagBtn.textContent = activeTag ? activeTagLabel + ' ×' : '';
 
     if (visibleSections.length === 0) {
       emptyState.style.display = 'block';
       timeline.querySelectorAll('.day-section').forEach(e => e.remove());
-      if (activeFilter === 'openTasks') {
+      if (activeTag && activeFilter === 'openTasks') {
+        emptyState.textContent = 'No open tasks tagged ' + activeTagLabel + ' in this recent feed';
+      } else if (activeTag) {
+        emptyState.textContent = 'No moments tagged ' + activeTagLabel + ' in this recent feed';
+      } else if (activeFilter === 'openTasks') {
         emptyState.textContent = 'No open tasks in this recent feed';
       } else {
         emptyState.textContent = 'No moments yet — capture your first thought!';
@@ -1376,6 +1447,13 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
       const textSpan = document.createElement('div');
       textSpan.className = 'entry-text';
       textSpan.innerHTML = renderText(entry.text);
+      textSpan.querySelectorAll('.tag').forEach((tagButton) => {
+        tagButton.addEventListener('click', (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          setActiveTag(tagButton.dataset.tag || '');
+        });
+      });
 
       const content = document.createElement('div');
       content.className = 'entry-content';
@@ -1482,6 +1560,11 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
   inboxBtn.addEventListener('click', () => vscode.postMessage({ command: 'showOpenTasksOverview' }));
   openTasksBtn.addEventListener('click', () => {
     activeFilter = activeFilter === 'openTasks' ? 'all' : 'openTasks';
+    renderTimeline(latestSections);
+  });
+  activeTagBtn.addEventListener('click', () => {
+    activeTag = null;
+    activeTagLabel = '';
     renderTimeline(latestSections);
   });
 </script>
