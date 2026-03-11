@@ -6,6 +6,8 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.0.39] - 2026-03-11
+
 ### Improved: Moments hashtag feed filters
 
 - Hashtags inside Moments entries are now clickable, so you can jump into a tag-specific recent feed directly from the post body.
