@@ -9,6 +9,7 @@ import {
   buildMomentsDateLabel,
   buildMomentsFeedDates,
   buildTaskSearchDetail,
+  convertMomentLineToNote,
   convertMomentLineToTask,
   deleteMomentLine,
   extractMomentTags,
@@ -337,6 +338,21 @@ suite("Extension Test Suite", () => {
     });
     assert.deepStrictEqual(convertMomentLineToTask("not a moment line"), {
       line: "not a moment line",
+      changed: false,
+    });
+  });
+
+  test("task lines can be converted back into regular moments", () => {
+    assert.deepStrictEqual(convertMomentLineToNote("- [ ] 09:00 task"), {
+      line: "- 09:00 task",
+      changed: true,
+    });
+    assert.deepStrictEqual(convertMomentLineToNote("- [x] 09:00 done task"), {
+      line: "- 09:00 done task",
+      changed: true,
+    });
+    assert.deepStrictEqual(convertMomentLineToNote("- 09:00 note"), {
+      line: "- 09:00 note",
       changed: false,
     });
   });

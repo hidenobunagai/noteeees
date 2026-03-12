@@ -6,6 +6,10 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+### Improved: Moments note-task toggle
+
+- Task entries now expose `Make Note`, so Moments can move both directions between regular notes and tasks without retyping.
+
 ## [0.0.40] - 2026-03-11
 
 ### Improved: Moments can become tasks later

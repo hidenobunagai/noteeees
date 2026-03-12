@@ -13,7 +13,7 @@ A quick-capture timeline panel for fleeting thoughts, tasks, and ideas — alway
 - **Timeline view**: Entries displayed as a continuous recent feed with timestamps, task status, and quick actions
 - **Quick input**: Type a thought, press `Enter` to save instantly
 - **Task checkboxes**: Use the input checkbox to add the next item as a task, then tick tasks directly in the feed to mark them done or open
-- **Late task conversion**: Turn a regular Moment into a task later with the `Make Task` action on that entry
+- **Task type toggle**: Switch a Moment between note and task later with `Make Task` and `Make Note`
 - **Inline editing**: Edit a Moment in place and save without leaving the panel
 - **Safe deletion**: Delete a Moment from the panel with a confirmation step
 - **Open-task filter**: Toggle `Open` to focus only on unfinished tasks across the recent feed
