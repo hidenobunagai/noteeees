@@ -1217,20 +1217,34 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
   /* ---- Input area ---- */
   .input-area {
     flex-shrink: 0;
-    padding: 8px 6px 6px;
+    padding: 8px 10px 10px;
     border-top: 1px solid var(--vscode-panel-border);
     background: var(--vscode-sideBar-background, var(--vscode-editor-background));
+  }
+
+  .input-container {
+    display: flex;
+    flex-direction: column;
+    background: var(--vscode-input-background);
+    border: 1px solid var(--vscode-input-border, transparent);
+    border-radius: 6px;
+    transition: border-color 0.2s ease, outline 0.2s ease;
+  }
+  
+  .input-container:focus-within {
+    border-color: var(--vscode-focusBorder);
+    outline: 1px solid var(--vscode-focusBorder);
+    outline-offset: -1px;
   }
 
   textarea {
     display: block;
     width: 100%;
     resize: none;
-    background: var(--vscode-input-background);
+    background: transparent;
     color: var(--vscode-input-foreground);
-    border: 1px solid transparent;
-    border-radius: 5px;
-    padding: 6px 8px;
+    border: none;
+    padding: 8px 10px;
     font-family: var(--vscode-font-family);
     font-size: var(--vscode-font-size);
     line-height: 1.4;
@@ -1238,15 +1252,6 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     min-height: 36px;
     max-height: 120px;
     overflow-y: auto;
-    margin-bottom: 5px;
-    transition: border-color 0.2s ease, background 0.2s ease;
-  }
-  textarea:hover {
-    background: var(--vscode-editorHoverWidget-background, var(--vscode-input-background));
-  }
-  textarea:focus {
-    border-color: var(--vscode-focusBorder);
-    background: var(--vscode-input-background);
   }
   textarea::placeholder { color: var(--vscode-input-placeholderForeground); }
 
@@ -1255,6 +1260,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    padding: 2px 6px 6px 8px;
     gap: 5px;
   }
 
@@ -1273,11 +1279,39 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
   }
   .task-toggle:hover { opacity: 1; }
 
+  .send-icon-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    background: transparent;
+    border: none;
+    color: var(--vscode-icon-foreground, var(--vscode-foreground));
+    cursor: pointer;
+    border-radius: 4px;
+    padding: 0;
+    transition: background 0.15s, color 0.15s, opacity 0.15s;
+    opacity: 0.8;
+  }
+  .send-icon-btn:hover {
+    background: var(--vscode-toolbar-hoverBackground, rgba(90, 93, 94, 0.31));
+    opacity: 1;
+  }
+  .send-icon-btn:active {
+    background: var(--vscode-toolbar-activeBackground, rgba(90, 93, 94, 0.5));
+  }
+  .send-icon-btn svg {
+    width: 14px;
+    height: 14px;
+    fill: currentColor;
+  }
+
   .hint {
     font-size: 10px;
     color: var(--vscode-descriptionForeground);
     opacity: 0.5;
-    margin-top: 4px;
+    margin-top: 6px;
     text-align: right;
   }
 
@@ -1315,12 +1349,16 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
 
 <div class="input-area">
   <div id="errorBanner" style="display:none"></div>
-  <textarea id="inputBox" rows="1" placeholder="Capture a thought... (#tag to categorize)"></textarea>
-  <div class="input-actions">
-    <label class="task-toggle" id="taskToggleLabel" title="Add the next item as a task">
-      <vscode-checkbox id="taskToggle" aria-label="Add the next item as a task">Add as task</vscode-checkbox>
-    </label>
-    <vscode-button appearance="primary" id="sendBtn">Send &#10148;</vscode-button>
+  <div class="input-container" id="inputContainer">
+    <textarea id="inputBox" rows="1" placeholder="Capture a thought... (#tag to categorize)"></textarea>
+    <div class="input-actions">
+      <label class="task-toggle" id="taskToggleLabel" title="Add the next item as a task">
+        <vscode-checkbox id="taskToggle" aria-label="Add the next item as a task">Add as task</vscode-checkbox>
+      </label>
+      <button class="send-icon-btn" id="sendBtn" title="Send (Enter)">
+        <svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><path d="M14.5 1.5l-14 5v1.5l5 1.5 8.5-8-6.5 9.5v3.5l2.5-3 3.5 2h1.5l2-15h-1.5z"/></svg>
+      </button>
+    </div>
   </div>
   <div class="hint" id="hintText">Enter to send · Shift+Enter for newline</div>
 </div>
