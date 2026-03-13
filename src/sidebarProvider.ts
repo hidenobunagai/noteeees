@@ -147,23 +147,26 @@ function formatTagCount(count: number): string {
   return `${count} note${count === 1 ? "" : "s"}`;
 }
 
-function buildTagTooltip(group: SidebarTagGroup): string {
-  const lines = [`${formatTagCount(group.count)} tagged ${group.tag}`];
+function buildTagTooltip(group: SidebarTagGroup): vscode.MarkdownString {
+  const md = new vscode.MarkdownString();
+  md.isTrusted = true;
+
+  md.appendMarkdown(`**${group.tag}**\n\n`);
+  md.appendMarkdown(`${formatTagCount(group.count)} notes\n\n`);
 
   if (group.latestTitle) {
-    const latestLine = ["Latest", group.latestTitle].join(": ");
-    lines.push(latestLine);
+    md.appendMarkdown(`---\n**Latest**: ${group.latestTitle}\n\n`);
   }
 
   if (group.latestRelativePath) {
-    lines.push(group.latestRelativePath);
+    md.appendMarkdown(`*\`${group.latestRelativePath}\`*\n\n`);
   }
 
   if (typeof group.latestMtime === "number") {
-    lines.push(`Updated ${new Date(group.latestMtime).toLocaleString()}`);
+    md.appendMarkdown(`$(clock) Updated ${new Date(group.latestMtime).toLocaleString()}`);
   }
 
-  return lines.join("\n");
+  return md;
 }
 
 export function buildTagNoteDescription(
@@ -225,13 +228,13 @@ export class NotesTreeProvider implements vscode.TreeDataProvider<NoteTreeItem> 
           label: "Recent",
           kind: "recentRoot",
           collapsibleState: vscode.TreeItemCollapsibleState.Expanded,
-          iconPath: new vscode.ThemeIcon("files"),
+          iconPath: new vscode.ThemeIcon("history"),
         },
         {
           label: "Tags",
           kind: "tagsRoot",
           collapsibleState: vscode.TreeItemCollapsibleState.Collapsed,
-          iconPath: new vscode.ThemeIcon("tag"),
+          iconPath: new vscode.ThemeIcon("symbol-keyword"),
         },
       ];
     }
@@ -311,7 +314,10 @@ export class NotesTreeProvider implements vscode.TreeDataProvider<NoteTreeItem> 
       relativePath: note.relativePath,
       contextValue: pinned ? "pinnedNoteFile" : "noteFile",
       collapsibleState: vscode.TreeItemCollapsibleState.None,
-      iconPath: new vscode.ThemeIcon(pinned ? "pin" : "file"),
+      iconPath: new vscode.ThemeIcon(
+        pinned ? "pinned" : "markdown",
+        note.tags.length > 0 ? new vscode.ThemeColor("symbolIcon.keywordForeground") : undefined,
+      ),
       command: {
         command: "notes.openNoteFile",
         title: "Open Note",
@@ -320,26 +326,30 @@ export class NotesTreeProvider implements vscode.TreeDataProvider<NoteTreeItem> 
     };
   }
 
-  private _buildTooltip(note: SidebarNoteItem, activeTag?: string): string {
-    const lines = [note.relativePath];
+  private _buildTooltip(note: SidebarNoteItem, activeTag?: string): vscode.MarkdownString {
+    const md = new vscode.MarkdownString();
+    md.isTrusted = true;
+
+    md.appendMarkdown(`**${note.title}**\n\n`);
+    md.appendMarkdown(`*\`${note.relativePath}\`*\n\n`);
 
     if (note.tags.length > 0) {
-      lines.push(note.tags.join(" "));
+      md.appendMarkdown(`$(tag) ${note.tags.join(" ")}\n\n`);
     }
 
-    lines.push(`Updated ${new Date(note.mtime).toLocaleString()}`);
+    md.appendMarkdown(`$(clock) Updated ${new Date(note.mtime).toLocaleString()}\n\n`);
 
     if (activeTag) {
       const matchExcerpt = buildQueryExcerpt(note.searchText || note.preview, activeTag, 120);
       if (matchExcerpt) {
-        lines.push(`Match ${activeTag}: ${matchExcerpt}`);
+        md.appendMarkdown(`---\n**Match ${activeTag}**:\n> ${matchExcerpt}\n\n`);
       }
     }
 
     if (note.preview.length > 0) {
-      lines.push(note.preview);
+      md.appendMarkdown(`---\n${note.preview}\n`);
     }
 
-    return lines.join("\n");
+    return md;
   }
 }

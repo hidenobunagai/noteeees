@@ -181,8 +181,12 @@ export function activate(context: vscode.ExtensionContext) {
       return;
     }
 
-    const doc = await vscode.workspace.openTextDocument(selectedNote.absolutePath);
-    await vscode.window.showTextDocument(doc);
+    if (typeof selectedNote === "string") {
+      await createNewNote(notesDir, selectedNote);
+    } else {
+      const doc = await vscode.workspace.openTextDocument(selectedNote.absolutePath);
+      await vscode.window.showTextDocument(doc);
+    }
   }
 
   // Register sidebar tree view
@@ -203,7 +207,7 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(notesTreeView, treeSelectionDisposable);
 
   // Register Moments webview view
-  const momentsProvider = new MomentsViewProvider(getNotesDir);
+  const momentsProvider = new MomentsViewProvider(getNotesDir, context.extensionUri);
   context.subscriptions.push(
     vscode.window.registerWebviewViewProvider(MomentsViewProvider.viewType, momentsProvider),
   );

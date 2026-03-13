@@ -726,9 +726,11 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
 
   private _view?: vscode.WebviewView;
   private readonly _getNotesDir: () => string | undefined;
+  private readonly _extensionUri: vscode.Uri;
 
-  constructor(getNotesDir: () => string | undefined) {
+  constructor(getNotesDir: () => string | undefined, extensionUri: vscode.Uri) {
     this._getNotesDir = getNotesDir;
+    this._extensionUri = extensionUri;
   }
 
   resolveWebviewView(
@@ -920,13 +922,18 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     this._view?.webview.postMessage({ command: "error", message: msg });
   }
 
-  private _getHtml(_webview: vscode.Webview): string {
+  private _getHtml(webview: vscode.Webview): string {
+    const toolkitUri = webview.asWebviewUri(
+      vscode.Uri.joinPath(this._extensionUri, "assets", "toolkit.min.js"),
+    );
+
     return /* html */ `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Moments</title>
+<script type="module" src="${toolkitUri}"></script>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -961,18 +968,26 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
   }
 
   .topbar-row-actions {
-    flex-wrap: wrap;
+    display: flex;
     justify-content: center;
+    background: var(--vscode-editorWidget-background);
+    border: 1px solid var(--vscode-widget-border, transparent);
+    border-radius: 4px;
+    padding: 2px;
+    gap: 2px;
   }
 
   .nav-btn {
+    flex: 1;
+    text-align: center;
     background: none;
     border: none;
     color: var(--vscode-foreground);
     cursor: pointer;
-    padding: 2px 6px;
+    padding: 3px 6px;
     border-radius: 3px;
-    font-size: 13px;
+    font-size: 11px;
+    font-weight: 500;
     opacity: 0.7;
     transition: opacity 0.15s, background 0.15s;
   }
@@ -980,8 +995,9 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
 
   .nav-btn.active {
     opacity: 1;
-    color: var(--vscode-textLink-foreground);
-    background: color-mix(in srgb, var(--vscode-textLink-foreground) 12%, transparent);
+    color: var(--vscode-foreground);
+    background: var(--vscode-button-secondaryBackground, var(--vscode-badge-background));
+    border-radius: 3px;
   }
 
   .open-btn {
@@ -1212,7 +1228,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     resize: none;
     background: var(--vscode-input-background);
     color: var(--vscode-input-foreground);
-    border: 1px solid var(--vscode-input-border, var(--vscode-panel-border));
+    border: 1px solid transparent;
     border-radius: 5px;
     padding: 6px 8px;
     font-family: var(--vscode-font-family);
@@ -1223,9 +1239,14 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     max-height: 120px;
     overflow-y: auto;
     margin-bottom: 5px;
+    transition: border-color 0.2s ease, background 0.2s ease;
+  }
+  textarea:hover {
+    background: var(--vscode-editorHoverWidget-background, var(--vscode-input-background));
   }
   textarea:focus {
     border-color: var(--vscode-focusBorder);
+    background: var(--vscode-input-background);
   }
   textarea::placeholder { color: var(--vscode-input-placeholderForeground); }
 
@@ -1233,51 +1254,24 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
   .input-actions {
     display: flex;
     align-items: center;
+    justify-content: space-between;
     gap: 5px;
   }
-
-  .send-btn {
-    background: var(--vscode-button-background);
-    color: var(--vscode-button-foreground);
-    border: none;
-    border-radius: 5px;
-    padding: 5px 14px;
-    cursor: pointer;
-    font-size: 13px;
-    transition: background 0.15s;
-    white-space: nowrap;
-    margin-left: auto;
-  }
-  .send-btn:hover { background: var(--vscode-button-hoverBackground); }
 
   .task-toggle {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
     color: var(--vscode-descriptionForeground);
-    border-radius: 5px;
-    padding: 4px 6px;
-    cursor: pointer;
     font-size: 11px;
-    opacity: 0.6;
+    opacity: 0.8;
     transition: opacity 0.15s, background 0.15s, color 0.15s;
-    white-space: nowrap;
     user-select: none;
   }
   .task-toggle.active {
     opacity: 1;
-    background: color-mix(in srgb, var(--vscode-textLink-foreground) 12%, transparent);
     color: var(--vscode-textLink-foreground);
   }
   .task-toggle:hover { opacity: 1; }
-
-  .task-toggle input {
-    width: 15px;
-    height: 15px;
-    margin: 0;
-    accent-color: var(--vscode-textLink-foreground);
-    cursor: pointer;
-  }
 
   .hint {
     font-size: 10px;
@@ -1301,26 +1295,32 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
 <body>
 <div class="topbar">
   <div class="topbar-row topbar-row-actions">
-    <button class="nav-btn" id="inboxBtn" title="Show open tasks across all days">Inbox</button>
+    <button class="nav-btn" id="allBtn" title="Show all recent moments">All</button>
     <button class="nav-btn" id="openTasksBtn" title="Show open tasks only">Open</button>
+    <button class="nav-btn" id="inboxBtn" title="Show open tasks across all days">&#128230; Inbox</button>
     <button class="nav-btn active" id="activeTagBtn" title="Clear active hashtag filter" style="display:none"></button>
     <button class="open-btn" id="openFileBtn" title="Open today's file in editor">&#8599;</button>
   </div>
 </div>
 
 <div class="timeline" id="timeline">
-  <div class="empty-state" id="emptyState">No moments yet today</div>
+  <div class="empty-state" id="emptyState">
+  <svg width="32" height="32" viewBox="0 0 16 16" fill="currentColor" style="opacity: 0.5; margin-bottom: 8px;">
+    <path fill-rule="evenodd" clip-rule="evenodd" d="M14.5 2H1.5l-.5.5v11l.5.5h13l.5-.5v-11l-.5-.5zM2 3h12v10H2V3zM4 6h8V5H4v1zm8 2H4v1h8V8zm-8 3h6v-1H4v1z" />
+  </svg>
+  <div>No moments yet today</div>
+  <div style="font-size: 11px; margin-top: 4px; opacity: 0.8;">Capture ideas, or add #tags to categorize</div>
+</div>
 </div>
 
 <div class="input-area">
   <div id="errorBanner" style="display:none"></div>
-  <textarea id="inputBox" rows="1" placeholder="Capture a thought…"></textarea>
+  <textarea id="inputBox" rows="1" placeholder="Capture a thought... (#tag to categorize)"></textarea>
   <div class="input-actions">
     <label class="task-toggle" id="taskToggleLabel" title="Add the next item as a task">
-      <input type="checkbox" id="taskToggle" aria-label="Add the next item as a task">
-      <span>Add as task</span>
+      <vscode-checkbox id="taskToggle" aria-label="Add the next item as a task">Add as task</vscode-checkbox>
     </label>
-    <button class="send-btn" id="sendBtn">Send &#10148;</button>
+    <vscode-button appearance="primary" id="sendBtn">Send &#10148;</vscode-button>
   </div>
   <div class="hint" id="hintText">Enter to send · Shift+Enter for newline</div>
 </div>
@@ -1339,6 +1339,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
   const emptyState = document.getElementById('emptyState');
   const inboxBtn = document.getElementById('inboxBtn');
   const openTasksBtn = document.getElementById('openTasksBtn');
+  const allBtn = document.getElementById('allBtn');
   const activeTagBtn = document.getElementById('activeTagBtn');
   const openFileBtn = document.getElementById('openFileBtn');
   const hintText = document.getElementById('hintText');
@@ -1458,6 +1459,8 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
       }))
       .filter((section) => section.entries.length > 0);
 
+    allBtn.classList.toggle('active', activeFilter !== 'openTasks');
+    allBtn.setAttribute('aria-pressed', String(activeFilter !== 'openTasks'));
     openTasksBtn.classList.toggle('active', activeFilter === 'openTasks');
     openTasksBtn.setAttribute('aria-pressed', String(activeFilter === 'openTasks'));
     activeTagBtn.style.display = activeTag ? '' : 'none';
@@ -1720,9 +1723,17 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
 
   openFileBtn.addEventListener('click', () => vscode.postMessage({ command: 'openFile' }));
   inboxBtn.addEventListener('click', () => vscode.postMessage({ command: 'showOpenTasksOverview' }));
+  allBtn.addEventListener('click', () => {
+    if (activeFilter !== 'all') {
+      activeFilter = 'all';
+      renderTimeline(latestSections);
+    }
+  });
   openTasksBtn.addEventListener('click', () => {
-    activeFilter = activeFilter === 'openTasks' ? 'all' : 'openTasks';
-    renderTimeline(latestSections);
+    if (activeFilter !== 'openTasks') {
+      activeFilter = 'openTasks';
+      renderTimeline(latestSections);
+    }
   });
   activeTagBtn.addEventListener('click', () => {
     activeTag = null;

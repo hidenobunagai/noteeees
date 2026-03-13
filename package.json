@@ -18,6 +18,33 @@
   "activationEvents": [],
   "main": "./dist/extension.js",
   "contributes": {
+    "walkthroughs": [
+      {
+        "id": "noteeees.welcome",
+        "title": "Welcome to Noteeees",
+        "description": "Get started with your markdown notes extension.",
+        "steps": [
+          {
+            "id": "setupDirectory",
+            "title": "Set up your notes directory",
+            "description": "Choose where your notes will be stored on this machine.\n[Run Setup](command:notes.runSetup)",
+            "media": { "markdown": "assets/walkthrough-setup.md" }
+          },
+          {
+            "id": "firstNote",
+            "title": "Create your first note",
+            "description": "Press the shortcut (`Cmd+Shift+N` on Mac, `Ctrl+Shift+N` on Windows/Linux) or click the button to create a new markdown note.\n[Create Note](command:notes.newNote)",
+            "media": { "markdown": "assets/walkthrough-note.md" }
+          },
+          {
+            "id": "moments",
+            "title": "Capture a Moment",
+            "description": "Open the Moments panel from the Activity Bar (the lightning icon) to quickly capture thoughts and tasks.\n[Open Moments](command:notesMomentsView.focus)",
+            "media": { "markdown": "assets/walkthrough-moments.md" }
+          }
+        ]
+      }
+    ],
     "snippets": [
       {
         "language": "markdown",
@@ -62,19 +89,23 @@
       },
       {
         "command": "notes.pinNote",
-        "title": "Pin Note"
+        "title": "Pin Note",
+        "icon": "$(pin)"
       },
       {
         "command": "notes.unpinNote",
-        "title": "Unpin Note"
+        "title": "Unpin Note",
+        "icon": "$(pinned)"
       },
       {
         "command": "notes.movePinnedNoteUp",
-        "title": "Move Pinned Note Up"
+        "title": "Move Pinned Note Up",
+        "icon": "$(arrow-up)"
       },
       {
         "command": "notes.movePinnedNoteDown",
-        "title": "Move Pinned Note Down"
+        "title": "Move Pinned Note Down",
+        "icon": "$(arrow-down)"
       }
     ],
     "keybindings": [
@@ -302,5 +333,8 @@
     "typescript": "^5.9.3",
     "@vscode/test-cli": "^0.0.12",
     "@vscode/test-electron": "^2.5.2"
+  },
+  "dependencies": {
+    "@vscode/webview-ui-toolkit": "^1.4.0"
   }
 }

@@ -265,7 +265,9 @@ export interface IndexedNote {
 }
 
 interface NoteQuickPickItem extends vscode.QuickPickItem {
-  note: IndexedNote;
+  note?: IndexedNote;
+  isCreateNew?: boolean;
+  createTitle?: string;
 }
 
 export function buildNoteSearchDetail(note: IndexedNote, query: string = ""): string {
@@ -295,12 +297,12 @@ function toNoteQuickPickItem(note: IndexedNote, query: string = ""): NoteQuickPi
 export async function pickIndexedNote(
   notes: IndexedNote[],
   placeHolder: string,
-): Promise<IndexedNote | undefined> {
-  return new Promise<IndexedNote | undefined>((resolve) => {
+): Promise<IndexedNote | string | undefined> {
+  return new Promise<IndexedNote | string | undefined>((resolve) => {
     const quickPick = vscode.window.createQuickPick<NoteQuickPickItem>();
     let resolved = false;
 
-    const finish = (note?: IndexedNote) => {
+    const finish = (result?: IndexedNote | string) => {
       if (resolved) {
         return;
       }
@@ -308,11 +310,20 @@ export async function pickIndexedNote(
       resolved = true;
       quickPick.hide();
       quickPick.dispose();
-      resolve(note);
+      resolve(result);
     };
 
     const updateItems = (query: string) => {
-      quickPick.items = notes.map((note) => toNoteQuickPickItem(note, query));
+      const items: NoteQuickPickItem[] = notes.map((note) => toNoteQuickPickItem(note, query));
+      if (query.trim()) {
+        items.unshift({
+          label: `$(plus) Create new note: "${query.trim()}"`,
+          alwaysShow: true,
+          isCreateNew: true,
+          createTitle: query.trim(),
+        });
+      }
+      quickPick.items = items;
     };
 
     quickPick.matchOnDescription = true;
@@ -325,7 +336,12 @@ export async function pickIndexedNote(
     });
 
     quickPick.onDidAccept(() => {
-      finish(quickPick.selectedItems[0]?.note);
+      const selected = quickPick.selectedItems[0];
+      if (selected?.isCreateNew && selected.createTitle) {
+        finish(selected.createTitle);
+      } else {
+        finish(selected?.note);
+      }
     });
 
     quickPick.onDidHide(() => {
@@ -353,12 +369,14 @@ export function buildIndexedNotes(noteFiles: NoteFile[]): IndexedNote[] {
   });
 }
 
-export async function createNewNote(notesDir: string): Promise<void> {
+export async function createNewNote(notesDir: string, initialTitle?: string): Promise<void> {
   // Step 1: Ask for note title
-  const titleInput = await vscode.window.showInputBox({
-    prompt: "Enter note title (use / for subfolders)",
-    placeHolder: "Meeting Notes  or  projects/ProjectX",
-  });
+  const titleInput =
+    initialTitle ||
+    (await vscode.window.showInputBox({
+      prompt: "Enter note title (use / for subfolders)",
+      placeHolder: "Meeting Notes  or  projects/ProjectX",
+    }));
 
   if (!titleInput) {
     return;
@@ -468,8 +486,12 @@ export async function listNotes(notesDir: string): Promise<void> {
   );
 
   if (selected) {
-    const doc = await vscode.workspace.openTextDocument(selected.absolutePath);
-    await vscode.window.showTextDocument(doc);
+    if (typeof selected === "string") {
+      await createNewNote(notesDir, selected);
+    } else {
+      const doc = await vscode.workspace.openTextDocument(selected.absolutePath);
+      await vscode.window.showTextDocument(doc);
+    }
   }
 }
 
