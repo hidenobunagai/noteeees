@@ -6,6 +6,12 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.0.46] - 2026-03-13
+
+### Changed
+- **Moments UX**: Unified the Enter-key behavior: Editing a moment now follows your configured "Send on Enter" setting (matching the new message input area).
+- **Moments UI**: Removed redundant hints about shortcut keys to clean up vertical space.
+
 ## [0.0.45] - 2026-03-13
 
 ### Changed
