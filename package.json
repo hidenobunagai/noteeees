@@ -2,7 +2,7 @@
   "name": "noteeees",
   "displayName": "Noteeees",
   "description": "Simple markdown notes extension",
-  "version": "0.0.42",
+  "version": "0.0.43",
   "publisher": "HidenobuNagai",
   "icon": "assets/icon.png",
   "repository": {
@@ -28,19 +28,25 @@
             "id": "setupDirectory",
             "title": "Set up your notes directory",
             "description": "Choose where your notes will be stored on this machine.\n[Run Setup](command:notes.runSetup)",
-            "media": { "markdown": "assets/walkthrough-setup.md" }
+            "media": {
+              "markdown": "assets/walkthrough-setup.md"
+            }
           },
           {
             "id": "firstNote",
             "title": "Create your first note",
             "description": "Press the shortcut (`Cmd+Shift+N` on Mac, `Ctrl+Shift+N` on Windows/Linux) or click the button to create a new markdown note.\n[Create Note](command:notes.newNote)",
-            "media": { "markdown": "assets/walkthrough-note.md" }
+            "media": {
+              "markdown": "assets/walkthrough-note.md"
+            }
           },
           {
             "id": "moments",
             "title": "Capture a Moment",
             "description": "Open the Moments panel from the Activity Bar (the lightning icon) to quickly capture thoughts and tasks.\n[Open Moments](command:notesMomentsView.focus)",
-            "media": { "markdown": "assets/walkthrough-moments.md" }
+            "media": {
+              "markdown": "assets/walkthrough-moments.md"
+            }
           }
         ]
       }

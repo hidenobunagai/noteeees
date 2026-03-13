@@ -6,6 +6,19 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.0.43] - 2026-03-13
+
+### Added
+- **Walkthrough Guide**: Added a welcoming step-by-step walkthrough to help new users configure settings and start taking notes quickly.
+- **Improved Empty States**: Moments panel now displays better empty states and clearer instructional hints.
+- **Search and Create Flow**: You can now seamlessly create a new note directly from the Quick Pick search if no matching note exists.
+- **Rich Sidebar Tooltips**: Extension sidebar now uses Markdown to preview file paths, tags, recent updates, and excerpts neatly while hovering.
+
+### Improved
+- Webview UI Toolkit was integrated into the Moments UI for better native VS Code feeling.
+- Various icons across the sidebar (Pinned/Recent/Tags) have been updated to represent content types correctly.
+- Action icons correctly display inline and hover correctly for standard Context Menus.
+
 ## [0.0.42] - 2026-03-13
 
 ### Improved: Moments task card polish and Japanese hashtags
