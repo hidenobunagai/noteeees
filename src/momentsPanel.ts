@@ -1106,12 +1106,20 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
 
   .entry-checkbox {
     flex: none;
-    width: 15px;
-    height: 15px;
-    align-self: center;
+    width: 14px;
+    height: 14px;
     margin: 0;
     accent-color: var(--vscode-textLink-foreground);
     cursor: pointer;
+  }
+
+  .entry-icon-wrapper {
+    flex: none;
+    width: 14px;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding-top: 2px;
   }
 
   .entry-content {
@@ -1162,23 +1170,34 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
   .entry-actions {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 4px;
     flex-wrap: wrap;
   }
 
   .entry-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     background: none;
     border: none;
     color: var(--vscode-descriptionForeground);
     cursor: pointer;
-    padding: 2px 0;
+    padding: 3px;
+    border-radius: 4px;
     font-size: 11px;
-    opacity: 0.9;
-    transition: color 0.15s, opacity 0.15s;
+    opacity: 0.8;
+    transition: color 0.15s, opacity 0.15s, background 0.15s;
+  }
+
+  .entry-action svg {
+    width: 14px;
+    height: 14px;
+    fill: currentColor;
   }
 
   .entry-action:hover {
     color: var(--vscode-foreground);
+    background: var(--vscode-toolbar-hoverBackground, rgba(90, 93, 94, 0.31));
     opacity: 1;
   }
 
@@ -1588,7 +1607,8 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
         const saveButton = document.createElement('button');
         saveButton.className = 'entry-action save';
         saveButton.type = 'button';
-        saveButton.textContent = 'Save';
+        saveButton.title = 'Save';
+        saveButton.innerHTML = '<svg viewBox="0 0 16 16"><path fill-rule="evenodd" clip-rule="evenodd" d="M14.43 3.43l-8 8-4.22-4.22.71-.71 3.51 3.51 7.29-7.29.71.71z"/></svg>';
         saveButton.addEventListener('click', () => {
           const nextText = editInput.value.trim();
           if (!nextText) {
@@ -1603,7 +1623,8 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
         const cancelButton = document.createElement('button');
         cancelButton.className = 'entry-action';
         cancelButton.type = 'button';
-        cancelButton.textContent = 'Cancel';
+        cancelButton.title = 'Cancel';
+        cancelButton.innerHTML = '<svg viewBox="0 0 16 16"><path fill-rule="evenodd" clip-rule="evenodd" d="M8.7 8l3.15-3.15-.7-.7L8 7.3 4.85 4.15l-.7.7L7.3 8l-3.15 3.15.7.7L8 8.7l3.15 3.15.7-.7L8.7 8z"/></svg>';
         cancelButton.addEventListener('click', () => {
           editingEntryKey = null;
           editingText = '';
@@ -1651,6 +1672,9 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
       const bodyContent = document.createElement('div');
       bodyContent.className = 'entry-body-content';
 
+      const iconWrapper = document.createElement('div');
+      iconWrapper.className = 'entry-icon-wrapper';
+
       if (entry.isTask) {
         const checkbox = document.createElement('input');
         checkbox.type = 'checkbox';
@@ -1661,8 +1685,10 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
         checkbox.addEventListener('change', () => {
           vscode.postMessage({ command: 'toggleTask', date: section.date, index: entry.index });
         });
-        body.appendChild(checkbox);
+        iconWrapper.appendChild(checkbox);
       }
+      
+      body.appendChild(iconWrapper);
 
       main.appendChild(content);
 
@@ -1672,7 +1698,10 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
       const convertButton = document.createElement('button');
       convertButton.className = 'entry-action primary';
       convertButton.type = 'button';
-      convertButton.textContent = entry.isTask ? 'Make Note' : 'Make Task';
+      convertButton.title = entry.isTask ? 'Make Note' : 'Make Task';
+      convertButton.innerHTML = entry.isTask 
+        ? '<svg viewBox="0 0 16 16"><path fill-rule="evenodd" clip-rule="evenodd" d="M13.71 4.29l-3-3L10 1H4L3 2v12l1 1h9l1-1V5l-.29-.71zM10 2.41l2.59 2.59H10V2.41zM13 14H4V2h5v4h4v8z"/></svg>'
+        : '<svg viewBox="0 0 16 16"><path fill-rule="evenodd" clip-rule="evenodd" d="M14 3v10H2V3h12zm-1-1H3L2 3v10l1 1h10l1-1V3l-1-1zm-2.07 4.21l-3.3 3.3a.5.5 0 01-.7 0L5.35 7.93l.7-.71 1.18 1.18 2.95-2.95.75.76z"/></svg>';
       convertButton.addEventListener('click', () => {
         vscode.postMessage({
           command: entry.isTask ? 'convertToNote' : 'convertToTask',
@@ -1685,7 +1714,8 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
       const editButton = document.createElement('button');
       editButton.className = 'entry-action';
       editButton.type = 'button';
-      editButton.textContent = 'Edit';
+      editButton.title = 'Edit';
+      editButton.innerHTML = '<svg viewBox="0 0 16 16"><path fill-rule="evenodd" clip-rule="evenodd" d="M13.8 2.2l-1-1c-.5-.5-1.3-.5-1.8 0l-8 8v2.8l1 1h2.8l8-8c.5-.5.5-1.3 0-1.8zm-1.8.7l1 1-1.3 1.3-1-1 1.3-1.3zm-2.3 2.3l1 1-6.8 6.8H3v-1l6.7-6.8z"/></svg>';
       editButton.addEventListener('click', () => {
         editingEntryKey = entryKey;
         editingText = entry.text;
@@ -1695,7 +1725,8 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
       const deleteButton = document.createElement('button');
       deleteButton.className = 'entry-action danger';
       deleteButton.type = 'button';
-      deleteButton.textContent = 'Delete';
+      deleteButton.title = 'Delete';
+      deleteButton.innerHTML = '<svg viewBox="0 0 16 16"><path fill-rule="evenodd" clip-rule="evenodd" d="M10 3h3v1h-1v9l-1 1H4l-1-1V4H2V3h3V2a1 1 0 011-1h3a1 1 0 011 1v1zM9 2H6v1h3V2zM4 13h7V4H4v9z"/><path d="M6 6h1v5H6zM8 6h1v5H8z"/></svg>';
       deleteButton.addEventListener('click', () => {
         if (editingEntryKey === entryKey) {
           editingEntryKey = null;
