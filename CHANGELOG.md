@@ -6,6 +6,14 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.0.42] - 2026-03-13
+
+### Improved: Moments task card polish and Japanese hashtags
+
+- Task checkboxes in Moments cards are now vertically centered against the full card content for a cleaner scan line.
+- Moments, inline note tags, and notes-mcp search now support Japanese hashtags.
+- Full-width and compatibility hyphens in hashtags are normalized, so visually similar tag variants resolve to the same tag.
+
 ## [0.0.41] - 2026-03-12
 
 ### Improved: Moments note-task toggle

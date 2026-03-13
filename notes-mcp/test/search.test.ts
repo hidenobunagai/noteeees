@@ -1,8 +1,14 @@
 import { describe, expect, test } from "bun:test";
+import * as fs from "fs";
+import * as os from "os";
+import * as path from "path";
 
 import {
+  clearSearchIndexCache,
   createSearchIndexSnapshot,
   executeStructuredSearch,
+  getCachedSearchIndex,
+  getSearchIndexNotes,
   type NoteEntry,
   resolveSearchStrategy,
 } from "../src/search.js";
@@ -151,5 +157,33 @@ describe("notes-mcp structured search", () => {
 
     if ("error" in response) throw new Error(response.error);
     expect(response.results[0]?.entry.filename).toBe("projects/deploy-plan.md");
+  });
+
+  test("cached index extracts Japanese inline hashtags", () => {
+    const notesDir = fs.mkdtempSync(path.join(os.tmpdir(), "notes-mcp-tags-"));
+
+    try {
+      fs.writeFileSync(
+        path.join(notesDir, "japanese-tags.md"),
+        "# 日本語タグ\n本文で #振り返り－設計 と #設計 を使う",
+        "utf8",
+      );
+
+      clearSearchIndexCache();
+      const index = getCachedSearchIndex(notesDir);
+      const [note] = getSearchIndexNotes(index);
+      const response = executeStructuredSearch(index, {
+        query: "#振り返り-設計",
+        search_strategy: "classic",
+        include_recency_bonus: false,
+      });
+
+      if ("error" in response) throw new Error(response.error);
+      expect(note?.tags).toEqual(["#振り返り-設計", "#設計"]);
+      expect(response.results[0]?.entry.filename).toBe("japanese-tags.md");
+    } finally {
+      clearSearchIndexCache();
+      fs.rmSync(notesDir, { recursive: true, force: true });
+    }
   });
 });

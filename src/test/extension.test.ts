@@ -132,7 +132,23 @@ suite("Extension Test Suite", () => {
       "#ai",
       "#notes",
     ]);
+    assert.deepStrictEqual(extractMomentTags("整理 #振り返り と #設計 をまとめる #振り返り"), [
+      "#振り返り",
+      "#設計",
+    ]);
+    assert.deepStrictEqual(extractMomentTags("整理 #振り返り－設計 と #振り返り-設計 を揃える"), [
+      "#振り返り-設計",
+    ]);
     assert.deepStrictEqual(extractMomentTags("No tags here"), []);
+  });
+
+  test("note metadata extracts Japanese inline hashtags", () => {
+    const metadata = extractNoteMetadata(
+      "# 週次レビュー\n日本語タグ #振り返り－設計 と #設計 を確認",
+      "fallback-title",
+    );
+
+    assert.deepStrictEqual(metadata.tags, ["#振り返り-設計", "#設計"]);
   });
 
   test("inbox task filter narrows open and done items", () => {

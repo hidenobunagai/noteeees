@@ -95,8 +95,13 @@ const DEFAULT_BM25_OPTIONS: Bm25Options = {
 
 const SNIPPET_RADIUS = 100;
 const FREQ_CAP = 4;
+const INLINE_TAG_PATTERN = /#[\p{L}\p{M}\p{N}_\p{Pd}]+/gu;
 
 let cachedSearchIndex: SearchIndexSnapshot | null = null;
+
+function normalizeInlineTag(tag: string): string {
+  return tag.normalize("NFKC");
+}
 
 function extractFrontMatter(rawContent: string): string | null {
   const match = rawContent.match(/^---\s*\n([\s\S]*?)\n---/);
@@ -117,11 +122,13 @@ function extractFrontMatterTags(rawContent: string): string[] {
     .split(",")
     .map((tag) => tag.trim())
     .filter((tag) => tag.length > 0)
-    .map((tag) => (tag.startsWith("#") ? tag : `#${tag}`));
+    .map((tag) => normalizeInlineTag(tag.startsWith("#") ? tag : `#${tag}`));
 }
 
 function extractInlineTags(bodyContent: string): string[] {
-  const matches = bodyContent.match(/#[\w-]+/g) || [];
+  const matches = (bodyContent.match(INLINE_TAG_PATTERN) || []).map((tag) =>
+    normalizeInlineTag(tag),
+  );
   return [...new Set(matches)];
 }
 
@@ -171,7 +178,7 @@ function collectNoteFiles(dir: string): { filePath: string; mtime: number }[] {
 }
 
 function normalize(text: string): string {
-  return text.toLowerCase();
+  return text.normalize("NFKC").toLowerCase();
 }
 
 function estimateDocumentLength(normalizedContent: string): number {

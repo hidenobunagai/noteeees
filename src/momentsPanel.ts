@@ -37,8 +37,17 @@ export type MomentFilter = "all" | "openTasks";
 export type InboxTaskFilter = "all" | "open" | "done";
 
 const MOMENTS_FEED_DAY_COUNT = 7;
+const MOMENT_TAG_PATTERN = String.raw`#[\p{L}\p{M}\p{N}_\p{Pd}]+`;
 
 let lastInboxTaskFilter: InboxTaskFilter = "all";
+
+function matchMomentTags(text: string): string[] {
+  return text.match(new RegExp(MOMENT_TAG_PATTERN, "gu")) ?? [];
+}
+
+function normalizeMomentTag(tag: string): string {
+  return tag.normalize("NFKC").toLowerCase();
+}
 
 export function normalizeInboxTaskFilter(filter: string | undefined): InboxTaskFilter {
   if (filter === "open" || filter === "done" || filter === "all") {
@@ -57,7 +66,7 @@ export function filterMomentEntries(entries: MomentEntry[], filter: MomentFilter
 }
 
 export function extractMomentTags(text: string): string[] {
-  return [...new Set((text.match(/#[\w-]+/g) ?? []).map((tag) => tag.toLowerCase()))];
+  return [...new Set(matchMomentTags(text).map((tag) => normalizeMomentTag(tag)))];
 }
 
 export function filterTaskOverviewItems(
@@ -1073,16 +1082,31 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     gap: 8px;
   }
 
+  .entry-body {
+    display: flex;
+    gap: 8px;
+    align-items: stretch;
+  }
+
   .entry-checkbox {
     flex: none;
     width: 15px;
     height: 15px;
-    margin: 2px 0 0;
+    align-self: center;
+    margin: 0;
     accent-color: var(--vscode-textLink-foreground);
     cursor: pointer;
   }
 
   .entry-content {
+    min-width: 0;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .entry-body-content {
     min-width: 0;
     flex: 1;
     display: flex;
@@ -1326,6 +1350,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
   let editingEntryKey = null;
   let editingText = '';
   let pendingScrollMode = 'top';
+  const momentTagPattern = ${JSON.stringify(MOMENT_TAG_PATTERN)};
 
   // Notify extension we're ready
   vscode.postMessage({ command: 'ready' });
@@ -1380,14 +1405,18 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
   function renderText(text) {
     // Highlight #tags
     let html = escapeHtml(text);
-    html = html.replace(/(#[\\w-]+)/g, '<button class="tag" type="button" data-tag="$1">$1</button>');
+    html = html.replace(new RegExp(momentTagPattern, 'gu'), (tag) => '<button class="tag" type="button" data-tag="' + tag + '">' + tag + '</button>');
     // Auto-link URLs
     html = html.replace(/(https?:\\/\\/[^\\s<]+)/g, '<a href="$1" style="color:var(--vscode-textLink-foreground)">$1</a>');
     return html;
   }
 
+  function matchMomentTags(text) {
+    return text.match(new RegExp(momentTagPattern, 'gu')) || [];
+  }
+
   function normalizeTag(tag) {
-    return String(tag || '').toLowerCase();
+    return String(tag || '').normalize('NFKC').toLowerCase();
   }
 
   function getEntryTags(entry) {
@@ -1395,7 +1424,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
       return entry.tags.map((tag) => normalizeTag(tag));
     }
 
-    return (entry.text.match(/#[\w-]+/g) || []).map((tag) => normalizeTag(tag));
+    return matchMomentTags(entry.text).map((tag) => normalizeTag(tag));
   }
 
   function setActiveTag(tag) {
@@ -1575,6 +1604,12 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
       const main = document.createElement('div');
       main.className = 'entry-main';
 
+      const body = document.createElement('div');
+      body.className = 'entry-body';
+
+      const bodyContent = document.createElement('div');
+      bodyContent.className = 'entry-body-content';
+
       if (entry.isTask) {
         const checkbox = document.createElement('input');
         checkbox.type = 'checkbox';
@@ -1585,7 +1620,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
         checkbox.addEventListener('change', () => {
           vscode.postMessage({ command: 'toggleTask', date: section.date, index: entry.index });
         });
-        main.appendChild(checkbox);
+        body.appendChild(checkbox);
       }
 
       main.appendChild(content);
@@ -1630,8 +1665,10 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
 
       actions.appendChild(editButton);
       actions.appendChild(deleteButton);
-      div.appendChild(main);
-      div.appendChild(actions);
+      bodyContent.appendChild(main);
+      bodyContent.appendChild(actions);
+      body.appendChild(bodyContent);
+      div.appendChild(body);
       sectionEl.appendChild(div);
     });
 

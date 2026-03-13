@@ -230,8 +230,16 @@ function extractFrontMatterTags(rawContent: string): string[] {
     .map((tag) => (tag.startsWith("#") ? tag : `#${tag}`));
 }
 
+const INLINE_TAG_PATTERN = /#[\p{L}\p{M}\p{N}_\p{Pd}]+/gu;
+
+function normalizeInlineTag(tag: string): string {
+  return tag.normalize("NFKC");
+}
+
 function extractInlineTags(rawContent: string): string[] {
-  return [...new Set(rawContent.match(/#[\w-]+/g) || [])];
+  return [
+    ...new Set((rawContent.match(INLINE_TAG_PATTERN) || []).map((tag) => normalizeInlineTag(tag))),
+  ];
 }
 
 export function extractNoteMetadata(rawContent: string, fallbackTitle: string): NoteMetadata {
