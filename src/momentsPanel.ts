@@ -1326,14 +1326,6 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     fill: currentColor;
   }
 
-  .hint {
-    font-size: 10px;
-    color: var(--vscode-descriptionForeground);
-    opacity: 0.5;
-    margin-top: 6px;
-    text-align: right;
-  }
-
   .error-banner {
     background: var(--vscode-inputValidation-errorBackground);
     border: 1px solid var(--vscode-inputValidation-errorBorder);
@@ -1379,7 +1371,6 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
       </button>
     </div>
   </div>
-  <div class="hint" id="hintText">Enter to send · Shift+Enter for newline</div>
 </div>
 
 <script>
@@ -1399,7 +1390,6 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
   const allBtn = document.getElementById('allBtn');
   const activeTagBtn = document.getElementById('activeTagBtn');
   const openFileBtn = document.getElementById('openFileBtn');
-  const hintText = document.getElementById('hintText');
   const errorBanner = document.getElementById('errorBanner');
   let activeFilter = 'all';
   let activeTag = null;
@@ -1426,7 +1416,6 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
         editingEntryKey = null;
         editingText = '';
       }
-      updateHint();
       renderTimeline(latestSections);
       if (pendingScrollMode === 'top') {
         timeline.scrollTop = 0;
@@ -1436,14 +1425,6 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
       showError(msg.message);
     }
   });
-
-  function updateHint() {
-    if (sendOnEnter) {
-      hintText.textContent = 'Enter to send · Shift+Enter for newline';
-    } else {
-      hintText.textContent = 'Cmd+Enter / Ctrl+Enter to send';
-    }
-  }
 
   function showError(msg) {
     errorBanner.textContent = msg;
@@ -1582,16 +1563,28 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
           autoResizeTextarea(editInput);
         });
         editInput.addEventListener('keydown', (event) => {
-          if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
-            event.preventDefault();
-            const nextText = editInput.value.trim();
-            if (!nextText) {
-              showError('Moment text cannot be empty.');
-              return;
+          if (event.isComposing || event.keyCode === 229) {
+            return;
+          }
+          if (event.key === 'Enter') {
+            let shouldSave = false;
+            if (sendOnEnter && !event.shiftKey) {
+              shouldSave = true;
+            } else if (!sendOnEnter && (event.metaKey || event.ctrlKey)) {
+              shouldSave = true;
             }
-            editingEntryKey = null;
-            editingText = '';
-            vscode.postMessage({ command: 'saveEdit', date: section.date, index: entry.index, text: nextText });
+
+            if (shouldSave) {
+              event.preventDefault();
+              const nextText = editInput.value.trim();
+              if (!nextText) {
+                showError('Moment text cannot be empty.');
+                return;
+              }
+              editingEntryKey = null;
+              editingText = '';
+              vscode.postMessage({ command: 'saveEdit', date: section.date, index: entry.index, text: nextText });
+            }
           }
           if (event.key === 'Escape') {
             event.preventDefault();
@@ -1687,7 +1680,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
         });
         iconWrapper.appendChild(checkbox);
       }
-      
+
       body.appendChild(iconWrapper);
 
       main.appendChild(content);
@@ -1699,7 +1692,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
       convertButton.className = 'entry-action primary';
       convertButton.type = 'button';
       convertButton.title = entry.isTask ? 'Make Note' : 'Make Task';
-      convertButton.innerHTML = entry.isTask 
+      convertButton.innerHTML = entry.isTask
         ? '<svg viewBox="0 0 16 16"><path fill-rule="evenodd" clip-rule="evenodd" d="M13.71 4.29l-3-3L10 1H4L3 2v12l1 1h9l1-1V5l-.29-.71zM10 2.41l2.59 2.59H10V2.41zM13 14H4V2h5v4h4v8z"/></svg>'
         : '<svg viewBox="0 0 16 16"><path fill-rule="evenodd" clip-rule="evenodd" d="M14 3v10H2V3h12zm-1-1H3L2 3v10l1 1h10l1-1V3l-1-1zm-2.07 4.21l-3.3 3.3a.5.5 0 01-.7 0L5.35 7.93l.7-.71 1.18 1.18 2.95-2.95.75.76z"/></svg>';
       convertButton.addEventListener('click', () => {
