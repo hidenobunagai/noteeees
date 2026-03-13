@@ -1230,7 +1230,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     border-radius: 6px;
     transition: border-color 0.2s ease, outline 0.2s ease;
   }
-  
+
   .input-container:focus-within {
     border-color: var(--vscode-focusBorder);
     outline: 1px solid var(--vscode-focusBorder);

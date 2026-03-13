@@ -6,6 +6,11 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.0.44] - 2026-03-13
+
+### Changed
+- **Moments UI**: Redesigned the Moments input area to a modern, unified container, mimicking the GitHub Copilot Chat layout. Features a clean outline focus state, an embedded "Add as task" checkbox, and a send icon button.
+
 ## [0.0.43] - 2026-03-13
 
 ### Added
