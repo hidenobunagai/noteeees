@@ -1118,8 +1118,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     width: 14px;
     display: flex;
     justify-content: center;
-    align-items: flex-start;
-    padding-top: 2px;
+    align-items: center;
   }
 
   .entry-content {

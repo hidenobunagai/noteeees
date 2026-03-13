@@ -6,6 +6,11 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.0.47] - 2026-03-13
+
+### Fixed
+- **Moments UI**: Fixed an alignment issue where the task checkbox got pinned to the top instead of remaining vertically centered with the text.
+
 ## [0.0.46] - 2026-03-13
 
 ### Changed
