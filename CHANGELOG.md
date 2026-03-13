@@ -6,6 +6,11 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.0.45] - 2026-03-13
+
+### Changed
+- **Moments UI**: Aligned non-task moments text with tasks for a cleaner feed and replaced inline action text buttons ("Edit", "Delete", "Make Task") with sleek SVG icons corresponding to native VS Code Codicons.
+
 ## [0.0.44] - 2026-03-13
 
 ### Changed
