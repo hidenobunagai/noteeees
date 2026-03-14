@@ -88,6 +88,10 @@ function getInboxFilterLabel(filter: InboxTaskFilter): string {
     return "Done Only";
   }
 
+  if (filter === "overdue") {
+    return "Overdue";
+  }
+
   return "All Tasks";
 }
 

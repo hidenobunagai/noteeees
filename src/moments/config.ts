@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import type { MomentEntry, TaskOverviewItem, MomentFilter, InboxTaskFilter } from "./types.js";
+import { parseDueDate } from "./dueDates.js";
 
 export const MOMENTS_FEED_DAY_COUNT = 7;
 export const MOMENT_TAG_PATTERN = String.raw`#[\p{L}\p{M}\p{N}_\p{Pd}]+`;
@@ -18,8 +19,13 @@ function normalizeMomentTag(tag: string): string {
   return tag.normalize("NFKC").toLowerCase();
 }
 
+function getTodayDateString(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 export function normalizeInboxTaskFilter(filter: string | undefined): InboxTaskFilter {
-  if (filter === "open" || filter === "done" || filter === "all") {
+  if (filter === "open" || filter === "done" || filter === "all" || filter === "overdue") {
     return filter;
   }
 
@@ -48,6 +54,14 @@ export function filterTaskOverviewItems(
 
   if (filter === "done") {
     return items.filter((item) => item.done);
+  }
+
+  if (filter === "overdue") {
+    const today = getTodayDateString();
+    return items.filter((item) => {
+      const dueDate = parseDueDate(item.text);
+      return dueDate !== null && dueDate < today && !item.done;
+    });
   }
 
   return items;
@@ -95,6 +109,10 @@ export function getNextInboxFilter(filter: InboxTaskFilter): InboxTaskFilter {
 
   if (filter === "open") {
     return "done";
+  }
+
+  if (filter === "done") {
+    return "overdue";
   }
 
   return "all";

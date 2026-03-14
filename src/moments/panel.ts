@@ -294,6 +294,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
       command: "update",
       sections,
       sendOnEnter,
+      todayDate: today,
       pinnedEntries: this._getPinnedEntries(),
     });
   }
@@ -618,6 +619,35 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
 
   .tag:hover {
     background: color-mix(in srgb, var(--vscode-textLink-foreground) 26%, transparent);
+  }
+
+  /* ---- Due date badges ---- */
+  .due-badge {
+    display: inline-block;
+    padding: 0 5px;
+    border-radius: 3px;
+    font-size: 11px;
+    font-weight: 500;
+    line-height: 1.4;
+    white-space: nowrap;
+    background: color-mix(in srgb, var(--vscode-foreground) 12%, transparent);
+    color: var(--vscode-descriptionForeground);
+  }
+
+  .due-overdue .due-badge {
+    background: color-mix(in srgb, var(--vscode-errorForeground, #f44) 20%, transparent);
+    color: var(--vscode-errorForeground, #f44);
+  }
+
+  .due-today .due-badge {
+    background: color-mix(in srgb, #f08 20%, transparent);
+    color: color-mix(in srgb, var(--vscode-charts-orange, #e8a838) 100%, transparent);
+  }
+
+  .due-upcoming .due-badge {
+    background: color-mix(in srgb, var(--vscode-foreground) 10%, transparent);
+    color: var(--vscode-descriptionForeground);
+    opacity: 0.75;
   }
 
   /* ---- Input area ---- */
@@ -976,6 +1006,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
   let selectMode = false;
   const selectedEntries = new Set();
   let pendingScrollMode = 'top';
+  let todayDate = '';
   const momentTagPattern = ${JSON.stringify(MOMENT_TAG_PATTERN)};
 
   // Notify extension we're ready
@@ -987,6 +1018,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     if (msg.command === 'update') {
       sendOnEnter = msg.sendOnEnter;
       latestSections = msg.sections;
+      todayDate = msg.todayDate || '';
       currentPinnedEntries = msg.pinnedEntries || [];
       if (
         editingEntryKey !== null
@@ -1214,7 +1246,29 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
 
       meta.appendChild(timeBadge);
 
-      if (editingEntryKey === entryKey) {
+      if (entry.isTask) {
+        const dueDateMatch = entry.text.match(/(?:📅|due:)(\d{4}-\d{2}-\d{2})/);
+        const dueDate = dueDateMatch ? dueDateMatch[1] : null;
+        if (dueDate) {
+          let dueDateStatus = null;
+          if (!entry.done && todayDate) {
+            if (dueDate < todayDate) {
+              dueDateStatus = 'overdue';
+            } else if (dueDate === todayDate) {
+              dueDateStatus = 'today';
+            } else {
+              dueDateStatus = 'upcoming';
+            }
+          }
+          if (dueDateStatus) {
+            div.classList.add('due-' + dueDateStatus);
+          }
+          const dueBadge = document.createElement('span');
+          dueBadge.className = 'due-badge';
+          dueBadge.textContent = dueDateStatus === 'today' ? 'Today' : dueDate;
+          meta.appendChild(dueBadge);
+        }
+      }
         const editWrap = document.createElement('div');
         editWrap.className = 'entry-edit';
 

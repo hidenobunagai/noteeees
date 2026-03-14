@@ -15,10 +15,12 @@ import {
   extractMomentTags,
   filterMomentEntries,
   filterTaskOverviewItems,
+  getDueDateStatus,
   getNextInboxFilter,
   mapMomentBodyIndexToFileLine,
   normalizeInboxTaskFilter,
   normalizeMomentsFeedDayCount,
+  parseDueDate,
   replaceMomentEntryText,
   sortOpenTaskOverview,
   toggleMomentTaskLine,
@@ -184,16 +186,33 @@ suite("Extension Test Suite", () => {
     assert.deepStrictEqual(filterTaskOverviewItems(items, "all"), items);
   });
 
-  test("inbox filter cycles all -> open -> done -> all", () => {
+  test("inbox filter cycles all -> open -> done -> overdue -> all", () => {
     assert.strictEqual(getNextInboxFilter("all"), "open");
     assert.strictEqual(getNextInboxFilter("open"), "done");
-    assert.strictEqual(getNextInboxFilter("done"), "all");
+    assert.strictEqual(getNextInboxFilter("done"), "overdue");
+    assert.strictEqual(getNextInboxFilter("overdue"), "all");
   });
 
   test("invalid inbox filter setting falls back to all", () => {
     assert.strictEqual(normalizeInboxTaskFilter("invalid"), "all");
     assert.strictEqual(normalizeInboxTaskFilter("done"), "done");
+    assert.strictEqual(normalizeInboxTaskFilter("overdue"), "overdue");
     assert.strictEqual(normalizeInboxTaskFilter(undefined), "all");
+  });
+
+  test("parseDueDate extracts date from 📅 and due: syntax", () => {
+    assert.strictEqual(parseDueDate("Fix bug 📅2025-01-15"), "2025-01-15");
+    assert.strictEqual(parseDueDate("Write report due:2025-01-20"), "2025-01-20");
+    assert.strictEqual(parseDueDate("No date here"), null);
+    assert.strictEqual(parseDueDate(""), null);
+  });
+
+  test("getDueDateStatus returns correct status", () => {
+    assert.strictEqual(getDueDateStatus("2025-01-01", false, "2025-06-01"), "overdue");
+    assert.strictEqual(getDueDateStatus("2025-06-01", false, "2025-06-01"), "today");
+    assert.strictEqual(getDueDateStatus("2025-12-31", false, "2025-06-01"), "upcoming");
+    assert.strictEqual(getDueDateStatus("2025-01-01", true, "2025-06-01"), null);
+    assert.strictEqual(getDueDateStatus(null, false, "2025-06-01"), null);
   });
 
   test("tag summary is sorted by frequency", () => {
