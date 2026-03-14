@@ -632,6 +632,53 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     border-radius: 4px;
     margin-bottom: 6px;
   }
+
+  /* ---- Search bar ---- */
+  .search-bar {
+    position: relative;
+    width: 100%;
+  }
+
+  .search-bar input {
+    width: 100%;
+    background: var(--vscode-input-background);
+    color: var(--vscode-input-foreground);
+    border: 1px solid var(--vscode-input-border, transparent);
+    border-radius: 4px;
+    padding: 4px 26px 4px 8px;
+    font-family: var(--vscode-font-family);
+    font-size: 12px;
+    outline: none;
+    box-sizing: border-box;
+  }
+
+  .search-bar input:focus {
+    border-color: var(--vscode-focusBorder);
+    outline: 1px solid var(--vscode-focusBorder);
+    outline-offset: -1px;
+  }
+
+  .search-bar input::placeholder {
+    color: var(--vscode-input-placeholderForeground);
+  }
+
+  .clear-search-btn {
+    position: absolute;
+    right: 4px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: var(--vscode-descriptionForeground);
+    cursor: pointer;
+    padding: 2px 4px;
+    border-radius: 3px;
+    font-size: 12px;
+    line-height: 1;
+    opacity: 0.7;
+    transition: opacity 0.15s;
+  }
+  .clear-search-btn:hover { opacity: 1; }
 </style>
 </head>
 <body>
@@ -642,6 +689,12 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     <button class="nav-btn" id="inboxBtn" title="Show open tasks across all days">&#128230; Inbox</button>
     <button class="nav-btn active" id="activeTagBtn" title="Clear active hashtag filter" style="display:none"></button>
     <button class="open-btn" id="openFileBtn" title="Open today's file in editor">&#8599;</button>
+  </div>
+  <div class="topbar-row">
+    <div class="search-bar">
+      <input type="text" id="searchInput" placeholder="Search moments..." autocomplete="off" />
+      <button id="clearSearch" class="clear-search-btn" title="Clear search" style="display:none">&#10005;</button>
+    </div>
   </div>
 </div>
 
@@ -688,9 +741,12 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
   const activeTagBtn = document.getElementById('activeTagBtn');
   const openFileBtn = document.getElementById('openFileBtn');
   const errorBanner = document.getElementById('errorBanner');
+  const searchInput = document.getElementById('searchInput');
+  const clearSearch = document.getElementById('clearSearch');
   let activeFilter = 'all';
   let activeTag = null;
   let activeTagLabel = '';
+  let currentSearchText = '';
   let latestSections = [];
   let editingEntryKey = null;
   let editingText = '';
@@ -789,6 +845,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
         entries: section.entries
           .filter((entry) => activeFilter !== 'openTasks' || (entry.isTask && !entry.done))
           .filter((entry) => !activeTag || getEntryTags(entry).includes(activeTag))
+          .filter((entry) => !currentSearchText || entry.text.toLowerCase().includes(currentSearchText))
           .slice()
           .reverse(),
       }))
@@ -804,7 +861,15 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     if (visibleSections.length === 0) {
       emptyState.style.display = 'block';
       timeline.querySelectorAll('.day-section').forEach(e => e.remove());
-      if (activeTag && activeFilter === 'openTasks') {
+      if (currentSearchText && activeTag && activeFilter === 'openTasks') {
+        emptyState.textContent = 'No open tasks tagged ' + activeTagLabel + ' matching "' + currentSearchText + '"';
+      } else if (currentSearchText && activeTag) {
+        emptyState.textContent = 'No moments tagged ' + activeTagLabel + ' matching "' + currentSearchText + '"';
+      } else if (currentSearchText && activeFilter === 'openTasks') {
+        emptyState.textContent = 'No open tasks matching "' + currentSearchText + '"';
+      } else if (currentSearchText) {
+        emptyState.textContent = 'No moments matching "' + currentSearchText + '"';
+      } else if (activeTag && activeFilter === 'openTasks') {
         emptyState.textContent = 'No open tasks tagged ' + activeTagLabel + ' in this recent feed';
       } else if (activeTag) {
         emptyState.textContent = 'No moments tagged ' + activeTagLabel + ' in this recent feed';
@@ -1097,6 +1162,20 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
   activeTagBtn.addEventListener('click', () => {
     activeTag = null;
     activeTagLabel = '';
+    renderTimeline(latestSections);
+  });
+
+  searchInput.addEventListener('input', () => {
+    currentSearchText = searchInput.value.toLowerCase();
+    clearSearch.style.display = currentSearchText ? '' : 'none';
+    renderTimeline(latestSections);
+  });
+
+  clearSearch.addEventListener('click', () => {
+    searchInput.value = '';
+    currentSearchText = '';
+    clearSearch.style.display = 'none';
+    searchInput.focus();
     renderTimeline(latestSections);
   });
 </script>
