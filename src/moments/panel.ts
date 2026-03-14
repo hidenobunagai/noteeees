@@ -899,7 +899,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
 
   .pinned-entry {
     background: color-mix(in srgb, var(--vscode-textLink-foreground) 6%, var(--vscode-editor-background));
-    border-left: 2px solid color-mix(in srgb, var(--vscode-textLink-foreground) 50%, transparent);
+    box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--vscode-textLink-foreground) 40%, transparent);
   }
   .pinned-entry:hover { background: color-mix(in srgb, var(--vscode-textLink-foreground) 12%, var(--vscode-list-hoverBackground)); }
 
