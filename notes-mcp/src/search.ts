@@ -1,5 +1,6 @@
 import * as fs from "fs";
 import * as path from "path";
+import { syncNotesIndex } from "./db.js";
 
 export interface NoteEntry {
   filePath: string;
@@ -205,37 +206,6 @@ function createSearchEntry(note: NoteEntry): SearchEntry {
   };
 }
 
-function parseAllNoteFiles(
-  notesDir: string,
-  files: { filePath: string; mtime: number }[],
-): NoteEntry[] {
-  const entries: NoteEntry[] = [];
-
-  for (const { filePath, mtime } of files) {
-    const rawContent = fs.readFileSync(filePath, "utf8");
-    const filename = path.relative(notesDir, filePath);
-    const title = extractTitle(rawContent, filename);
-    const frontMatterTags = extractFrontMatterTags(rawContent);
-    const bodyContent = stripFrontMatter(rawContent);
-    const inlineTags = extractInlineTags(bodyContent);
-    const tags = [...new Set([...frontMatterTags, ...inlineTags])];
-    const createdAt = extractCreatedAt(filename);
-
-    entries.push({
-      filePath,
-      filename,
-      title,
-      tags,
-      content: bodyContent,
-      createdAt,
-      mtime,
-    });
-  }
-
-  entries.sort((left, right) => right.mtime - left.mtime);
-  return entries;
-}
-
 function buildFileSignature(
   notesDir: string,
   files: { filePath: string; mtime: number }[],
@@ -277,7 +247,19 @@ export function getCachedSearchIndex(notesDir: string): SearchIndexSnapshot {
     return cachedSearchIndex;
   }
 
-  const notes = parseAllNoteFiles(notesDir, files);
+  const notes = syncNotesIndex(notesDir, files, (filePath, mtime) => {
+    const rawContent = fs.readFileSync(filePath, "utf8");
+    const filename = path.relative(notesDir, filePath);
+    const title = extractTitle(rawContent, filename);
+    const frontMatterTags = extractFrontMatterTags(rawContent);
+    const bodyContent = stripFrontMatter(rawContent);
+    const inlineTags = extractInlineTags(bodyContent);
+    const tags = [...new Set([...frontMatterTags, ...inlineTags])];
+    const createdAt = extractCreatedAt(filename);
+    return { filePath, filename, title, tags, content: bodyContent, createdAt, mtime };
+  });
+  notes.sort((a, b) => b.mtime - a.mtime);
+
   const snapshot = createSearchIndexSnapshot(notesDir, notes);
   snapshot.fileSignature = fileSignature;
   cachedSearchIndex = snapshot;

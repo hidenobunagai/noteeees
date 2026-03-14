@@ -184,6 +184,9 @@ bun run test:mcp
 | `list_tags` | List all unique tags with usage counts sorted by frequency |
 | `structure_search_notes` | Score-ranked search with `auto` / `classic` / `hybrid_bm25` strategies, tunable weights, BM25 body ranking, recency bonus, synonym expansion, and optional explanations |
 | `get_note_content` | Get the full content of a specific note by filename |
+| `create_note` | **Write** — Create a new note with title, content, tags, and optional subfolder |
+| `append_to_note` | **Write** — Append markdown content to the end of an existing note |
+| `add_moment` | **Write** — Add an entry to today's (or a specified date's) Moments timeline |
 
 ### What You Can Do
 

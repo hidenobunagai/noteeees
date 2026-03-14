@@ -2,7 +2,11 @@
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
+import * as fs from "fs";
+import * as path from "path";
+import { closeDb, startFileWatcher, stopFileWatcher } from "./db.js";
 import {
+  clearSearchIndexCache,
   executeStructuredSearch,
   extractSnippet,
   getCachedSearchIndex,
@@ -21,6 +25,55 @@ function getNotesDir(): string {
     throw new Error("NOTES_DIRECTORY environment variable not set");
   }
   return notesDir;
+}
+
+function pad(n: number): string {
+  return String(n).padStart(2, "0");
+}
+
+function nowTimestamp(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}_${pad(d.getHours())}-${pad(d.getMinutes())}-${pad(d.getSeconds())}`;
+}
+
+function todayDate(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+function sanitizeTitle(title: string): string {
+  return title.replace(/[/\\:*?"<>|]/g, "_").replace(/\s+/g, "_").slice(0, 80);
+}
+
+function buildNoteContent(title: string, content: string | undefined, tags: string[] | undefined): string {
+  const tagLines =
+    tags && tags.length > 0
+      ? `tags:\n${tags.map((t) => `  - ${t.replace(/^#/, "")}`).join("\n")}\n`
+      : "";
+  const frontMatter = tagLines ? `---\n${tagLines}---\n\n` : "";
+  if (content !== undefined && content !== "") {
+    return `${frontMatter}${content}`;
+  }
+  return `${frontMatter}# ${title}\n\n`;
+}
+
+function getMomentsFilePath(notesDir: string, date: string): string {
+  return path.join(notesDir, "moments", `${date}.md`);
+}
+
+const MOMENTS_FRONT_MATTER_TEMPLATE = (date: string) =>
+  `---\ntype: moments\ndate: ${date}\n---\n\n`;
+
+function ensureMomentsFile(filePath: string, date: string): void {
+  if (!fs.existsSync(filePath)) {
+    fs.mkdirSync(path.dirname(filePath), { recursive: true });
+    fs.writeFileSync(filePath, MOMENTS_FRONT_MATTER_TEMPLATE(date), "utf8");
+  }
+}
+
+function currentTime(): string {
+  const d = new Date();
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
 const server = new Server({ name: "notes-mcp", version: "3.0.0" }, { capabilities: { tools: {} } });
@@ -160,6 +213,67 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
           },
         },
         required: ["filename"],
+      },
+    },
+    {
+      name: "create_note",
+      description:
+        "Create a new markdown note file. The filename is auto-generated from the title and current timestamp (YYYY-MM-DD_HH-mm-ss_title.md).",
+      inputSchema: {
+        type: "object" as const,
+        properties: {
+          title: { type: "string", description: "Note title (used in filename and as H1 heading)" },
+          content: {
+            type: "string",
+            description:
+              "Full markdown content to write. If omitted, a minimal template with the title is used.",
+          },
+          tags: {
+            type: "array",
+            items: { type: "string" },
+            description: "Tags to include in YAML front matter (without #)",
+          },
+          subfolder: {
+            type: "string",
+            description: "Optional subfolder within the notes directory (e.g. 'projects')",
+          },
+        },
+        required: ["title"],
+      },
+    },
+    {
+      name: "append_to_note",
+      description: "Append markdown content to the end of an existing note.",
+      inputSchema: {
+        type: "object" as const,
+        properties: {
+          filename: {
+            type: "string",
+            description: "Relative filename of the note (as returned by other tools)",
+          },
+          content: { type: "string", description: "Markdown content to append" },
+        },
+        required: ["filename", "content"],
+      },
+    },
+    {
+      name: "add_moment",
+      description: "Add a new entry to today's (or a specified date's) Moments timeline.",
+      inputSchema: {
+        type: "object" as const,
+        properties: {
+          text: { type: "string", description: "The moment text to record" },
+          is_task: {
+            type: "boolean",
+            description: "If true, adds as an open task ([ ]). Default false.",
+          },
+          date: {
+            type: "string",
+            description:
+              "Target date in YYYY-MM-DD format. Defaults to today if omitted.",
+          },
+        },
+        required: ["text"],
       },
     },
   ],
@@ -372,6 +486,100 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       };
     }
 
+    case "create_note": {
+      const {
+        title,
+        content,
+        tags,
+        subfolder,
+      } = request.params.arguments as {
+        title: string;
+        content?: string;
+        tags?: string[];
+        subfolder?: string;
+      };
+
+      const timestamp = nowTimestamp();
+      const safeName = sanitizeTitle(title);
+      const filename = `${timestamp}_${safeName}.md`;
+      const targetDir = subfolder ? path.join(notesDir, subfolder) : notesDir;
+      fs.mkdirSync(targetDir, { recursive: true });
+      const filePath = path.join(targetDir, filename);
+      const body = buildNoteContent(title, content, tags);
+      fs.writeFileSync(filePath, body, "utf8");
+      clearSearchIndexCache();
+
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify({ created: path.relative(notesDir, filePath), filename }),
+          },
+        ],
+      };
+    }
+
+    case "append_to_note": {
+      const { filename: targetFilename, content: appendContent } = request.params.arguments as {
+        filename: string;
+        content: string;
+      };
+
+      const filePath = path.join(notesDir, targetFilename);
+      if (!fs.existsSync(filePath)) {
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify({ error: `Note not found: ${targetFilename}` }),
+            },
+          ],
+        };
+      }
+
+      const existing = fs.readFileSync(filePath, "utf8");
+      const separator = existing.endsWith("\n") ? "\n" : "\n\n";
+      fs.writeFileSync(filePath, `${existing}${separator}${appendContent}\n`, "utf8");
+      clearSearchIndexCache();
+
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify({ appended: targetFilename }),
+          },
+        ],
+      };
+    }
+
+    case "add_moment": {
+      const { text, is_task = false, date } = request.params.arguments as {
+        text: string;
+        is_task?: boolean;
+        date?: string;
+      };
+
+      const targetDate = date ?? todayDate();
+      const filePath = getMomentsFilePath(notesDir, targetDate);
+      ensureMomentsFile(filePath, targetDate);
+
+      const time = currentTime();
+      const line = is_task ? `- [ ] ${time} ${text}` : `- ${time} ${text}`;
+      const existing = fs.readFileSync(filePath, "utf8");
+      const separator = existing.endsWith("\n") ? "" : "\n";
+      fs.writeFileSync(filePath, `${existing}${separator}${line}\n`, "utf8");
+      clearSearchIndexCache();
+
+      return {
+        content: [
+          {
+            type: "text" as const,
+            text: JSON.stringify({ added: line, date: targetDate }),
+          },
+        ],
+      };
+    }
+
     default:
       throw new Error(`Unknown tool: ${request.params.name}`);
   }
@@ -380,7 +588,26 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
+
+  const notesDir = process.env.NOTES_DIRECTORY;
+  if (notesDir) {
+    startFileWatcher(notesDir, () => {
+      clearSearchIndexCache();
+    });
+  }
+
   console.error("Notes MCP server running on stdio");
+
+  process.on("SIGINT", () => {
+    stopFileWatcher();
+    closeDb();
+    process.exit(0);
+  });
+  process.on("SIGTERM", () => {
+    stopFileWatcher();
+    closeDb();
+    process.exit(0);
+  });
 }
 
 main().catch(console.error);
