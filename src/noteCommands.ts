@@ -177,7 +177,7 @@ function resolveFilename(titleInput: string, now: Date): string {
   return filename;
 }
 
-function resolveUniqueFilePath(targetDir: string, filename: string): string {
+export function resolveUniqueFilePath(targetDir: string, filename: string): string {
   const candidate = path.join(targetDir, filename);
   if (!fs.existsSync(candidate)) {
     return candidate;

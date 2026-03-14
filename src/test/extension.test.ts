@@ -1,4 +1,6 @@
 import * as assert from "assert";
+import * as fs from "fs";
+import * as os from "os";
 import * as path from "path";
 import {
   buildTagSearchItems,
@@ -34,6 +36,8 @@ import {
   buildQueryExcerpt,
   extractNoteMetadata,
   extractPreviewText,
+  formatDateYMD,
+  resolveUniqueFilePath,
   shouldPromptForTemplateSelection,
 } from "../noteCommands";
 import {
@@ -432,6 +436,90 @@ suite("Extension Test Suite", () => {
     assert.strictEqual(pattern.baseUri.fsPath, notesDir);
     assert.strictEqual(pattern.pattern, "**/*.md");
     assert.strictEqual(createNotesWatcherPattern(undefined), undefined);
+  });
+
+  test("formatDateYMD zero-pads month and day", () => {
+    assert.strictEqual(formatDateYMD(new Date(2024, 0, 5)), "2024-01-05");
+    assert.strictEqual(formatDateYMD(new Date(2025, 11, 31)), "2025-12-31");
+    assert.strictEqual(formatDateYMD(new Date(2000, 0, 1)), "2000-01-01");
+  });
+
+  test("resolveUniqueFilePath returns original path when no collision", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "noteeees-test-"));
+    try {
+      const result = resolveUniqueFilePath(tmpDir, "note.md");
+      assert.strictEqual(result, path.join(tmpDir, "note.md"));
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true });
+    }
+  });
+
+  test("resolveUniqueFilePath appends -2 suffix on single collision", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "noteeees-test-"));
+    try {
+      fs.writeFileSync(path.join(tmpDir, "note.md"), "");
+      const result = resolveUniqueFilePath(tmpDir, "note.md");
+      assert.strictEqual(result, path.join(tmpDir, "note-2.md"));
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true });
+    }
+  });
+
+  test("resolveUniqueFilePath increments counter past all existing suffixes", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "noteeees-test-"));
+    try {
+      fs.writeFileSync(path.join(tmpDir, "note.md"), "");
+      fs.writeFileSync(path.join(tmpDir, "note-2.md"), "");
+      const result = resolveUniqueFilePath(tmpDir, "note.md");
+      assert.strictEqual(result, path.join(tmpDir, "note-3.md"));
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true });
+    }
+  });
+
+  test("moments feed dates returns single entry when feedDays is 1", () => {
+    assert.deepStrictEqual(buildMomentsFeedDates("2026-03-09", 1), ["2026-03-09"]);
+  });
+
+  test("moments feed dates with feedDays=30 starts at anchor and ends 29 days earlier", () => {
+    const dates = buildMomentsFeedDates("2026-03-31", 30);
+    assert.strictEqual(dates.length, 30);
+    assert.strictEqual(dates[0], "2026-03-31");
+    assert.strictEqual(dates[29], "2026-03-02");
+  });
+
+  test("moment body index maps correctly without front matter", () => {
+    const raw = "- [ ] 09:00 first\n- 10:00 second";
+    assert.strictEqual(mapMomentBodyIndexToFileLine(raw, 0), 0);
+    assert.strictEqual(mapMomentBodyIndexToFileLine(raw, 1), 1);
+  });
+
+  test("normalizeMomentsFeedDayCount clamps edge cases including NaN and Infinity", () => {
+    assert.strictEqual(normalizeMomentsFeedDayCount(NaN), 7);
+    assert.strictEqual(normalizeMomentsFeedDayCount(Infinity), 7);
+    assert.strictEqual(normalizeMomentsFeedDayCount(-5), 1);
+    assert.strictEqual(normalizeMomentsFeedDayCount(1), 1);
+    assert.strictEqual(normalizeMomentsFeedDayCount(30), 30);
+  });
+
+  test("normalizeInboxTaskFilter treats empty string as invalid and returns all", () => {
+    assert.strictEqual(normalizeInboxTaskFilter(""), "all");
+    assert.strictEqual(normalizeInboxTaskFilter("open"), "open");
+  });
+
+  test("buildQueryExcerpt returns empty string for empty input", () => {
+    assert.strictEqual(buildQueryExcerpt("", "query", 100), "");
+  });
+
+  test("buildQueryExcerpt returns full text when query term is not found and text fits", () => {
+    assert.strictEqual(buildQueryExcerpt("short text", "notfound", 100), "short text");
+  });
+
+  test("buildQueryExcerpt truncates long text when query term is not found", () => {
+    const long = "a".repeat(110);
+    const result = buildQueryExcerpt(long, "notfound", 100);
+    assert.ok(result.endsWith("…"));
+    assert.ok(result.length <= 100);
   });
 
   test("tag search items include latest note context", () => {
