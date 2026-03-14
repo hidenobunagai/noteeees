@@ -6,6 +6,11 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-03-14
+
+### Fixed
+- **Moments**: Clicking Send no longer fails to post. A missing `if (editingEntryKey)` guard in the render loop caused a JavaScript ReferenceError on every panel update, preventing entries from appearing after sending.
+
 ## [0.1.0] - 2026-03-14
 
 ### Added
