@@ -1269,6 +1269,8 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
           meta.appendChild(dueBadge);
         }
       }
+
+      if (entryKey === editingEntryKey) {
         const editWrap = document.createElement('div');
         editWrap.className = 'entry-edit';
 
