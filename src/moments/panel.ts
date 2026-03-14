@@ -1,4 +1,5 @@
 import * as fs from "fs";
+import * as path from "path";
 import * as vscode from "vscode";
 import { MOMENT_TAG_PATTERN, getSendOnEnter } from "./config.js";
 import {
@@ -186,6 +187,59 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
           }
 
           void showOpenTasksOverview(notesDir);
+          break;
+        }
+
+        case "exportToNote": {
+          if (!notesDir) {
+            this._showError("Notes directory is not configured.");
+            return;
+          }
+
+          const entries: Array<{ date: string; index: number; text: string }> =
+            Array.isArray(message.entries) ? message.entries : [];
+          if (entries.length === 0) {
+            return;
+          }
+
+          entries.sort((a, b) => {
+            if (a.date < b.date) { return -1; }
+            if (a.date > b.date) { return 1; }
+            return a.index - b.index;
+          });
+
+          const byDate = new Map<string, string[]>();
+          for (const e of entries) {
+            if (!byDate.has(e.date)) {
+              byDate.set(e.date, []);
+            }
+            byDate.get(e.date)!.push(e.text);
+          }
+
+          const lines: string[] = ["# Exported Moments", ""];
+          for (const [date, texts] of byDate) {
+            lines.push(`## ${date}`);
+            for (const text of texts) {
+              lines.push(`- ${text}`);
+            }
+            lines.push("");
+          }
+
+          const content = lines.join("\n");
+          const now = new Date();
+          const pad = (n: number) => String(n).padStart(2, "0");
+          const stamp = `${formatDate(now)}_${pad(now.getHours())}-${pad(now.getMinutes())}-${pad(now.getSeconds())}`;
+          const fileName = `${stamp}_exported-moments.md`;
+          const filePath = path.join(notesDir, fileName);
+
+          fs.writeFileSync(filePath, content, "utf8");
+
+          void vscode.workspace.openTextDocument(filePath).then((doc) => {
+            void vscode.window.showTextDocument(doc);
+            void vscode.window.showInformationMessage(
+              `Exported ${entries.length} moment(s) to ${fileName}`,
+            );
+          });
           break;
         }
       }
@@ -679,6 +733,76 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     transition: opacity 0.15s;
   }
   .clear-search-btn:hover { opacity: 1; }
+
+  /* ---- Export select mode ---- */
+  .export-btn.active {
+    opacity: 1;
+    color: var(--vscode-textLink-foreground);
+  }
+
+  .select-entry-cb {
+    display: none;
+    flex: none;
+    width: 14px;
+    height: 14px;
+    margin: 0;
+    accent-color: var(--vscode-textLink-foreground);
+    cursor: pointer;
+  }
+
+  body.select-mode .select-entry-cb {
+    display: block;
+  }
+
+  .entry.selected-for-export {
+    background: color-mix(in srgb, var(--vscode-textLink-foreground) 10%, var(--vscode-editor-background));
+    border-color: color-mix(in srgb, var(--vscode-textLink-foreground) 30%, var(--vscode-panel-border));
+  }
+
+  .export-action-bar {
+    flex-shrink: 0;
+    display: none;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border-top: 1px solid var(--vscode-focusBorder, var(--vscode-panel-border));
+    background: var(--vscode-editorWidget-background, var(--vscode-sideBar-background));
+  }
+
+  body.select-mode .export-action-bar {
+    display: flex;
+  }
+
+  .selected-count-label {
+    flex: 1;
+    font-size: 11px;
+    color: var(--vscode-descriptionForeground);
+  }
+
+  .export-note-btn {
+    background: var(--vscode-button-background);
+    color: var(--vscode-button-foreground);
+    border: none;
+    border-radius: 3px;
+    padding: 4px 10px;
+    font-size: 11px;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .export-note-btn:hover { background: var(--vscode-button-hoverBackground); }
+  .export-note-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .export-cancel-btn {
+    background: var(--vscode-button-secondaryBackground);
+    color: var(--vscode-button-secondaryForeground);
+    border: none;
+    border-radius: 3px;
+    padding: 4px 10px;
+    font-size: 11px;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .export-cancel-btn:hover { background: var(--vscode-button-secondaryHoverBackground); }
 </style>
 </head>
 <body>
@@ -689,6 +813,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     <button class="nav-btn" id="inboxBtn" title="Show open tasks across all days">&#128230; Inbox</button>
     <button class="nav-btn active" id="activeTagBtn" title="Clear active hashtag filter" style="display:none"></button>
     <button class="open-btn" id="openFileBtn" title="Open today's file in editor">&#8599;</button>
+    <button class="open-btn export-btn" id="exportBtn" title="Export selected entries as a note">&#128203;</button>
   </div>
   <div class="topbar-row">
     <div class="search-bar">
@@ -723,6 +848,12 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
   </div>
 </div>
 
+<div class="export-action-bar" id="exportActionBar">
+  <span class="selected-count-label" id="selectedCountLabel">0 selected</span>
+  <button class="export-note-btn" id="exportNoteBtn">Export as Note</button>
+  <button class="export-cancel-btn" id="exportCancelBtn">Cancel</button>
+</div>
+
 <script>
   const vscode = acquireVsCodeApi();
   let isTaskMode = false;
@@ -743,6 +874,10 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
   const errorBanner = document.getElementById('errorBanner');
   const searchInput = document.getElementById('searchInput');
   const clearSearch = document.getElementById('clearSearch');
+  const exportBtn = document.getElementById('exportBtn');
+  const selectedCountLabel = document.getElementById('selectedCountLabel');
+  const exportNoteBtn = document.getElementById('exportNoteBtn');
+  const exportCancelBtn = document.getElementById('exportCancelBtn');
   let activeFilter = 'all';
   let activeTag = null;
   let activeTagLabel = '';
@@ -750,6 +885,8 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
   let latestSections = [];
   let editingEntryKey = null;
   let editingText = '';
+  let selectMode = false;
+  const selectedEntries = new Set();
   let pendingScrollMode = 'top';
   const momentTagPattern = ${JSON.stringify(MOMENT_TAG_PATTERN)};
 
@@ -901,8 +1038,9 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
 
       section.entries.forEach((entry) => {
       const entryKey = section.date + ':' + entry.index;
+      const exportKey = JSON.stringify({ date: section.date, index: entry.index });
       const div = document.createElement('div');
-      div.className = 'entry' + (entry.isTask ? ' is-task' : '') + (entry.done ? ' task-done' : '');
+      div.className = 'entry' + (entry.isTask ? ' is-task' : '') + (entry.done ? ' task-done' : '') + (selectMode && selectedEntries.has(exportKey) ? ' selected-for-export' : '');
 
       const meta = document.createElement('div');
       meta.className = 'entry-meta';
@@ -1043,6 +1181,22 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
         iconWrapper.appendChild(checkbox);
       }
 
+      const selectCb = document.createElement('input');
+      selectCb.type = 'checkbox';
+      selectCb.className = 'select-entry-cb';
+      selectCb.checked = selectedEntries.has(exportKey);
+      selectCb.setAttribute('aria-label', 'Select entry for export');
+      selectCb.addEventListener('change', () => {
+        if (selectCb.checked) {
+          selectedEntries.add(exportKey);
+          div.classList.add('selected-for-export');
+        } else {
+          selectedEntries.delete(exportKey);
+          div.classList.remove('selected-for-export');
+        }
+        updateExportBar();
+      });
+      body.appendChild(selectCb);
       body.appendChild(iconWrapper);
 
       main.appendChild(content);
@@ -1177,6 +1331,64 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     clearSearch.style.display = 'none';
     searchInput.focus();
     renderTimeline(latestSections);
+  });
+
+  function updateExportBar() {
+    const count = selectedEntries.size;
+    selectedCountLabel.textContent = count + ' selected';
+    exportNoteBtn.disabled = count === 0;
+  }
+
+  function enterSelectMode() {
+    selectMode = true;
+    document.body.classList.add('select-mode');
+    exportBtn.classList.add('active');
+    selectedEntries.clear();
+    updateExportBar();
+    renderTimeline(latestSections);
+  }
+
+  function exitSelectMode() {
+    selectMode = false;
+    document.body.classList.remove('select-mode');
+    exportBtn.classList.remove('active');
+    selectedEntries.clear();
+    renderTimeline(latestSections);
+  }
+
+  exportBtn.addEventListener('click', () => {
+    if (selectMode) {
+      exitSelectMode();
+    } else {
+      enterSelectMode();
+    }
+  });
+
+  exportCancelBtn.addEventListener('click', exitSelectMode);
+
+  exportNoteBtn.addEventListener('click', () => {
+    if (selectedEntries.size === 0) { return; }
+    const entriesData = [];
+    for (const key of selectedEntries) {
+      const { date, index } = JSON.parse(key);
+      const sectionData = latestSections.find(s => s.date === date);
+      if (sectionData) {
+        const entryData = sectionData.entries.find(e => e.index === index);
+        if (entryData) {
+          entriesData.push({ date, index, text: entryData.text });
+        }
+      }
+    }
+    if (entriesData.length > 0) {
+      vscode.postMessage({ command: 'exportToNote', entries: entriesData });
+    }
+    exitSelectMode();
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && selectMode && editingEntryKey === null) {
+      exitSelectMode();
+    }
   });
 </script>
 </body>
