@@ -6,6 +6,11 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-03-14
+
+### Changed
+- **Moments**: Each entry is now displayed as a card with a border and rounded corners, matching the input area style. Cards have horizontal margins and gap between them for clearer visual separation.
+
 ## [0.1.2] - 2026-03-14
 
 ### Fixed
