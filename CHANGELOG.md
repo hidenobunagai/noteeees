@@ -6,6 +6,11 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.1.4] - 2026-03-14
+
+### Changed
+- **Moments**: Pinned entries are now hidden from the regular timeline. They appear only in the Pinned section at the top. Day sections where all entries are pinned are omitted entirely.
+
 ## [0.1.3] - 2026-03-14
 
 ### Changed
