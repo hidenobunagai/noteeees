@@ -416,6 +416,8 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
   .day-section {
     display: flex;
     flex-direction: column;
+    gap: 6px;
+    padding: 6px 10px 8px;
   }
 
   .day-section-header {
@@ -456,14 +458,14 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     gap: 6px;
     padding: 10px 12px 8px;
     background: var(--vscode-editor-background);
-    border-bottom: 1px solid var(--vscode-panel-border);
+    border: 1px solid var(--vscode-panel-border);
+    border-radius: 6px;
     transition: background 0.1s, border-color 0.1s;
     word-break: break-word;
   }
-  .entry:hover { background: var(--vscode-list-hoverBackground); }
-
-  .day-section .entry:last-child {
-    border-bottom: none;
+  .entry:hover {
+    background: var(--vscode-list-hoverBackground);
+    border-color: var(--vscode-focusBorder, var(--vscode-panel-border));
   }
 
   .entry-meta {
@@ -874,6 +876,8 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
   .pinned-section {
     display: flex;
     flex-direction: column;
+    gap: 6px;
+    padding: 6px 10px 8px;
     border-bottom: 2px solid var(--vscode-textLink-foreground);
   }
 
@@ -899,7 +903,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
 
   .pinned-entry {
     background: color-mix(in srgb, var(--vscode-textLink-foreground) 6%, var(--vscode-editor-background));
-    box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--vscode-textLink-foreground) 40%, transparent);
+    border-color: color-mix(in srgb, var(--vscode-textLink-foreground) 40%, transparent);
   }
   .pinned-entry:hover { background: color-mix(in srgb, var(--vscode-textLink-foreground) 12%, var(--vscode-list-hoverBackground)); }
 
