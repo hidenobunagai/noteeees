@@ -16,6 +16,12 @@ import {
   NotesTreeProvider,
   type SidebarTagSortMode,
 } from "./sidebarProvider";
+import {
+  BacklinksProvider,
+  WikiLinkCompletionProvider,
+  WikiLinkDefinitionProvider,
+  WikiLinkDocumentLinkProvider,
+} from "./wikiLinks";
 
 const NOTES_DIRECTORY_STORAGE_KEY = "notesDirectory";
 const PINNED_NOTES_KEY = "pinnedNotes";
@@ -228,6 +234,31 @@ export function activate(context: vscode.ExtensionContext) {
   const momentsProvider = new MomentsViewProvider(getNotesDir, context.extensionUri, context);
   context.subscriptions.push(
     vscode.window.registerWebviewViewProvider(MomentsViewProvider.viewType, momentsProvider),
+  );
+
+  // Register wiki-link language providers
+  const markdownSelector: vscode.DocumentSelector = { language: "markdown", scheme: "*" };
+  context.subscriptions.push(
+    vscode.languages.registerDocumentLinkProvider(
+      markdownSelector,
+      new WikiLinkDocumentLinkProvider(getNotesDir),
+    ),
+    vscode.languages.registerCompletionItemProvider(
+      markdownSelector,
+      new WikiLinkCompletionProvider(getNotesDir),
+      "[",
+    ),
+    vscode.languages.registerDefinitionProvider(
+      markdownSelector,
+      new WikiLinkDefinitionProvider(getNotesDir),
+    ),
+  );
+
+  // Register backlinks tree view
+  const backlinksProvider = new BacklinksProvider(getNotesDir);
+  vscode.window.registerTreeDataProvider("notesBacklinks", backlinksProvider);
+  context.subscriptions.push(
+    vscode.window.onDidChangeActiveTextEditor(() => backlinksProvider.refresh()),
   );
 
   void migrateNotesDirectoryStorage().then(() => {

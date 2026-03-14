@@ -171,6 +171,12 @@
           "name": "Noteeees",
           "icon": "$(notebook)",
           "contextualTitle": "Memory Notes"
+        },
+        {
+          "id": "notesBacklinks",
+          "name": "Backlinks",
+          "icon": "$(references)",
+          "contextualTitle": "Notes Backlinks"
         }
       ],
       "notesMoments": [
