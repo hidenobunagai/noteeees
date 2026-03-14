@@ -6,6 +6,11 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-03-14
+
+### Fixed
+- **Moments**: Pinned entries now show a uniform blue highlight on all 4 sides. Previously `border-left: 2px` caused an L-shaped artifact (left + bottom corner appeared blue; top and right had nothing) and slightly reduced inner content width. Replaced with `box-shadow: inset` which is layout-neutral.
+
 ## [0.1.1] - 2026-03-14
 
 ### Fixed
