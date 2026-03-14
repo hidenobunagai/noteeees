@@ -7,6 +7,7 @@ import {
   createNewNote,
   type IndexedNote,
   listNotes,
+  openDailyNote,
   pickIndexedNote,
 } from "./noteCommands";
 import {
@@ -449,6 +450,23 @@ export function activate(context: vscode.ExtensionContext) {
     },
   );
 
+  // Open Daily Note command
+  const openDailyNoteDisposable = vscode.commands.registerCommand(
+    "notes.openDailyNote",
+    async () => {
+      const notesDir = await ensureNotesDirectory();
+      if (!notesDir) {
+        return;
+      }
+
+      const templatePath =
+        vscode.workspace.getConfiguration("notes").get<string>("dailyNoteTemplate") || undefined;
+
+      await openDailyNote(notesDir, templatePath);
+      notesTreeProvider.refresh();
+    },
+  );
+
   const archiveMomentsDisposable = vscode.commands.registerCommand(
     "notes.archiveMoments",
     async () => {
@@ -494,6 +512,7 @@ export function activate(context: vscode.ExtensionContext) {
     unpinNoteDisposable,
     movePinnedNoteUpDisposable,
     movePinnedNoteDownDisposable,
+    openDailyNoteDisposable,
     archiveMomentsDisposable,
   );
 }

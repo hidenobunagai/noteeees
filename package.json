@@ -114,6 +114,12 @@
         "icon": "$(arrow-down)"
       },
       {
+        "command": "notes.openDailyNote",
+        "title": "Open Daily Note",
+        "category": "Notes",
+        "icon": "$(calendar)"
+      },
+      {
         "command": "notes.archiveMoments",
         "title": "Noteeees Moments: Archive Old Moments",
         "icon": "$(archive)"
@@ -141,6 +147,12 @@
         "key": "ctrl+alt+down",
         "mac": "cmd+alt+down",
         "when": "view == notesExplorer && viewItem == pinnedNoteFile"
+      },
+      {
+        "command": "notes.openDailyNote",
+        "key": "ctrl+shift+d",
+        "mac": "cmd+shift+d",
+        "when": "true"
       }
     ],
     "viewsContainers": {
@@ -319,6 +331,11 @@
           "default": 90,
           "minimum": 1,
           "description": "Number of days after which Moments files are moved to the archive folder when running 'Archive Moments'. Files newer than this threshold are kept in place."
+        },
+        "notes.dailyNoteTemplate": {
+          "type": "string",
+          "default": "",
+          "description": "Path to a template file for daily notes. Supports {date}, {weekday}, {time} tokens. Leave empty to use the built-in default."
         },
         "notes.workspaceNotesDirectory": {
           "type": "string",

@@ -486,6 +486,67 @@ export async function createNewNote(notesDir: string, initialTitle?: string): Pr
   vscode.window.showInformationMessage(`Note created: ${path.basename(filePath)}`);
 }
 
+const DAILY_NOTE_DEFAULT_TEMPLATE = "# {date}\n\n## Tasks\n\n## Notes\n\n## Journal\n";
+
+export function formatDateYMD(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function formatTimeHM(date: Date): string {
+  const hours = String(date.getHours()).padStart(2, "0");
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+  return `${hours}:${minutes}`;
+}
+
+function getWeekdayName(date: Date): string {
+  return date.toLocaleDateString("en-US", { weekday: "long" });
+}
+
+function applyDailyNoteTokens(template: string, date: Date): string {
+  return template
+    .replace(/\{date\}/g, formatDateYMD(date))
+    .replace(/\{weekday\}/g, getWeekdayName(date))
+    .replace(/\{time\}/g, formatTimeHM(date));
+}
+
+export async function buildDailyNoteContent(
+  dateStr: string,
+  templatePath: string | undefined,
+  notesDir: string,
+): Promise<string> {
+  const now = new Date();
+
+  if (templatePath) {
+    const resolvedPath = path.isAbsolute(templatePath)
+      ? templatePath
+      : path.join(notesDir, templatePath);
+
+    if (fs.existsSync(resolvedPath)) {
+      const raw = fs.readFileSync(resolvedPath, "utf8");
+      return applyDailyNoteTokens(raw, now);
+    }
+  }
+
+  return applyDailyNoteTokens(DAILY_NOTE_DEFAULT_TEMPLATE, now);
+}
+
+export async function openDailyNote(notesDir: string, templatePath?: string): Promise<void> {
+  const today = formatDateYMD(new Date());
+  const fileName = `${today}_daily.md`;
+  const filePath = path.join(notesDir, fileName);
+
+  if (!fs.existsSync(filePath)) {
+    const content = await buildDailyNoteContent(today, templatePath, notesDir);
+    fs.writeFileSync(filePath, content, "utf8");
+  }
+
+  const doc = await vscode.workspace.openTextDocument(filePath);
+  await vscode.window.showTextDocument(doc);
+}
+
 export async function listNotes(notesDir: string): Promise<void> {
   const config = vscode.workspace.getConfiguration("notes");
   const momentsSubfolder = config.get<string>("momentsSubfolder") || "moments";

@@ -40,6 +40,9 @@ date: 2026-03-01
 
 Moments are excluded from the regular Notes sidebar but are **fully searchable via MCP** since they're plain `.md` files.
 
+### Daily Note
+- **Daily Note** (`Cmd+Shift+D`): Open today's daily note — creates it from a template if it doesn't exist. File is saved as `YYYY-MM-DD_daily.md` in your notes directory root. Customize the template with `notes.dailyNoteTemplate` (supports `{date}`, `{weekday}`, `{time}` tokens).
+
 ### Individual Notes
 - **New Note** (`Cmd+Shift+N`): Create a new markdown note with configurable filename tokens
 - **Templates**: Create and use custom templates with VS Code snippets
