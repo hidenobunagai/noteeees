@@ -224,7 +224,7 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(notesTreeView, treeSelectionDisposable);
 
   // Register Moments webview view
-  const momentsProvider = new MomentsViewProvider(getNotesDir, context.extensionUri);
+  const momentsProvider = new MomentsViewProvider(getNotesDir, context.extensionUri, context);
   context.subscriptions.push(
     vscode.window.registerWebviewViewProvider(MomentsViewProvider.viewType, momentsProvider),
   );

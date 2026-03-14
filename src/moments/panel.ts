@@ -20,16 +20,25 @@ import { showOpenTasksOverview } from "./taskOverview.js";
 // WebviewViewProvider
 // ---------------------------------------------------------------------------
 
+interface PinnedEntryData {
+  date: string;
+  index: number;
+  text: string;
+  time: string;
+}
+
 export class MomentsViewProvider implements vscode.WebviewViewProvider {
   public static readonly viewType = "notesMomentsView";
 
   private _view?: vscode.WebviewView;
   private readonly _getNotesDir: () => string | undefined;
   private readonly _extensionUri: vscode.Uri;
+  private readonly _context: vscode.ExtensionContext;
 
-  constructor(getNotesDir: () => string | undefined, extensionUri: vscode.Uri) {
+  constructor(getNotesDir: () => string | undefined, extensionUri: vscode.Uri, context: vscode.ExtensionContext) {
     this._getNotesDir = getNotesDir;
     this._extensionUri = extensionUri;
+    this._context = context;
   }
 
   resolveWebviewView(
@@ -242,6 +251,24 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
           });
           break;
         }
+
+        case "pinEntry": {
+          const pinned = this._getPinnedEntries();
+          const pinnedId = `${message.date}:${message.index}`;
+          if (!pinned.some((e) => `${e.date}:${e.index}` === pinnedId)) {
+            pinned.push({ date: message.date, index: message.index, text: message.text, time: message.time });
+            this._setPinnedEntries(pinned);
+          }
+          this._sendEntries();
+          break;
+        }
+
+        case "unpinEntry": {
+          const pinned = this._getPinnedEntries();
+          this._setPinnedEntries(pinned.filter((e) => `${e.date}:${e.index}` !== message.pinnedId));
+          this._sendEntries();
+          break;
+        }
       }
     });
   }
@@ -267,11 +294,20 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
       command: "update",
       sections,
       sendOnEnter,
+      pinnedEntries: this._getPinnedEntries(),
     });
   }
 
   private _showError(msg: string): void {
     this._view?.webview.postMessage({ command: "error", message: msg });
+  }
+
+  private _getPinnedEntries(): PinnedEntryData[] {
+    return this._context.globalState.get<PinnedEntryData[]>('moments.pinnedEntries', []);
+  }
+
+  private _setPinnedEntries(entries: PinnedEntryData[]): void {
+    void this._context.globalState.update('moments.pinnedEntries', entries);
   }
 
   private _getHtml(webview: vscode.Webview): string {
@@ -803,6 +839,57 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     transition: background 0.15s;
   }
   .export-cancel-btn:hover { background: var(--vscode-button-secondaryHoverBackground); }
+
+  /* ---- Pinned section ---- */
+  .pinned-section {
+    display: flex;
+    flex-direction: column;
+    border-bottom: 2px solid var(--vscode-textLink-foreground);
+  }
+
+  .pinned-section-header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 12px 6px;
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: var(--vscode-sideBar-background, var(--vscode-editor-background));
+    border-bottom: 1px solid var(--vscode-panel-border);
+  }
+
+  .pinned-section-label {
+    color: var(--vscode-textLink-foreground);
+    font-size: 11px;
+    font-weight: 600;
+    text-align: center;
+    white-space: nowrap;
+  }
+
+  .pinned-entry {
+    background: color-mix(in srgb, var(--vscode-textLink-foreground) 6%, var(--vscode-editor-background));
+    border-left: 2px solid color-mix(in srgb, var(--vscode-textLink-foreground) 50%, transparent);
+  }
+  .pinned-entry:hover { background: color-mix(in srgb, var(--vscode-textLink-foreground) 12%, var(--vscode-list-hoverBackground)); }
+
+  .pin-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 3px;
+    border-radius: 4px;
+    font-size: 11px;
+    opacity: 0;
+    transition: opacity 0.15s, background 0.15s;
+    color: var(--vscode-descriptionForeground);
+  }
+  .entry:hover .pin-btn { opacity: 0.7; }
+  .pin-btn:hover { opacity: 1 !important; background: var(--vscode-toolbar-hoverBackground, rgba(90,93,94,0.31)); }
+  .pin-btn.pinned { opacity: 1; color: var(--vscode-textLink-foreground); }
 </style>
 </head>
 <body>
@@ -883,6 +970,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
   let activeTagLabel = '';
   let currentSearchText = '';
   let latestSections = [];
+  let currentPinnedEntries = [];
   let editingEntryKey = null;
   let editingText = '';
   let selectMode = false;
@@ -899,6 +987,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     if (msg.command === 'update') {
       sendOnEnter = msg.sendOnEnter;
       latestSections = msg.sections;
+      currentPinnedEntries = msg.pinnedEntries || [];
       if (
         editingEntryKey !== null
         && !latestSections.some((section) => section.entries.some((entry) => (section.date + ':' + entry.index) === editingEntryKey))
@@ -997,7 +1086,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
 
     if (visibleSections.length === 0) {
       emptyState.style.display = 'block';
-      timeline.querySelectorAll('.day-section').forEach(e => e.remove());
+      timeline.querySelectorAll('.day-section, .pinned-section').forEach(e => e.remove());
       if (currentSearchText && activeTag && activeFilter === 'openTasks') {
         emptyState.textContent = 'No open tasks tagged ' + activeTagLabel + ' matching "' + currentSearchText + '"';
       } else if (currentSearchText && activeTag) {
@@ -1020,7 +1109,81 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
 
     emptyState.style.display = 'none';
 
-    timeline.querySelectorAll('.day-section').forEach(e => e.remove());
+    timeline.querySelectorAll('.day-section, .pinned-section').forEach(e => e.remove());
+
+    // Render pinned section
+    if (currentPinnedEntries.length > 0) {
+      const pinnedSectionEl = document.createElement('section');
+      pinnedSectionEl.className = 'pinned-section';
+
+      const pinnedHeader = document.createElement('div');
+      pinnedHeader.className = 'pinned-section-header';
+      const pinnedLabel = document.createElement('span');
+      pinnedLabel.className = 'pinned-section-label';
+      pinnedLabel.textContent = '📌 Pinned';
+      pinnedHeader.appendChild(pinnedLabel);
+      pinnedSectionEl.appendChild(pinnedHeader);
+
+      currentPinnedEntries.forEach((pinned) => {
+        const div = document.createElement('div');
+        div.className = 'entry pinned-entry';
+
+        const meta = document.createElement('div');
+        meta.className = 'entry-meta';
+
+        const dateBadge = document.createElement('span');
+        dateBadge.className = 'entry-time';
+        dateBadge.textContent = pinned.date + (pinned.time ? ' · ' + pinned.time : '');
+        meta.appendChild(dateBadge);
+
+        const textSpan = document.createElement('div');
+        textSpan.className = 'entry-text';
+        textSpan.innerHTML = renderText(pinned.text);
+        textSpan.querySelectorAll('.tag').forEach((tagButton) => {
+          tagButton.addEventListener('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            setActiveTag(tagButton.dataset.tag || '');
+          });
+        });
+
+        const content = document.createElement('div');
+        content.className = 'entry-content';
+        content.appendChild(meta);
+        content.appendChild(textSpan);
+
+        const main = document.createElement('div');
+        main.className = 'entry-main';
+        main.appendChild(content);
+
+        const actions = document.createElement('div');
+        actions.className = 'entry-actions';
+
+        const unpinButton = document.createElement('button');
+        unpinButton.className = 'pin-btn pinned';
+        unpinButton.type = 'button';
+        unpinButton.title = 'Unpin';
+        unpinButton.textContent = '📌';
+        unpinButton.addEventListener('click', () => {
+          vscode.postMessage({ command: 'unpinEntry', pinnedId: pinned.date + ':' + pinned.index });
+        });
+        actions.appendChild(unpinButton);
+
+        const bodyContent = document.createElement('div');
+        bodyContent.className = 'entry-body-content';
+        bodyContent.appendChild(main);
+        bodyContent.appendChild(actions);
+
+        const body = document.createElement('div');
+        body.className = 'entry-body';
+        body.appendChild(bodyContent);
+
+        div.appendChild(body);
+        pinnedSectionEl.appendChild(div);
+      });
+
+      timeline.appendChild(pinnedSectionEl);
+    }
 
     visibleSections.forEach((section) => {
       const sectionEl = document.createElement('section');
@@ -1246,6 +1409,22 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
 
       actions.appendChild(editButton);
       actions.appendChild(deleteButton);
+
+      const isPinned = currentPinnedEntries.some((p) => p.date === section.date && p.index === entry.index);
+      const pinButton = document.createElement('button');
+      pinButton.className = 'pin-btn' + (isPinned ? ' pinned' : '');
+      pinButton.type = 'button';
+      pinButton.title = isPinned ? 'Unpin' : 'Pin';
+      pinButton.textContent = '📌';
+      pinButton.addEventListener('click', () => {
+        if (isPinned) {
+          vscode.postMessage({ command: 'unpinEntry', pinnedId: section.date + ':' + entry.index });
+        } else {
+          vscode.postMessage({ command: 'pinEntry', date: section.date, index: entry.index, text: entry.text, time: entry.time });
+        }
+      });
+      actions.appendChild(pinButton);
+
       bodyContent.appendChild(main);
       bodyContent.appendChild(actions);
       body.appendChild(bodyContent);
