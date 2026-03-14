@@ -6,6 +6,29 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-03-14
+
+### Added
+- **Wiki-style links**: `[[Note Title]]` syntax with click navigation, Cmd+Click definition provider, `[[` autocomplete, and a Backlinks sidebar panel showing all notes that link to the current file (#2)
+- **Full-text search in Moments**: Real-time search box in the Moments panel header; works alongside hashtag filters with AND logic (#3)
+- **Moments → Note export**: Select mode with per-entry checkboxes; "Export as Note" creates a grouped markdown note and opens it in the editor (#5)
+- **Daily Note**: `notes.openDailyNote` command (`Cmd+Shift+D` / `Ctrl+Shift+D`) opens today's note or creates it from a configurable template; supports `{date}`, `{weekday}`, `{time}` tokens (#4)
+- **Moments entry pinning**: 📌 pin button per entry; pinned entries appear in a dedicated section at the top of the feed; persisted via extension globalState (#9)
+- **Task due dates**: `📅YYYY-MM-DD` or `due:YYYY-MM-DD` syntax in tasks; overdue tasks highlighted in red, today's tasks in orange; new "Overdue" inbox filter (#10)
+- **MCP write tools**: `create_note`, `append_to_note`, `add_moment` tools for AI agents to write notes and moments (#1)
+- **MCP SQLite index**: Search index persisted in `.noteeees-index.db`; only changed files are re-read on each query (#12)
+- **MCP file watcher**: Automatic cache invalidation when `.md` files change in the notes directory (#6)
+- **Workspace notes directory**: `notes.workspaceNotesDirectory` setting (resource scope) overrides the global notes directory per workspace (#8)
+- **Moments archiving**: `notes.archiveMoments` command moves Moments files older than `notes.momentsArchiveAfterDays` (default 90) to `moments/archive/YYYY-MM/` (#13)
+
+### Changed
+- **`momentsPanel.ts` refactored**: Split 1800-line file into `src/moments/types.ts`, `config.ts`, `fileIo.ts`, `taskOverview.ts`, `dueDates.ts`, and `panel.ts`; `momentsPanel.ts` is now a re-export barrel (#7)
+- **Timestamp collision prevention**: Note filenames now include seconds (`HH-mm-ss`); a `-2`, `-3`… suffix is appended if a collision still occurs (#14)
+- **Inbox filter cycle extended**: "All → Open → Done → Overdue → All"
+
+### Fixed
+- Increased unit test coverage for pure functions in `noteCommands.ts`, `moments/fileIo.ts`, `moments/config.ts`, and `moments/dueDates.ts` (#11)
+
 ## [0.0.47] - 2026-03-13
 
 ### Fixed
