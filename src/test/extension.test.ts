@@ -55,9 +55,15 @@ suite("Extension Test Suite", () => {
   });
 
   test("notes directory prefers local storage over synced settings", () => {
-    assert.strictEqual(resolveNotesDirectory("/local/notes", "/synced/notes"), "/local/notes");
-    assert.strictEqual(resolveNotesDirectory(undefined, "/synced/notes"), "/synced/notes");
-    assert.strictEqual(resolveNotesDirectory(undefined, undefined), undefined);
+    assert.strictEqual(resolveNotesDirectory("/local/notes", "/synced/notes", undefined), "/local/notes");
+    assert.strictEqual(resolveNotesDirectory(undefined, "/synced/notes", undefined), "/synced/notes");
+    assert.strictEqual(resolveNotesDirectory(undefined, undefined, undefined), undefined);
+  });
+
+  test("notes directory workspace setting overrides global storage", () => {
+    assert.strictEqual(resolveNotesDirectory("/global/notes", undefined, "/workspace/notes"), "/workspace/notes");
+    assert.strictEqual(resolveNotesDirectory("/global/notes", "/synced/notes", "/workspace/notes"), "/workspace/notes");
+    assert.strictEqual(resolveNotesDirectory(undefined, undefined, "/workspace/notes"), "/workspace/notes");
   });
 
   test("note metadata prefers heading title and merges tags", () => {

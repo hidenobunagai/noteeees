@@ -132,6 +132,55 @@ function getMomentsDirectory(notesDir: string): string {
   return path.join(notesDir, getMomentsSubfolder());
 }
 
+export async function archiveMoments(notesDir: string): Promise<{ archived: number; skipped: number }> {
+  const config = vscode.workspace.getConfiguration("notes");
+  const afterDays = Math.max(1, config.get<number>("momentsArchiveAfterDays") ?? 90);
+
+  const momentsDir = getMomentsDirectory(notesDir);
+  if (!fs.existsSync(momentsDir)) {
+    return { archived: 0, skipped: 0 };
+  }
+
+  const cutoffDate = new Date();
+  cutoffDate.setDate(cutoffDate.getDate() - afterDays);
+  const cutoffStr = formatDate(cutoffDate);
+
+  const entries = fs.readdirSync(momentsDir, { withFileTypes: true });
+  const dateFilePattern = /^(\d{4}-\d{2}-\d{2})\.md$/;
+
+  let archived = 0;
+  let skipped = 0;
+
+  for (const entry of entries) {
+    if (!entry.isFile()) {
+      continue;
+    }
+    const match = entry.name.match(dateFilePattern);
+    if (!match) {
+      continue;
+    }
+
+    const fileDate = match[1];
+    if (fileDate >= cutoffStr) {
+      skipped++;
+      continue;
+    }
+
+    const yearMonth = fileDate.slice(0, 7);
+    const archiveDir = path.join(momentsDir, "archive", yearMonth);
+    if (!fs.existsSync(archiveDir)) {
+      fs.mkdirSync(archiveDir, { recursive: true });
+    }
+
+    const src = path.join(momentsDir, entry.name);
+    const dest = path.join(archiveDir, entry.name);
+    fs.renameSync(src, dest);
+    archived++;
+  }
+
+  return { archived, skipped };
+}
+
 function formatDate(d: Date): string {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");

@@ -112,7 +112,7 @@ export function buildQueryExcerpt(text: string, query: string, maxLength: number
 }
 
 const DEFAULT_TOKENS: FilenameToken[] = [
-  { type: "datetime", token: "{dt}", format: "YYYY-MM-DD_HH-mm" },
+  { type: "datetime", token: "{dt}", format: "YYYY-MM-DD_HH-mm-ss" },
   { type: "title", token: "{title}", format: "Untitled" },
   { type: "extension", token: "{ext}", format: "md" },
 ];
@@ -175,6 +175,26 @@ function resolveFilename(titleInput: string, now: Date): string {
   }
 
   return filename;
+}
+
+function resolveUniqueFilePath(targetDir: string, filename: string): string {
+  const candidate = path.join(targetDir, filename);
+  if (!fs.existsSync(candidate)) {
+    return candidate;
+  }
+
+  const extIndex = filename.lastIndexOf(".");
+  const stem = extIndex > 0 ? filename.slice(0, extIndex) : filename;
+  const ext = extIndex > 0 ? filename.slice(extIndex) : "";
+
+  for (let i = 2; i <= 99; i++) {
+    const uniquePath = path.join(targetDir, `${stem}-${i}${ext}`);
+    if (!fs.existsSync(uniquePath)) {
+      return uniquePath;
+    }
+  }
+
+  return candidate;
 }
 
 async function insertSnippetByName(
@@ -401,11 +421,11 @@ export async function createNewNote(notesDir: string, initialTitle?: string): Pr
     fs.mkdirSync(targetDir, { recursive: true });
   }
 
-  // Step 5: Create file
-  const filePath = path.join(targetDir, filename);
+  // Step 5: Resolve a unique file path (seconds precision + counter suffix)
+  const filePath = resolveUniqueFilePath(targetDir, filename);
   if (fs.existsSync(filePath)) {
     const overwrite = await vscode.window.showWarningMessage(
-      `File "${filename}" already exists. Overwrite?`,
+      `File "${path.basename(filePath)}" already exists. Overwrite?`,
       "Yes",
       "No",
     );
@@ -430,7 +450,7 @@ export async function createNewNote(notesDir: string, initialTitle?: string): Pr
       const langId = defaultSnippet.langId || "markdown";
       await insertSnippetByName(editor, langId, defaultSnippet.name);
     }
-    vscode.window.showInformationMessage(`Note created: ${filename}`);
+    vscode.window.showInformationMessage(`Note created: ${path.basename(filePath)}`);
     return;
   }
 
@@ -463,7 +483,7 @@ export async function createNewNote(notesDir: string, initialTitle?: string): Pr
   }
   // "Empty" selected: do nothing (empty file)
 
-  vscode.window.showInformationMessage(`Note created: ${filename}`);
+  vscode.window.showInformationMessage(`Note created: ${path.basename(filePath)}`);
 }
 
 export async function listNotes(notesDir: string): Promise<void> {

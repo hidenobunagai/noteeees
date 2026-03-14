@@ -112,6 +112,11 @@
         "command": "notes.movePinnedNoteDown",
         "title": "Move Pinned Note Down",
         "icon": "$(arrow-down)"
+      },
+      {
+        "command": "notes.archiveMoments",
+        "title": "Noteeees Moments: Archive Old Moments",
+        "icon": "$(archive)"
       }
     ],
     "keybindings": [
@@ -308,6 +313,18 @@
             "done"
           ],
           "description": "Default filter for the Moments Inbox overview. The last selected value is saved here and reused the next time Inbox opens."
+        },
+        "notes.momentsArchiveAfterDays": {
+          "type": "number",
+          "default": 90,
+          "minimum": 1,
+          "description": "Number of days after which Moments files are moved to the archive folder when running 'Archive Moments'. Files newer than this threshold are kept in place."
+        },
+        "notes.workspaceNotesDirectory": {
+          "type": "string",
+          "default": "",
+          "scope": "resource",
+          "description": "Workspace-specific notes directory. When set, overrides the machine-global notes directory for this workspace only."
         }
       }
     }
