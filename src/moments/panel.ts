@@ -1222,6 +1222,11 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     }
 
     visibleSections.forEach((section) => {
+      const unpinnedEntries = section.entries.filter(
+        (e) => !currentPinnedEntries.some((p) => p.date === section.date && p.index === e.index)
+      );
+      if (unpinnedEntries.length === 0) return;
+
       const sectionEl = document.createElement('section');
       sectionEl.className = 'day-section';
 
@@ -1235,7 +1240,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
       sectionHeader.appendChild(sectionLabel);
       sectionEl.appendChild(sectionHeader);
 
-      section.entries.forEach((entry) => {
+      unpinnedEntries.forEach((entry) => {
       const entryKey = section.date + ':' + entry.index;
       const exportKey = JSON.stringify({ date: section.date, index: entry.index });
       const div = document.createElement('div');
