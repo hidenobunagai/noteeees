@@ -1,6 +1,8 @@
 .jj/
 .git/
+.github/
 .vscode/
+.superset/
 notes-mcp/
 node_modules/
 src/

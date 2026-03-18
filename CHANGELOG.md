@@ -6,6 +6,11 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.1.9] - 2026-03-18
+
+### Fixed
+- **Extension packaging**: The published VSIX now excludes local-only `.github/` and `.superset/` folders, so marketplace packages no longer ship machine-specific tooling metadata.
+
 ## [0.1.8] - 2026-03-18
 
 ### Changed
