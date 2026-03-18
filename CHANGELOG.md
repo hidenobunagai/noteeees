@@ -6,6 +6,12 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.1.7] - 2026-03-18
+
+### Changed
+- **Moments cards**: Edit, Delete, and Pin controls now sit in the card header beside the time metadata, keeping actions in the top-right while preserving the left checkbox column.
+- **Pinned Moments**: Pinned cards follow the same header action placement as regular Moments cards for a more consistent layout.
+
 ## [0.1.6] - 2026-03-18
 
 ### Fixed
