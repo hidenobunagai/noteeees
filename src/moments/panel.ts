@@ -419,12 +419,22 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
   }
 
   .entry-meta {
-    display: inline-flex;
+    display: flex;
     align-items: center;
+    flex: 1 1 auto;
+    flex-wrap: wrap;
     gap: 6px;
     min-width: 0;
     color: var(--vscode-descriptionForeground);
     font-size: 11px;
+  }
+
+  .entry-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 8px;
+    min-width: 0;
   }
 
   .entry-time {
@@ -514,7 +524,15 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     flex-wrap: wrap;
   }
 
-  .entry-action {
+  .entry-header-actions {
+    flex: none;
+    flex-wrap: nowrap;
+    justify-content: flex-end;
+    margin-left: auto;
+  }
+
+  .entry-action,
+  .pin-btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -535,7 +553,8 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     fill: currentColor;
   }
 
-  .entry-action:hover {
+  .entry-action:hover,
+  .pin-btn:hover {
     color: var(--vscode-foreground);
     background: var(--vscode-toolbar-hoverBackground, rgba(90, 93, 94, 0.31));
     opacity: 1;
@@ -842,23 +861,9 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
   }
   .pinned-entry:hover { background: color-mix(in srgb, var(--vscode-textLink-foreground) 12%, var(--vscode-list-hoverBackground)); }
 
-  .pin-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    background: none;
-    border: none;
-    cursor: pointer;
-    padding: 3px;
-    border-radius: 4px;
-    font-size: 11px;
-    opacity: 0;
-    transition: opacity 0.15s, background 0.15s;
-    color: var(--vscode-descriptionForeground);
-  }
-  .entry:hover .pin-btn { opacity: 0.7; }
-  .pin-btn:hover { opacity: 1 !important; background: var(--vscode-toolbar-hoverBackground, rgba(90,93,94,0.31)); }
   .pin-btn.pinned { opacity: 1; color: var(--vscode-textLink-foreground); }
+  .pin-btn:not(.pinned) { opacity: 0; }
+  .entry:hover .pin-btn:not(.pinned) { opacity: 0.7; }
 </style>
 </head>
 <body>
@@ -1101,6 +1106,9 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
         dateBadge.textContent = pinned.date + (pinned.time ? ' · ' + pinned.time : '');
         meta.appendChild(dateBadge);
 
+        const header = document.createElement('div');
+        header.className = 'entry-header';
+
         const textSpan = document.createElement('div');
         textSpan.className = 'entry-text';
         textSpan.innerHTML = renderText(pinned.text);
@@ -1114,12 +1122,9 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
 
         const content = document.createElement('div');
         content.className = 'entry-content';
-        content.appendChild(meta);
-        content.appendChild(textSpan);
 
         const main = document.createElement('div');
         main.className = 'entry-main';
-        main.appendChild(content);
 
         const body = document.createElement('div');
         body.className = 'entry-body';
@@ -1149,22 +1154,28 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
         iconWrapper.appendChild(checkbox);
 
         const actions = document.createElement('div');
-        actions.className = 'entry-actions';
+        actions.className = 'entry-actions entry-header-actions';
 
         const unpinButton = document.createElement('button');
         unpinButton.className = 'pin-btn pinned';
         unpinButton.type = 'button';
         unpinButton.title = 'Unpin';
+        unpinButton.setAttribute('aria-label', 'Unpin');
         unpinButton.textContent = '📌';
         unpinButton.addEventListener('click', () => {
           vscode.postMessage({ command: 'unpinEntry', pinnedId: pinned.date + ':' + pinned.index });
         });
         actions.appendChild(unpinButton);
 
+        header.appendChild(meta);
+        header.appendChild(actions);
+        content.appendChild(header);
+        content.appendChild(textSpan);
+        main.appendChild(content);
+
         const bodyContent = document.createElement('div');
         bodyContent.className = 'entry-body-content';
         bodyContent.appendChild(main);
-        bodyContent.appendChild(actions);
 
         body.appendChild(iconWrapper);
         body.appendChild(bodyContent);
@@ -1209,6 +1220,9 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
       timeBadge.textContent = entry.time;
 
       meta.appendChild(timeBadge);
+
+      const header = document.createElement('div');
+      header.className = 'entry-header';
 
       const dueDateMatch = entry.text.match(/(?:📅|due:)(\d{4}-\d{2}-\d{2})/);
       const dueDate = dueDateMatch ? dueDateMatch[1] : null;
@@ -1334,8 +1348,6 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
 
       const content = document.createElement('div');
       content.className = 'entry-content';
-      content.appendChild(meta);
-      content.appendChild(textSpan);
 
       const main = document.createElement('div');
       main.className = 'entry-main';
@@ -1381,7 +1393,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
       main.appendChild(content);
 
       const actions = document.createElement('div');
-      actions.className = 'entry-actions';
+      actions.className = 'entry-actions entry-header-actions';
 
       const editButton = document.createElement('button');
       editButton.className = 'entry-action';
@@ -1415,6 +1427,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
       pinButton.className = 'pin-btn' + (isPinned ? ' pinned' : '');
       pinButton.type = 'button';
       pinButton.title = isPinned ? 'Unpin' : 'Pin';
+      pinButton.setAttribute('aria-label', isPinned ? 'Unpin' : 'Pin');
       pinButton.textContent = '📌';
       pinButton.addEventListener('click', () => {
         if (isPinned) {
@@ -1425,8 +1438,13 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
       });
       actions.appendChild(pinButton);
 
+      header.appendChild(meta);
+      header.appendChild(actions);
+      content.appendChild(header);
+      content.appendChild(textSpan);
+      main.appendChild(content);
+
       bodyContent.appendChild(main);
-      bodyContent.appendChild(actions);
       body.appendChild(bodyContent);
       div.appendChild(body);
       sectionEl.appendChild(div);
