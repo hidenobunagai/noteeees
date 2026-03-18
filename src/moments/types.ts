@@ -13,6 +13,18 @@ export interface MomentDaySection {
   entries: MomentEntry[];
 }
 
+export interface PinnedEntryData {
+  date: string;
+  index: number;
+  text: string;
+  time: string;
+}
+
+export interface ResolvedPinnedEntryData extends PinnedEntryData {
+  done: boolean;
+  isAvailable: boolean;
+}
+
 export interface TaskOverviewItem {
   date: string;
   time: string;

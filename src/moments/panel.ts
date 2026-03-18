@@ -1,7 +1,7 @@
 import * as fs from "fs";
 import * as path from "path";
 import * as vscode from "vscode";
-import { MOMENT_TAG_PATTERN, getSendOnEnter } from "./config.js";
+import { MOMENT_TAG_PATTERN, getSendOnEnter, resolvePinnedEntries } from "./config.js";
 import {
   formatDate,
   getMomentsFilePath,
@@ -13,17 +13,11 @@ import {
   ensureMomentsFile,
 } from "./fileIo.js";
 import { showOpenTasksOverview } from "./taskOverview.js";
+import type { PinnedEntryData } from "./types.js";
 
 // ---------------------------------------------------------------------------
 // WebviewViewProvider
 // ---------------------------------------------------------------------------
-
-interface PinnedEntryData {
-  date: string;
-  index: number;
-  text: string;
-  time: string;
-}
 
 export class MomentsViewProvider implements vscode.WebviewViewProvider {
   public static readonly viewType = "notesMomentsView";
@@ -251,7 +245,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
       sections,
       sendOnEnter,
       todayDate: today,
-      pinnedEntries: this._getPinnedEntries(),
+      pinnedEntries: resolvePinnedEntries(this._getPinnedEntries(), sections),
     });
   }
 
@@ -1097,7 +1091,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
 
       currentPinnedEntries.forEach((pinned) => {
         const div = document.createElement('div');
-        div.className = 'entry pinned-entry';
+        div.className = 'entry pinned-entry' + (pinned.done ? ' task-done' : '');
 
         const meta = document.createElement('div');
         meta.className = 'entry-meta';
@@ -1127,6 +1121,33 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
         main.className = 'entry-main';
         main.appendChild(content);
 
+        const body = document.createElement('div');
+        body.className = 'entry-body';
+
+        const iconWrapper = document.createElement('div');
+        iconWrapper.className = 'entry-icon-wrapper';
+
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.className = 'entry-checkbox';
+        checkbox.checked = Boolean(pinned.done);
+        checkbox.disabled = pinned.isAvailable === false;
+        checkbox.title = pinned.isAvailable === false
+          ? 'Pinned entry is no longer available'
+          : (pinned.done ? 'Mark as open' : 'Mark as done');
+        checkbox.setAttribute(
+          'aria-label',
+          pinned.isAvailable === false
+            ? 'Pinned entry is no longer available'
+            : (pinned.done ? 'Mark as open' : 'Mark as done'),
+        );
+        if (pinned.isAvailable !== false) {
+          checkbox.addEventListener('change', () => {
+            vscode.postMessage({ command: 'toggleTask', date: pinned.date, index: pinned.index });
+          });
+        }
+        iconWrapper.appendChild(checkbox);
+
         const actions = document.createElement('div');
         actions.className = 'entry-actions';
 
@@ -1145,8 +1166,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
         bodyContent.appendChild(main);
         bodyContent.appendChild(actions);
 
-        const body = document.createElement('div');
-        body.className = 'entry-body';
+        body.appendChild(iconWrapper);
         body.appendChild(bodyContent);
 
         div.appendChild(body);

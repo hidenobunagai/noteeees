@@ -1,11 +1,20 @@
 // Barrel re-export — all public symbols remain importable from "./momentsPanel"
-export type { MomentEntry, MomentDaySection, TaskOverviewItem, MomentFilter, InboxTaskFilter } from "./moments/types.js";
+export type {
+  MomentEntry,
+  MomentDaySection,
+  TaskOverviewItem,
+  MomentFilter,
+  InboxTaskFilter,
+  PinnedEntryData,
+  ResolvedPinnedEntryData,
+} from "./moments/types.js";
 export type { DueDateStatus } from "./moments/dueDates.js";
 export {
   normalizeInboxTaskFilter,
   filterMomentEntries,
   extractMomentTags,
   filterTaskOverviewItems,
+  resolvePinnedEntries,
   normalizeMomentsFeedDayCount,
   getNextInboxFilter,
 } from "./moments/config.js";

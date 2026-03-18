@@ -1,5 +1,13 @@
 import * as vscode from "vscode";
-import type { MomentEntry, TaskOverviewItem, MomentFilter, InboxTaskFilter } from "./types.js";
+import type {
+  MomentDaySection,
+  MomentEntry,
+  TaskOverviewItem,
+  MomentFilter,
+  InboxTaskFilter,
+  PinnedEntryData,
+  ResolvedPinnedEntryData,
+} from "./types.js";
 import { parseDueDate } from "./dueDates.js";
 
 export const MOMENTS_FEED_DAY_COUNT = 7;
@@ -65,6 +73,31 @@ export function filterTaskOverviewItems(
   }
 
   return items;
+}
+
+export function resolvePinnedEntries(
+  pinnedEntries: PinnedEntryData[],
+  sections: MomentDaySection[],
+): ResolvedPinnedEntryData[] {
+  const liveEntries = new Map<string, MomentEntry>();
+
+  for (const section of sections) {
+    for (const entry of section.entries) {
+      liveEntries.set(`${section.date}:${entry.index}`, entry);
+    }
+  }
+
+  return pinnedEntries.map((pinned) => {
+    const liveEntry = liveEntries.get(`${pinned.date}:${pinned.index}`);
+
+    return {
+      ...pinned,
+      text: liveEntry?.text ?? pinned.text,
+      time: liveEntry?.time ?? pinned.time,
+      done: liveEntry?.done ?? false,
+      isAvailable: liveEntry !== undefined,
+    };
+  });
 }
 
 export function getMomentsSubfolder(): string {

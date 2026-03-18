@@ -22,6 +22,7 @@ import {
   normalizeInboxTaskFilter,
   normalizeMomentsFeedDayCount,
   parseDueDate,
+  resolvePinnedEntries,
   replaceMomentEntryText,
   sortOpenTaskOverview,
   toggleMomentTaskLine,
@@ -312,6 +313,42 @@ suite("Extension Test Suite", () => {
     assert.deepStrictEqual(filtered, [
       { index: 0, time: "09:00", text: "todo", done: false },
       { index: 2, time: "10:00", text: "note", done: false },
+    ]);
+  });
+
+  test("pinned Moments resolve against the latest feed entries", () => {
+    const resolved = resolvePinnedEntries(
+      [
+        { date: "2026-03-09", index: 1, text: "stale text", time: "08:30" },
+        { date: "2026-03-09", index: 9, text: "orphaned pin", time: "12:15" },
+      ],
+      [
+        {
+          date: "2026-03-09",
+          dateLabel: "Today · 2026-03-09",
+          isToday: true,
+          entries: [{ index: 1, time: "09:45", text: "current text", done: true }],
+        },
+      ],
+    );
+
+    assert.deepStrictEqual(resolved, [
+      {
+        date: "2026-03-09",
+        index: 1,
+        text: "current text",
+        time: "09:45",
+        done: true,
+        isAvailable: true,
+      },
+      {
+        date: "2026-03-09",
+        index: 9,
+        text: "orphaned pin",
+        time: "12:15",
+        done: false,
+        isAvailable: false,
+      },
     ]);
   });
 
