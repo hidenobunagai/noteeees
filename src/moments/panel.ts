@@ -547,6 +547,11 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     transition: color 0.15s, opacity 0.15s, background 0.15s;
   }
 
+  .pin-btn {
+    font-size: 12px;
+    line-height: 1;
+  }
+
   .entry-action svg {
     width: 14px;
     height: 14px;
@@ -862,8 +867,12 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
   .pinned-entry:hover { background: color-mix(in srgb, var(--vscode-textLink-foreground) 12%, var(--vscode-list-hoverBackground)); }
 
   .pin-btn.pinned { opacity: 1; color: var(--vscode-textLink-foreground); }
-  .pin-btn:not(.pinned) { opacity: 0; }
-  .entry:hover .pin-btn:not(.pinned) { opacity: 0.7; }
+  .pin-btn:not(.pinned) { opacity: 0.45; }
+  .entry:hover .pin-btn:not(.pinned),
+  .entry:focus-within .pin-btn:not(.pinned) {
+    opacity: 0.8;
+    color: var(--vscode-foreground);
+  }
 </style>
 </head>
 <body>
@@ -1420,7 +1429,6 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
       });
 
       actions.appendChild(editButton);
-      actions.appendChild(deleteButton);
 
       const isPinned = currentPinnedEntries.some((p) => p.date === section.date && p.index === entry.index);
       const pinButton = document.createElement('button');
@@ -1437,6 +1445,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
         }
       });
       actions.appendChild(pinButton);
+      actions.appendChild(deleteButton);
 
       header.appendChild(meta);
       header.appendChild(actions);

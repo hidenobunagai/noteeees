@@ -6,6 +6,12 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.1.8] - 2026-03-18
+
+### Changed
+- **Moments card actions**: Regular posts now show `Edit`, `Pin`, and `Delete` in a steadier order, and the Pin action stays subtly visible at rest so the header no longer leaves a dead gap on the far right.
+- **Pinned Moments**: The active Pin button keeps its accent treatment while sharing the same tighter header rhythm as regular posts.
+
 ## [0.1.7] - 2026-03-18
 
 ### Changed
