@@ -6,6 +6,16 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.1.5] - 2026-03-18
+
+### Changed
+- **Moments**: Every Moment is now treated as a checkable post, so the feed keeps a consistent left edge and any item can be marked open or done inline.
+- **Moments Inbox**: The `Open` view and Inbox now work from post completion state instead of a separate task-only entry type.
+
+### Fixed
+- **Moments compatibility**: Legacy `- HH:mm text` lines are still read as unchecked posts, but new writes and edits normalize to checkbox-based lines so the format stays consistent over time.
+- **MCP write path**: `add_moment` now writes the unified checkbox-based Moments format instead of reintroducing legacy non-checkbox lines.
+
 ## [0.1.4] - 2026-03-14
 
 ### Changed

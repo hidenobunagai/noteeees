@@ -265,7 +265,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
           text: { type: "string", description: "The moment text to record" },
           is_task: {
             type: "boolean",
-            description: "If true, adds as an open task ([ ]). Default false.",
+            description: "Deprecated. Moments are now always created as unchecked posts.",
           },
           date: {
             type: "string",
@@ -553,7 +553,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     }
 
     case "add_moment": {
-      const { text, is_task = false, date } = request.params.arguments as {
+      const { text, date } = request.params.arguments as {
         text: string;
         is_task?: boolean;
         date?: string;
@@ -564,7 +564,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       ensureMomentsFile(filePath, targetDate);
 
       const time = currentTime();
-      const line = is_task ? `- [ ] ${time} ${text}` : `- ${time} ${text}`;
+      const line = `- [ ] ${time} ${text}`;
       const existing = fs.readFileSync(filePath, "utf8");
       const separator = existing.endsWith("\n") ? "" : "\n";
       fs.writeFileSync(filePath, `${existing}${separator}${line}\n`, "utf8");

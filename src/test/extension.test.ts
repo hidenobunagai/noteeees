@@ -11,8 +11,6 @@ import {
   buildMomentsDateLabel,
   buildMomentsFeedDates,
   buildTaskSearchDetail,
-  convertMomentLineToNote,
-  convertMomentLineToTask,
   deleteMomentLine,
   extractMomentTags,
   filterMomentEntries,
@@ -20,6 +18,7 @@ import {
   getDueDateStatus,
   getNextInboxFilter,
   mapMomentBodyIndexToFileLine,
+  normalizeMomentLineToUnchecked,
   normalizeInboxTaskFilter,
   normalizeMomentsFeedDayCount,
   parseDueDate,
@@ -300,18 +299,19 @@ suite("Extension Test Suite", () => {
     assert.deepStrictEqual(movePinnedItem(["a", "b", "c"], 0, "up"), ["a", "b", "c"]);
   });
 
-  test("open task filter keeps only unfinished tasks", () => {
+  test("open Moments filter keeps only unfinished posts", () => {
     const filtered = filterMomentEntries(
       [
-        { index: 0, time: "09:00", text: "todo", isTask: true, done: false },
-        { index: 1, time: "09:30", text: "done", isTask: true, done: true },
-        { index: 2, time: "10:00", text: "note", isTask: false, done: false },
+        { index: 0, time: "09:00", text: "todo", done: false },
+        { index: 1, time: "09:30", text: "done", done: true },
+        { index: 2, time: "10:00", text: "note", done: false },
       ],
-      "openTasks",
+      "open",
     );
 
     assert.deepStrictEqual(filtered, [
-      { index: 0, time: "09:00", text: "todo", isTask: true, done: false },
+      { index: 0, time: "09:00", text: "todo", done: false },
+      { index: 2, time: "10:00", text: "note", done: false },
     ]);
   });
 
@@ -367,37 +367,26 @@ suite("Extension Test Suite", () => {
       changed: true,
     });
     assert.deepStrictEqual(toggleMomentTaskLine("- 09:00 note"), {
-      line: "- 09:00 note",
-      changed: false,
+      line: "- [x] 09:00 note",
+      changed: true,
     });
   });
 
-  test("regular moment lines can be converted into open tasks", () => {
-    assert.deepStrictEqual(convertMomentLineToTask("- 09:00 note"), {
+  test("moment lines normalize to unchecked checkbox posts", () => {
+    assert.deepStrictEqual(normalizeMomentLineToUnchecked("- 09:00 note"), {
       line: "- [ ] 09:00 note",
       changed: true,
     });
-    assert.deepStrictEqual(convertMomentLineToTask("- [ ] 09:00 task"), {
+    assert.deepStrictEqual(normalizeMomentLineToUnchecked("- [x] 09:00 done task"), {
+      line: "- [ ] 09:00 done task",
+      changed: true,
+    });
+    assert.deepStrictEqual(normalizeMomentLineToUnchecked("- [ ] 09:00 task"), {
       line: "- [ ] 09:00 task",
       changed: false,
     });
-    assert.deepStrictEqual(convertMomentLineToTask("not a moment line"), {
+    assert.deepStrictEqual(normalizeMomentLineToUnchecked("not a moment line"), {
       line: "not a moment line",
-      changed: false,
-    });
-  });
-
-  test("task lines can be converted back into regular moments", () => {
-    assert.deepStrictEqual(convertMomentLineToNote("- [ ] 09:00 task"), {
-      line: "- 09:00 task",
-      changed: true,
-    });
-    assert.deepStrictEqual(convertMomentLineToNote("- [x] 09:00 done task"), {
-      line: "- 09:00 done task",
-      changed: true,
-    });
-    assert.deepStrictEqual(convertMomentLineToNote("- 09:00 note"), {
-      line: "- 09:00 note",
       changed: false,
     });
   });
@@ -412,7 +401,7 @@ suite("Extension Test Suite", () => {
       changed: true,
     });
     assert.deepStrictEqual(replaceMomentEntryText("- 09:00 note text", "updated note"), {
-      line: "- 09:00 updated note",
+      line: "- [ ] 09:00 updated note",
       changed: true,
     });
   });

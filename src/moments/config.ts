@@ -33,8 +33,8 @@ export function normalizeInboxTaskFilter(filter: string | undefined): InboxTaskF
 }
 
 export function filterMomentEntries(entries: MomentEntry[], filter: MomentFilter): MomentEntry[] {
-  if (filter === "openTasks") {
-    return entries.filter((entry) => entry.isTask && !entry.done);
+  if (filter === "open") {
+    return entries.filter((entry) => !entry.done);
   }
 
   return entries;

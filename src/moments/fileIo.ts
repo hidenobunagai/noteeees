@@ -68,9 +68,9 @@ export function readMoments(notesDir: string, date: string): MomentEntry[] {
       continue;
     }
 
-    // Task done:   - [x] HH:mm text
-    // Task todo:   - [ ] HH:mm text
-    // Regular:     - HH:mm text
+    // Checked:     - [x] HH:mm text
+    // Unchecked:   - [ ] HH:mm text
+    // Legacy:      - HH:mm text
     const taskDone = line.match(/^-\s+\[x\]\s+(\d{2}:\d{2})\s+(.*)/i);
     const taskTodo = line.match(/^-\s+\[ \]\s+(\d{2}:\d{2})\s+(.*)/i);
     const regular = line.match(/^-\s+(\d{2}:\d{2})\s+(.*)/);
@@ -80,7 +80,6 @@ export function readMoments(notesDir: string, date: string): MomentEntry[] {
         index: i,
         time: taskDone[1],
         text: taskDone[2],
-        isTask: true,
         done: true,
         tags: extractMomentTags(taskDone[2]),
       });
@@ -89,7 +88,6 @@ export function readMoments(notesDir: string, date: string): MomentEntry[] {
         index: i,
         time: taskTodo[1],
         text: taskTodo[2],
-        isTask: true,
         done: false,
         tags: extractMomentTags(taskTodo[2]),
       });
@@ -98,7 +96,6 @@ export function readMoments(notesDir: string, date: string): MomentEntry[] {
         index: i,
         time: regular[1],
         text: regular[2],
-        isTask: false,
         done: false,
         tags: extractMomentTags(regular[2]),
       });
@@ -135,10 +132,29 @@ export function toggleMomentTaskLine(line: string): { line: string; changed: boo
     };
   }
 
+  const regular = line.match(/^(-\s+)(\d{2}:\d{2}\s+.*)$/);
+  if (regular) {
+    return {
+      line: `${regular[1]}[x] ${regular[2]}`,
+      changed: true,
+    };
+  }
+
   return { line, changed: false };
 }
 
-export function convertMomentLineToTask(line: string): { line: string; changed: boolean } {
+export function normalizeMomentLineToUnchecked(line: string): { line: string; changed: boolean } {
+  if (line.match(/^(-\s+)\[x\]/i)) {
+    return {
+      line: line.replace(/^(-\s+)\[x\]/i, "$1[ ]"),
+      changed: true,
+    };
+  }
+
+  if (line.match(/^(-\s+)\[ \]/)) {
+    return { line, changed: false };
+  }
+
   const regular = line.match(/^(-\s+)(\d{2}:\d{2}\s+.*)$/);
   if (!regular) {
     return { line, changed: false };
@@ -146,18 +162,6 @@ export function convertMomentLineToTask(line: string): { line: string; changed: 
 
   return {
     line: `${regular[1]}[ ] ${regular[2]}`,
-    changed: true,
-  };
-}
-
-export function convertMomentLineToNote(line: string): { line: string; changed: boolean } {
-  const task = line.match(/^(-\s+)\[(x| )\]\s+(\d{2}:\d{2}\s+.*)$/i);
-  if (!task) {
-    return { line, changed: false };
-  }
-
-  return {
-    line: `${task[1]}${task[3]}`,
     changed: true,
   };
 }
@@ -189,9 +193,10 @@ export function replaceMomentEntryText(
 
   const regular = line.match(/^(-\s+)(\d{2}:\d{2})\s+(.*)$/);
   if (regular) {
+    const nextLine = `${regular[1]}[ ] ${regular[2]} ${normalizedText}`;
     return {
-      line: `${regular[1]}${regular[2]} ${normalizedText}`,
-      changed: regular[3] !== normalizedText,
+      line: nextLine,
+      changed: nextLine !== line,
     };
   }
 
@@ -250,11 +255,10 @@ export function ensureMomentsFile(notesDir: string, date: string): string {
   return filePath;
 }
 
-export function appendMoment(notesDir: string, date: string, text: string, isTask: boolean): void {
+export function appendMoment(notesDir: string, date: string, text: string): void {
   const filePath = ensureMomentsFile(notesDir, date);
   const time = formatTime(new Date());
-  const prefix = isTask ? `- [ ] ${time} ` : `- ${time} `;
-  const entry = `${prefix}${text.trim()}\n`;
+  const entry = `- [ ] ${time} ${text.trim()}\n`;
 
   let content = fs.readFileSync(filePath, "utf8");
   // Ensure ends with newline before appending
@@ -286,52 +290,6 @@ export function toggleTask(notesDir: string, date: string, index: number): void 
   lines[fileLineIdx] = result.line;
 
   fs.writeFileSync(filePath, lines.join("\n"), "utf8");
-}
-
-export function convertMomentEntryToTask(notesDir: string, date: string, index: number): boolean {
-  const filePath = getMomentsFilePath(notesDir, date);
-  if (!fs.existsSync(filePath)) {
-    return false;
-  }
-
-  const raw = fs.readFileSync(filePath, "utf8");
-  const lines = raw.split("\n");
-  const fileLineIdx = mapMomentBodyIndexToFileLine(raw, index);
-  if (fileLineIdx < 0 || fileLineIdx >= lines.length) {
-    return false;
-  }
-
-  const result = convertMomentLineToTask(lines[fileLineIdx]);
-  if (!result.changed) {
-    return false;
-  }
-
-  lines[fileLineIdx] = result.line;
-  fs.writeFileSync(filePath, lines.join("\n"), "utf8");
-  return true;
-}
-
-export function convertMomentEntryToNote(notesDir: string, date: string, index: number): boolean {
-  const filePath = getMomentsFilePath(notesDir, date);
-  if (!fs.existsSync(filePath)) {
-    return false;
-  }
-
-  const raw = fs.readFileSync(filePath, "utf8");
-  const lines = raw.split("\n");
-  const fileLineIdx = mapMomentBodyIndexToFileLine(raw, index);
-  if (fileLineIdx < 0 || fileLineIdx >= lines.length) {
-    return false;
-  }
-
-  const result = convertMomentLineToNote(lines[fileLineIdx]);
-  if (!result.changed) {
-    return false;
-  }
-
-  lines[fileLineIdx] = result.line;
-  fs.writeFileSync(filePath, lines.join("\n"), "utf8");
-  return true;
 }
 
 export function saveMomentEdit(notesDir: string, date: string, index: number, text: string): boolean {

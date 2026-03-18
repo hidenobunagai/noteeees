@@ -12,12 +12,11 @@ A quick-capture timeline panel for fleeting thoughts, tasks, and ideas — alway
 - **`Cmd+Shift+M`**: Open the Moments panel from the Activity Bar (⚡ lightning icon)
 - **Timeline view**: Entries displayed as a continuous recent feed with timestamps, task status, and quick actions
 - **Quick input**: Type a thought, press `Enter` to save instantly
-- **Task checkboxes**: Use the input checkbox to add the next item as a task, then tick tasks directly in the feed to mark them done or open
-- **Task type toggle**: Switch a Moment between note and task later with `Make Task` and `Make Note`
+- **Post-level checkboxes**: Every Moment can be checked on or off directly in the feed, so posts stay left-aligned whether they started as a note or a todo
 - **Inline editing**: Edit a Moment in place and save without leaving the panel
 - **Safe deletion**: Delete a Moment from the panel with a confirmation step
-- **Open-task filter**: Toggle `Open` to focus only on unfinished tasks across the recent feed
-- **Inbox overview**: Open `Inbox` to browse all Moments tasks, switch between all/open/done views, remember that filter between launches, toggle done or undone inline, or jump to the exact line
+- **Open filter**: Toggle `Open` to focus only on unchecked Moments across the recent feed
+- **Inbox overview**: Open `Inbox` to browse all Moments posts, switch between all/open/done views, remember that filter between launches, toggle done or undone inline, or jump to the exact line
 - **Sticky date markers**: Each day label stays visible while you scroll through the feed
 - **Hashtag feed filters**: Click a `#tag` in Moments to filter the current feed to that hashtag, then clear it from the header
 - **Open in editor**: `↗` opens today's raw Markdown file for editing
@@ -32,10 +31,10 @@ type: moments
 date: 2026-03-01
 ---
 
-- 09:15 Great idea for the API design #idea
+- [ ] 09:15 Great idea for the API design #idea
 - [ ] 10:30 Follow up with the team #todo
 - [x] 11:00 Completed task
-- 14:22 Interesting article https://example.com
+- [ ] 14:22 Interesting article https://example.com
 ```
 
 Moments are excluded from the regular Notes sidebar but are **fully searchable via MCP** since they're plain `.md` files.
@@ -206,4 +205,3 @@ bun run test:mcp
 Notes support tags in two ways:
 - **YAML front matter**: `tags: [todo, meeting]`
 - **Inline**: `#todo` anywhere in the note body
-

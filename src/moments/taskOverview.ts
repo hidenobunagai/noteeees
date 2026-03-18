@@ -72,7 +72,7 @@ function toOpenTaskQuickPickItem(
     buttons: [
       {
         iconPath: new vscode.ThemeIcon(item.done ? "circle-large-outline" : "check"),
-        tooltip: item.done ? "Mark task as open" : "Mark task as done",
+        tooltip: item.done ? "Mark as open" : "Mark as done",
       },
     ],
     task: item,
@@ -92,7 +92,7 @@ function getInboxFilterLabel(filter: InboxTaskFilter): string {
     return "Overdue";
   }
 
-  return "All Tasks";
+  return "All Moments";
 }
 
 function buildInboxFilterButton(filter: InboxTaskFilter): vscode.QuickInputButton {
@@ -126,17 +126,15 @@ function collectOpenTaskOverview(notesDir: string): TaskOverviewItem[] {
     const entries = readMoments(notesDir, date);
 
     for (const entry of entries) {
-      if (entry.isTask) {
-        items.push({
-          date,
-          time: entry.time,
-          text: entry.text,
-          filePath,
-          relativePath: path.relative(notesDir, filePath),
-          fileLineIndex: mapMomentBodyIndexToFileLine(raw, entry.index),
-          done: entry.done,
-        });
-      }
+      items.push({
+        date,
+        time: entry.time,
+        text: entry.text,
+        filePath,
+        relativePath: path.relative(notesDir, filePath),
+        fileLineIndex: mapMomentBodyIndexToFileLine(raw, entry.index),
+        done: entry.done,
+      });
     }
   }
 
@@ -203,7 +201,7 @@ export async function showOpenTasksOverview(notesDir: string): Promise<void> {
 
   if (refreshItems() === 0) {
     quickPick.dispose();
-    vscode.window.showInformationMessage("No tasks across Moments.");
+    vscode.window.showInformationMessage("No moments found across all days.");
     return;
   }
 

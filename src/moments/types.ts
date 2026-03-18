@@ -2,7 +2,6 @@ export interface MomentEntry {
   index: number; // 0-based line index in the body
   time: string; // HH:mm
   text: string; // content after the time
-  isTask: boolean;
   done: boolean;
   tags?: string[];
 }
@@ -24,5 +23,5 @@ export interface TaskOverviewItem {
   done: boolean;
 }
 
-export type MomentFilter = "all" | "openTasks";
+export type MomentFilter = "all" | "open";
 export type InboxTaskFilter = "all" | "open" | "done" | "overdue";

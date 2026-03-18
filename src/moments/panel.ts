@@ -8,8 +8,6 @@ import {
   collectMomentsFeed,
   appendMoment,
   toggleTask,
-  convertMomentEntryToTask,
-  convertMomentEntryToNote,
   saveMomentEdit,
   deleteMomentEntry,
   ensureMomentsFile,
@@ -66,7 +64,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
             this._showError("Notes directory is not configured.");
             return;
           }
-          appendMoment(notesDir, formatDate(new Date()), message.text, message.isTask ?? false);
+          appendMoment(notesDir, formatDate(new Date()), message.text);
           this._sendEntries();
           break;
         }
@@ -76,48 +74,6 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
             return;
           }
           toggleTask(notesDir, message.date ?? formatDate(new Date()), message.index);
-          this._sendEntries();
-          break;
-        }
-
-        case "convertToTask": {
-          if (!notesDir) {
-            this._showError("Notes directory is not configured.");
-            return;
-          }
-
-          if (
-            !convertMomentEntryToTask(
-              notesDir,
-              message.date ?? formatDate(new Date()),
-              message.index,
-            )
-          ) {
-            this._showError("Could not convert that Moment into a task.");
-            return;
-          }
-
-          this._sendEntries();
-          break;
-        }
-
-        case "convertToNote": {
-          if (!notesDir) {
-            this._showError("Notes directory is not configured.");
-            return;
-          }
-
-          if (
-            !convertMomentEntryToNote(
-              notesDir,
-              message.date ?? formatDate(new Date()),
-              message.index,
-            )
-          ) {
-            this._showError("Could not convert that task back into a Moment.");
-            return;
-          }
-
           this._sendEntries();
           break;
         }
@@ -528,12 +484,12 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     gap: 6px;
   }
 
-  .entry.is-task.task-done {
+  .entry.task-done {
     background: color-mix(in srgb, var(--vscode-textLink-foreground) 8%, var(--vscode-editor-background));
     border-color: color-mix(in srgb, var(--vscode-textLink-foreground) 35%, var(--vscode-panel-border));
   }
 
-  .entry.is-task.task-done .entry-text {
+  .entry.task-done .entry-text {
     color: var(--vscode-textLink-foreground);
     text-decoration: line-through;
   }
@@ -693,29 +649,14 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
   }
   textarea::placeholder { color: var(--vscode-input-placeholderForeground); }
 
-  /* Bottom row: task toggle (left) + send button (right) */
+  /* Bottom row: send button */
   .input-actions {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-end;
     padding: 2px 6px 6px 8px;
     gap: 5px;
   }
-
-  .task-toggle {
-    display: inline-flex;
-    align-items: center;
-    color: var(--vscode-descriptionForeground);
-    font-size: 11px;
-    opacity: 0.8;
-    transition: opacity 0.15s, background 0.15s, color 0.15s;
-    user-select: none;
-  }
-  .task-toggle.active {
-    opacity: 1;
-    color: var(--vscode-textLink-foreground);
-  }
-  .task-toggle:hover { opacity: 1; }
 
   .send-icon-btn {
     display: flex;
@@ -930,8 +871,8 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
 <div class="topbar">
   <div class="topbar-row topbar-row-actions">
     <button class="nav-btn" id="allBtn" title="Show all recent moments">All</button>
-    <button class="nav-btn" id="openTasksBtn" title="Show open tasks only">Open</button>
-    <button class="nav-btn" id="inboxBtn" title="Show open tasks across all days">&#128230; Inbox</button>
+    <button class="nav-btn" id="openBtn" title="Show unchecked moments only">Open</button>
+    <button class="nav-btn" id="inboxBtn" title="Show Moments across all days">&#128230; Inbox</button>
     <button class="nav-btn active" id="activeTagBtn" title="Clear active hashtag filter" style="display:none"></button>
     <button class="open-btn" id="openFileBtn" title="Open today's file in editor">&#8599;</button>
     <button class="open-btn export-btn" id="exportBtn" title="Export selected entries as a note">&#128203;</button>
@@ -959,9 +900,6 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
   <div class="input-container" id="inputContainer">
     <textarea id="inputBox" rows="1" placeholder="Capture a thought... (#tag to categorize)"></textarea>
     <div class="input-actions">
-      <label class="task-toggle" id="taskToggleLabel" title="Add the next item as a task">
-        <vscode-checkbox id="taskToggle" aria-label="Add the next item as a task">Add as task</vscode-checkbox>
-      </label>
       <button class="send-icon-btn" id="sendBtn" title="Send (Enter)">
         <svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><path d="M14.5 1.5l-14 5v1.5l5 1.5 8.5-8-6.5 9.5v3.5l2.5-3 3.5 2h1.5l2-15h-1.5z"/></svg>
       </button>
@@ -977,18 +915,15 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
 
 <script>
   const vscode = acquireVsCodeApi();
-  let isTaskMode = false;
   let sendOnEnter = true;
   let isComposing = false; // IME composition guard
 
   const inputBox = document.getElementById('inputBox');
   const sendBtn = document.getElementById('sendBtn');
-  const taskToggle = document.getElementById('taskToggle');
-  const taskToggleLabel = document.getElementById('taskToggleLabel');
   const timeline = document.getElementById('timeline');
   const emptyState = document.getElementById('emptyState');
   const inboxBtn = document.getElementById('inboxBtn');
-  const openTasksBtn = document.getElementById('openTasksBtn');
+  const openBtn = document.getElementById('openBtn');
   const allBtn = document.getElementById('allBtn');
   const activeTagBtn = document.getElementById('activeTagBtn');
   const openFileBtn = document.getElementById('openFileBtn');
@@ -1105,7 +1040,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
       .map((section) => ({
         ...section,
         entries: section.entries
-          .filter((entry) => activeFilter !== 'openTasks' || (entry.isTask && !entry.done))
+          .filter((entry) => activeFilter !== 'open' || !entry.done)
           .filter((entry) => !activeTag || getEntryTags(entry).includes(activeTag))
           .filter((entry) => !currentSearchText || entry.text.toLowerCase().includes(currentSearchText))
           .slice()
@@ -1113,30 +1048,30 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
       }))
       .filter((section) => section.entries.length > 0);
 
-    allBtn.classList.toggle('active', activeFilter !== 'openTasks');
-    allBtn.setAttribute('aria-pressed', String(activeFilter !== 'openTasks'));
-    openTasksBtn.classList.toggle('active', activeFilter === 'openTasks');
-    openTasksBtn.setAttribute('aria-pressed', String(activeFilter === 'openTasks'));
+    allBtn.classList.toggle('active', activeFilter !== 'open');
+    allBtn.setAttribute('aria-pressed', String(activeFilter !== 'open'));
+    openBtn.classList.toggle('active', activeFilter === 'open');
+    openBtn.setAttribute('aria-pressed', String(activeFilter === 'open'));
     activeTagBtn.style.display = activeTag ? '' : 'none';
     activeTagBtn.textContent = activeTag ? activeTagLabel + ' ×' : '';
 
     if (visibleSections.length === 0) {
       emptyState.style.display = 'block';
       timeline.querySelectorAll('.day-section, .pinned-section').forEach(e => e.remove());
-      if (currentSearchText && activeTag && activeFilter === 'openTasks') {
-        emptyState.textContent = 'No open tasks tagged ' + activeTagLabel + ' matching "' + currentSearchText + '"';
+      if (currentSearchText && activeTag && activeFilter === 'open') {
+        emptyState.textContent = 'No open moments tagged ' + activeTagLabel + ' matching "' + currentSearchText + '"';
       } else if (currentSearchText && activeTag) {
         emptyState.textContent = 'No moments tagged ' + activeTagLabel + ' matching "' + currentSearchText + '"';
-      } else if (currentSearchText && activeFilter === 'openTasks') {
-        emptyState.textContent = 'No open tasks matching "' + currentSearchText + '"';
+      } else if (currentSearchText && activeFilter === 'open') {
+        emptyState.textContent = 'No open moments matching "' + currentSearchText + '"';
       } else if (currentSearchText) {
         emptyState.textContent = 'No moments matching "' + currentSearchText + '"';
-      } else if (activeTag && activeFilter === 'openTasks') {
-        emptyState.textContent = 'No open tasks tagged ' + activeTagLabel + ' in this recent feed';
+      } else if (activeTag && activeFilter === 'open') {
+        emptyState.textContent = 'No open moments tagged ' + activeTagLabel + ' in this recent feed';
       } else if (activeTag) {
         emptyState.textContent = 'No moments tagged ' + activeTagLabel + ' in this recent feed';
-      } else if (activeFilter === 'openTasks') {
-        emptyState.textContent = 'No open tasks in this recent feed';
+      } else if (activeFilter === 'open') {
+        emptyState.textContent = 'No open moments in this recent feed';
       } else {
         emptyState.textContent = 'No moments yet — capture your first thought!';
       }
@@ -1244,7 +1179,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
       const entryKey = section.date + ':' + entry.index;
       const exportKey = JSON.stringify({ date: section.date, index: entry.index });
       const div = document.createElement('div');
-      div.className = 'entry' + (entry.isTask ? ' is-task' : '') + (entry.done ? ' task-done' : '') + (selectMode && selectedEntries.has(exportKey) ? ' selected-for-export' : '');
+      div.className = 'entry' + (entry.done ? ' task-done' : '') + (selectMode && selectedEntries.has(exportKey) ? ' selected-for-export' : '');
 
       const meta = document.createElement('div');
       meta.className = 'entry-meta';
@@ -1255,28 +1190,26 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
 
       meta.appendChild(timeBadge);
 
-      if (entry.isTask) {
-        const dueDateMatch = entry.text.match(/(?:📅|due:)(\d{4}-\d{2}-\d{2})/);
-        const dueDate = dueDateMatch ? dueDateMatch[1] : null;
-        if (dueDate) {
-          let dueDateStatus = null;
-          if (!entry.done && todayDate) {
-            if (dueDate < todayDate) {
-              dueDateStatus = 'overdue';
-            } else if (dueDate === todayDate) {
-              dueDateStatus = 'today';
-            } else {
-              dueDateStatus = 'upcoming';
-            }
+      const dueDateMatch = entry.text.match(/(?:📅|due:)(\d{4}-\d{2}-\d{2})/);
+      const dueDate = dueDateMatch ? dueDateMatch[1] : null;
+      if (dueDate) {
+        let dueDateStatus = null;
+        if (!entry.done && todayDate) {
+          if (dueDate < todayDate) {
+            dueDateStatus = 'overdue';
+          } else if (dueDate === todayDate) {
+            dueDateStatus = 'today';
+          } else {
+            dueDateStatus = 'upcoming';
           }
-          if (dueDateStatus) {
-            div.classList.add('due-' + dueDateStatus);
-          }
-          const dueBadge = document.createElement('span');
-          dueBadge.className = 'due-badge';
-          dueBadge.textContent = dueDateStatus === 'today' ? 'Today' : dueDate;
-          meta.appendChild(dueBadge);
         }
+        if (dueDateStatus) {
+          div.classList.add('due-' + dueDateStatus);
+        }
+        const dueBadge = document.createElement('span');
+        dueBadge.className = 'due-badge';
+        dueBadge.textContent = dueDateStatus === 'today' ? 'Today' : dueDate;
+        meta.appendChild(dueBadge);
       }
 
       if (entryKey === editingEntryKey) {
@@ -1396,18 +1329,16 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
       const iconWrapper = document.createElement('div');
       iconWrapper.className = 'entry-icon-wrapper';
 
-      if (entry.isTask) {
-        const checkbox = document.createElement('input');
-        checkbox.type = 'checkbox';
-        checkbox.className = 'entry-checkbox';
-        checkbox.checked = entry.done;
-        checkbox.title = entry.done ? 'Mark task as open' : 'Mark task as done';
-        checkbox.setAttribute('aria-label', entry.done ? 'Mark task as open' : 'Mark task as done');
-        checkbox.addEventListener('change', () => {
-          vscode.postMessage({ command: 'toggleTask', date: section.date, index: entry.index });
-        });
-        iconWrapper.appendChild(checkbox);
-      }
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.className = 'entry-checkbox';
+      checkbox.checked = entry.done;
+      checkbox.title = entry.done ? 'Mark as open' : 'Mark as done';
+      checkbox.setAttribute('aria-label', entry.done ? 'Mark as open' : 'Mark as done');
+      checkbox.addEventListener('change', () => {
+        vscode.postMessage({ command: 'toggleTask', date: section.date, index: entry.index });
+      });
+      iconWrapper.appendChild(checkbox);
 
       const selectCb = document.createElement('input');
       selectCb.type = 'checkbox';
@@ -1431,22 +1362,6 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
 
       const actions = document.createElement('div');
       actions.className = 'entry-actions';
-
-      const convertButton = document.createElement('button');
-      convertButton.className = 'entry-action primary';
-      convertButton.type = 'button';
-      convertButton.title = entry.isTask ? 'Make Note' : 'Make Task';
-      convertButton.innerHTML = entry.isTask
-        ? '<svg viewBox="0 0 16 16"><path fill-rule="evenodd" clip-rule="evenodd" d="M13.71 4.29l-3-3L10 1H4L3 2v12l1 1h9l1-1V5l-.29-.71zM10 2.41l2.59 2.59H10V2.41zM13 14H4V2h5v4h4v8z"/></svg>'
-        : '<svg viewBox="0 0 16 16"><path fill-rule="evenodd" clip-rule="evenodd" d="M14 3v10H2V3h12zm-1-1H3L2 3v10l1 1h10l1-1V3l-1-1zm-2.07 4.21l-3.3 3.3a.5.5 0 01-.7 0L5.35 7.93l.7-.71 1.18 1.18 2.95-2.95.75.76z"/></svg>';
-      convertButton.addEventListener('click', () => {
-        vscode.postMessage({
-          command: entry.isTask ? 'convertToNote' : 'convertToTask',
-          date: section.date,
-          index: entry.index,
-        });
-      });
-      actions.appendChild(convertButton);
 
       const editButton = document.createElement('button');
       editButton.className = 'entry-action';
@@ -1501,17 +1416,11 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     });
   }
 
-  // ---- Input ----
-  taskToggle.addEventListener('change', () => {
-    isTaskMode = taskToggle.checked;
-    taskToggleLabel.classList.toggle('active', isTaskMode);
-  });
-
   function send() {
     const text = inputBox.value.trim();
     if (!text) return;
     pendingScrollMode = 'top';
-    vscode.postMessage({ command: 'addMoment', text, isTask: isTaskMode });
+    vscode.postMessage({ command: 'addMoment', text });
     inputBox.value = '';
     autoResize();
   }
@@ -1551,9 +1460,9 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
       renderTimeline(latestSections);
     }
   });
-  openTasksBtn.addEventListener('click', () => {
-    if (activeFilter !== 'openTasks') {
-      activeFilter = 'openTasks';
+  openBtn.addEventListener('click', () => {
+    if (activeFilter !== 'open') {
+      activeFilter = 'open';
       renderTimeline(latestSections);
     }
   });
