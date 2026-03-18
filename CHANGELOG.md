@@ -4,6 +4,16 @@ All notable changes to the "notes" extension will be documented in this file.
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## [Unreleased]
+
+- No unreleased changes.
+
+## [0.0.20] - 2026-03-18
+
+- Memory posts: make every memory entry checkable from the sidebar.
+- Memory format: persist checked state in entry headers with `[ ]` / `[x]` while keeping older entries compatible.
+- Sidebar/search/reminders: use the shared memory-entry parser so checked and unchecked posts render consistently.
+
 ## [0.0.19] - 2026-02-11
 
 - Fix: Snippet name prefix mismatch (notes_ → noteeees_) causing template insertion to silently fail.
@@ -22,7 +32,3 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 ## [0.0.12] - 2026-02-01
 
 - Renamed UI elements to "Noteeees" for consistency.
-
-## [Unreleased]
-
-- Initial release
