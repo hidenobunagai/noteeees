@@ -6,6 +6,12 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.1.6] - 2026-03-18
+
+### Fixed
+- **Pinned Moments**: Pinned posts now keep the same checkbox column and left alignment as regular Moments entries, so pinning no longer makes checkability disappear or shifts content left.
+- **Pinned state sync**: Pinned posts now resolve their latest text, time, and open/done state from the live Moments feed, keeping the pinned section visually consistent with the source entry.
+
 ## [0.1.5] - 2026-03-18
 
 ### Changed
