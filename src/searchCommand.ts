@@ -1,59 +1,10 @@
 import * as vscode from "vscode";
-import * as fs from "fs";
+import {
+  formatMemoryEntryLabel,
+  getMemoryEntryPreview,
+  parseMemoryFile,
+} from "./memoryEntries";
 import { extractTagsFromMemory } from "./tagCompletion";
-
-export interface MemoryEntry {
-  line: number;
-  dateTime: string;
-  tags: string[];
-  content: string;
-}
-
-export function parseMemoryFile(memoryPath: string): MemoryEntry[] {
-  if (!fs.existsSync(memoryPath)) {
-    return [];
-  }
-
-  const content = fs.readFileSync(memoryPath, "utf8");
-  const lines = content.split("\n");
-  const entries: MemoryEntry[] = [];
-
-  let currentEntry: MemoryEntry | null = null;
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-
-    // Match entry header: ## YYYY-MM-DD HH:mm #tag1 #tag2
-    const headerMatch = line.match(/^## (\d{4}-\d{2}-\d{2}(?: \d{2}:\d{2})?)(.*)$/);
-
-    if (headerMatch) {
-      // Save previous entry
-      if (currentEntry) {
-        entries.push(currentEntry);
-      }
-
-      const dateTime = headerMatch[1];
-      const tagsPart = headerMatch[2];
-      const tags = (tagsPart.match(/#[\w-]+/g) || []);
-
-      currentEntry = {
-        line: i,
-        dateTime,
-        tags,
-        content: "",
-      };
-    } else if (currentEntry && line.trim() && !line.startsWith("# ")) {
-      currentEntry.content += (currentEntry.content ? "\n" : "") + line;
-    }
-  }
-
-  // Add last entry
-  if (currentEntry) {
-    entries.push(currentEntry);
-  }
-
-  return entries;
-}
 
 export async function showSearchQuickPick(memoryPath: string): Promise<void> {
   const entries = parseMemoryFile(memoryPath);
@@ -111,8 +62,8 @@ export async function showSearchQuickPick(memoryPath: string): Promise<void> {
   }
 
   const entryItems: vscode.QuickPickItem[] = filteredEntries.map((entry) => ({
-    label: `${entry.dateTime} ${entry.tags.join(" ")}`,
-    description: entry.content.substring(0, 80).replace(/\n/g, " "),
+    label: formatMemoryEntryLabel(entry),
+    description: getMemoryEntryPreview(entry.content, 80),
     detail: `Line ${entry.line + 1}`,
   }));
 

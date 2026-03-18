@@ -1,5 +1,10 @@
 import * as vscode from "vscode";
-import { MemoryEntry, parseMemoryFile } from "./searchCommand";
+import {
+  formatMemoryEntryLabel,
+  getMemoryEntryPreview,
+  type MemoryEntry,
+  parseMemoryFile,
+} from "./memoryEntries";
 
 interface ScoredEntry {
   entry: MemoryEntry;
@@ -205,11 +210,11 @@ function scoreEntry(entry: MemoryEntry, tokens: string[], weights: SearchWeights
 }
 
 function createResultItem(scored: ScoredEntry): vscode.QuickPickItem {
-  const preview = scored.entry.content.substring(0, 80).replace(/\n/g, " ");
+  const preview = getMemoryEntryPreview(scored.entry.content, 80);
   const reasons = [...new Set(scored.reasons)].slice(0, 2).join(" / ");
 
   return {
-    label: `${scored.entry.dateTime} ${scored.entry.tags.join(" ")}`,
+    label: formatMemoryEntryLabel(scored.entry),
     description: `score:${scored.score} matched:${scored.matchedTokenCount} | ${preview}`,
     detail: `${reasons || "matched by context"} | Line ${scored.entry.line + 1}`,
   };

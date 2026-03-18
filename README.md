@@ -15,6 +15,7 @@ Simple markdown notes extension with two-tier note management: individual notes 
 ### Memory Log
 - **Quick Add** (`Cmd+Shift+N`): Quickly add a one-line note to `memory.md`
 - **Add Entry** (`Cmd+Shift+M`): Add a note entry with a snippet
+- **Checkable Posts**: Every memory entry can be checked off from the sidebar
 - **Tag Autocomplete**: Suggests previously used tags
 - **Search**: Filter by tags and dates
 - **Structure Search** (`Cmd+Shift+G`): Rank entries by query relevance (tags/date/month/keywords)
@@ -30,7 +31,9 @@ Simple markdown notes extension with two-tier note management: individual notes 
 1. Run `Noteeees: Run Setup` to configure the storage directory
 2. Press `Cmd+Alt+N` to create a new individual note
 3. Press `Cmd+Shift+N` to quickly add to memory log
-4. Check entries and notes in the Sidebar
+4. Check off any memory post in the Sidebar and browse notes as before
+
+Memory entries are stored as Markdown headers like `## 2026-03-18 09:42 [ ] #work`, so older entries without a checkbox continue to work and are treated as unchecked.
 
 ## Templates
 

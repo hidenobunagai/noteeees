@@ -1,6 +1,7 @@
 import * as vscode from "vscode";
 import * as path from "path";
 import * as fs from "fs";
+import { formatMemoryEntryHeader } from "./memoryEntries";
 import { TagCompletionProvider } from "./tagCompletion";
 import { showSearchQuickPick } from "./searchCommand";
 import { NotesTreeProvider, registerGoToLineCommand } from "./sidebarProvider";
@@ -98,7 +99,13 @@ export function activate(context: vscode.ExtensionContext) {
 
   // Register sidebar tree view
   const notesTreeProvider = new NotesTreeProvider(getMemoryFilePath, getNotesDir);
-  vscode.window.registerTreeDataProvider("notesExplorer", notesTreeProvider);
+  const notesTreeView = vscode.window.createTreeView("notesExplorer", {
+    treeDataProvider: notesTreeProvider,
+  });
+  notesTreeView.onDidChangeCheckboxState((event) => {
+    void notesTreeProvider.updateEntryCheckboxes(event.items);
+  });
+  context.subscriptions.push(notesTreeView);
   registerGoToLineCommand(context, getMemoryFilePath);
 
   // Refresh tree when files change
@@ -165,7 +172,7 @@ export function activate(context: vscode.ExtensionContext) {
     }
 
     const snippet = new vscode.SnippetString(
-      `\n## ${dateTime} #\${1:tag}\n\${2:content}\n\n\$0`
+      `\n## ${dateTime} [ ] #\${1:tag}\n\${2:content}\n\n\$0`
     );
 
     await editor.insertSnippet(snippet, insertPosition);
@@ -180,16 +187,16 @@ export function activate(context: vscode.ExtensionContext) {
 
     const input = await vscode.window.showInputBox({
       prompt: "Quick note (use #tag for tags)",
-      placeHolder: "#todo 経費精算の期限は2/5まで",
+      placeHolder: "#work 経費精算の期限は2/5まで",
     });
 
     if (!input) {
       return;
     }
 
-    const tagMatches = input.match(/#\w+/g) || [];
+    const tagMatches = input.match(/#[\w-]+/g) || [];
     const tags = tagMatches.join(" ");
-    const content = input.replace(/#\w+\s*/g, "").trim();
+    const content = input.replace(/#[\w-]+\s*/g, "").trim();
 
     const memoryPath = path.join(notesDir, MEMORY_FILE_NAME);
     ensureMemoryFile(memoryPath);
@@ -200,8 +207,7 @@ export function activate(context: vscode.ExtensionContext) {
 
     let existingContent = fs.readFileSync(memoryPath, "utf8");
 
-    const tagSection = tags ? ` ${tags}` : "";
-    const newEntry = `\n## ${dateTime}${tagSection}\n${content}\n\n`;
+    const newEntry = `\n${formatMemoryEntryHeader(dateTime, tags, false)}\n${content}\n\n`;
 
     if (position === "top") {
       if (existingContent.startsWith(MEMORY_HEADER)) {

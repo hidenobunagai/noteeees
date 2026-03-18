@@ -1,7 +1,12 @@
 import * as path from "path";
 import * as vscode from "vscode";
+import {
+  getMemoryEntryPreview,
+  parseMemoryFile,
+  parseMemoryText,
+  updateMemoryEntryCheckbox,
+} from "./memoryEntries";
 import { collectNoteFiles } from "./noteCommands";
-import { parseMemoryFile } from "./searchCommand";
 import { extractTagsFromMemory } from "./tagCompletion";
 
 /**
@@ -38,6 +43,8 @@ interface TagTreeItem extends vscode.TreeItem {
   tag?: string;
   month?: string;
   entryLine?: number;
+  entryDateTime?: string;
+  entryHeaderTail?: string;
   filePath?: string;
 }
 
@@ -60,21 +67,107 @@ export class NotesTreeProvider implements vscode.TreeDataProvider<TagTreeItem> {
 
   private createEntryTreeItem(
     entry: ReturnType<typeof parseMemoryFile>[number],
-    description: string,
   ): TagTreeItem {
+    const preview = getMemoryEntryPreview(entry.content, 40);
+    const description = preview || entry.tags.join(" ");
+
     return {
       label: entry.dateTime,
-      description,
+      description: description || undefined,
       kind: "entry",
       entryLine: entry.line,
+      entryDateTime: entry.dateTime,
+      entryHeaderTail: entry.headerTail,
       collapsibleState: vscode.TreeItemCollapsibleState.None,
-      iconPath: new vscode.ThemeIcon("note"),
+      checkboxState: entry.checked
+        ? vscode.TreeItemCheckboxState.Checked
+        : vscode.TreeItemCheckboxState.Unchecked,
       command: {
         command: "notes.goToLine",
         title: "Go to Entry",
         arguments: [entry.line],
       },
     };
+  }
+
+  async updateEntryCheckboxes(
+    changes: ReadonlyArray<[TagTreeItem, vscode.TreeItemCheckboxState]>,
+  ): Promise<void> {
+    const memoryPath = this.getMemoryPath();
+    if (!memoryPath) {
+      vscode.window.showErrorMessage("Notes directory is not configured. Run 'Notes: Run Setup' first.");
+      return;
+    }
+
+    const document = await vscode.workspace.openTextDocument(memoryPath);
+    const entries = parseMemoryText(document.getText());
+    const edit = new vscode.WorkspaceEdit();
+    let hasChanges = false;
+
+    for (const [item, checkboxState] of changes) {
+      if (
+        item.kind !== "entry" ||
+        item.entryLine === undefined ||
+        !item.entryDateTime ||
+        item.entryHeaderTail === undefined
+      ) {
+        continue;
+      }
+
+      const matchingEntry =
+        entries.find(
+          (entry) =>
+            entry.line === item.entryLine &&
+            entry.dateTime === item.entryDateTime &&
+            entry.headerTail === item.entryHeaderTail,
+        ) ||
+        entries.find(
+          (entry) =>
+            entry.dateTime === item.entryDateTime && entry.headerTail === item.entryHeaderTail,
+        );
+
+      if (!matchingEntry) {
+        vscode.window.showErrorMessage(
+          "Could not find the selected post. Refresh the sidebar and try again.",
+        );
+        continue;
+      }
+
+      const updatedLine = updateMemoryEntryCheckbox(
+        document.lineAt(matchingEntry.line).text,
+        checkboxState === vscode.TreeItemCheckboxState.Checked,
+      );
+
+      if (!updatedLine) {
+        vscode.window.showErrorMessage(
+          "Could not update the selected post. Refresh the sidebar and try again.",
+        );
+        continue;
+      }
+
+      if (updatedLine !== document.lineAt(matchingEntry.line).text) {
+        edit.replace(document.uri, document.lineAt(matchingEntry.line).range, updatedLine);
+        hasChanges = true;
+      }
+    }
+
+    if (!hasChanges) {
+      return;
+    }
+
+    const applied = await vscode.workspace.applyEdit(edit);
+    if (!applied) {
+      vscode.window.showErrorMessage("Could not apply the checkbox update to memory.md.");
+      return;
+    }
+
+    const saved = await document.save();
+    if (!saved) {
+      vscode.window.showErrorMessage("Could not save memory.md after updating the selected post.");
+      return;
+    }
+
+    this.refresh();
   }
 
   getChildren(element?: TagTreeItem): TagTreeItem[] {
@@ -197,7 +290,7 @@ export class NotesTreeProvider implements vscode.TreeDataProvider<TagTreeItem> {
         .sort((a, b) => b.dateTime.localeCompare(a.dateTime));
 
       return filtered.map((entry) =>
-        this.createEntryTreeItem(entry, entry.content.substring(0, 40).replace(/\n/g, " ")),
+        this.createEntryTreeItem(entry),
       );
     }
 
@@ -207,7 +300,7 @@ export class NotesTreeProvider implements vscode.TreeDataProvider<TagTreeItem> {
       const filtered = entries.filter((e) => e.tags.includes(element.tag!));
 
       return filtered.map((entry) => {
-        return this.createEntryTreeItem(entry, entry.content.substring(0, 40).replace(/\n/g, " "));
+        return this.createEntryTreeItem(entry);
       });
     }
 

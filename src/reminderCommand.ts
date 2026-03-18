@@ -1,5 +1,5 @@
 import * as vscode from "vscode";
-import * as fs from "fs";
+import { getMemoryEntryPreview, parseMemoryFile } from "./memoryEntries";
 
 interface ReminderEntry {
   dateTime: string;
@@ -9,59 +9,22 @@ interface ReminderEntry {
 }
 
 export function extractReminders(memoryPath: string): ReminderEntry[] {
-  if (!fs.existsSync(memoryPath)) {
-    return [];
-  }
-
-  const content = fs.readFileSync(memoryPath, "utf8");
-  const lines = content.split("\n");
-  const reminders: ReminderEntry[] = [];
-
-  let currentDateTime = "";
-  let currentContent = "";
-  let currentLine = 0;
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-
-    const headerMatch = line.match(/^## (\d{4}-\d{2}-\d{2}(?: \d{2}:\d{2})?)(.*)$/);
-
-    if (headerMatch) {
-      // Check previous entry for reminder
-      if (currentContent) {
-        const reminderMatch = currentContent.match(/@(\d{4}-\d{2}-\d{2})/);
-        if (reminderMatch) {
-          reminders.push({
-            dateTime: currentDateTime,
-            content: currentContent.replace(/@\d{4}-\d{2}-\d{2}\s*/g, "").trim(),
-            reminderDate: reminderMatch[1],
-            line: currentLine,
-          });
-        }
-      }
-
-      currentDateTime = headerMatch[1];
-      currentContent = headerMatch[2];
-      currentLine = i;
-    } else if (line.trim() && !line.startsWith("# ")) {
-      currentContent += "\n" + line;
+  const reminders = parseMemoryFile(memoryPath).flatMap((entry) => {
+    const reminderMatch = entry.content.match(/@(\d{4}-\d{2}-\d{2})/);
+    if (!reminderMatch) {
+      return [];
     }
-  }
 
-  // Check last entry
-  if (currentContent) {
-    const reminderMatch = currentContent.match(/@(\d{4}-\d{2}-\d{2})/);
-    if (reminderMatch) {
-      reminders.push({
-        dateTime: currentDateTime,
-        content: currentContent.replace(/@\d{4}-\d{2}-\d{2}\s*/g, "").trim(),
+    return [
+      {
+        dateTime: entry.dateTime,
+        content: entry.content.replace(/@\d{4}-\d{2}-\d{2}\s*/g, "").trim(),
         reminderDate: reminderMatch[1],
-        line: currentLine,
-      });
-    }
-  }
+        line: entry.line,
+      },
+    ];
+  });
 
-  // Sort by reminder date
   return reminders.sort((a, b) => a.reminderDate.localeCompare(b.reminderDate));
 }
 
@@ -83,7 +46,7 @@ export async function showReminders(memoryPath: string): Promise<void> {
 
     return {
       label: `${icon} ${r.reminderDate} ${status}`,
-      description: r.content.substring(0, 60).replace(/\n/g, " "),
+      description: getMemoryEntryPreview(r.content, 60),
       detail: `Created: ${r.dateTime} | Line ${r.line + 1}`,
     };
   });
