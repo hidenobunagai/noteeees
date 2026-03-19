@@ -501,6 +501,8 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
   .entry-text {
     line-height: 1.45;
     font-size: 12.5px;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
   }
 
   .entry-edit {

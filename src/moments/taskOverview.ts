@@ -37,6 +37,10 @@ function compareOpenTaskOverview<T extends { date: string; time: string; done?: 
   return b.time.localeCompare(a.time);
 }
 
+function normalizeMomentTextForSearch(text: string): string {
+  return text.replace(/\s*\n+\s*/g, " ").replace(/\s+/g, " ").trim();
+}
+
 export function sortOpenTaskOverview<T extends { date: string; time: string; done?: boolean }>(
   items: T[],
 ): T[] {
@@ -46,10 +50,11 @@ export function sortOpenTaskOverview<T extends { date: string; time: string; don
 export function buildTaskSearchDetail(item: TaskOverviewItem, query: string = ""): string {
   const details = [`${item.relativePath}:${item.fileLineIndex + 1}`];
   const normalizedQuery = query.trim();
+  const searchText = normalizeMomentTextForSearch(item.text);
 
   if (normalizedQuery) {
     const excerpt = buildQueryExcerpt(
-      `${item.relativePath} ${item.date} ${item.time} ${item.done ? "done" : "open"} ${item.text}`,
+      `${item.relativePath} ${item.date} ${item.time} ${item.done ? "done" : "open"} ${searchText}`,
       normalizedQuery,
       90,
     );
@@ -66,7 +71,7 @@ function toOpenTaskQuickPickItem(
   query: string = "",
 ): OpenTaskQuickPickItem {
   return {
-    label: `$(checklist) ${item.text}`,
+    label: `$(checklist) ${normalizeMomentTextForSearch(item.text)}`,
     description: `${item.date} • ${item.time} • ${item.done ? "Done" : "Open"}`,
     detail: buildTaskSearchDetail(item, query),
     buttons: [

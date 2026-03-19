@@ -38,6 +38,116 @@ export function getMomentsDirectory(notesDir: string): string {
   return path.join(notesDir, getMomentsSubfolder());
 }
 
+function parseMomentEntryStart(
+  line: string,
+): { time: string; text: string; done: boolean } | null {
+  const taskDone = line.match(/^-\s+\[x\]\s+(\d{2}:\d{2})\s+(.*)/i);
+  if (taskDone) {
+    return {
+      time: taskDone[1],
+      text: taskDone[2],
+      done: true,
+    };
+  }
+
+  const taskTodo = line.match(/^-\s+\[ \]\s+(\d{2}:\d{2})\s+(.*)/i);
+  if (taskTodo) {
+    return {
+      time: taskTodo[1],
+      text: taskTodo[2],
+      done: false,
+    };
+  }
+
+  const regular = line.match(/^-\s+(\d{2}:\d{2})\s+(.*)/);
+  if (regular) {
+    return {
+      time: regular[1],
+      text: regular[2],
+      done: false,
+    };
+  }
+
+  return null;
+}
+
+function findMomentEntryRange(lines: string[], startIndex: number): { startIndex: number; endIndex: number } | null {
+  if (startIndex < 0 || startIndex >= lines.length) {
+    return null;
+  }
+
+  if (!parseMomentEntryStart(lines[startIndex])) {
+    return null;
+  }
+
+  let endIndex = startIndex + 1;
+  while (endIndex < lines.length && !parseMomentEntryStart(lines[endIndex])) {
+    endIndex++;
+  }
+
+  return { startIndex, endIndex };
+}
+
+function buildMomentEntryLines(startLine: string, text: string): { lines: string[]; changed: boolean } {
+  const normalizedText = text.replace(/\r\n/g, "\n").trim();
+  if (!normalizedText) {
+    return { lines: [startLine], changed: false };
+  }
+
+  const textLines = normalizedText.split("\n");
+
+  const taskDone = startLine.match(/^(-\s+\[x\]\s+)(\d{2}:\d{2})\s+(.*)$/i);
+  if (taskDone) {
+    const lines = [`${taskDone[1]}${taskDone[2]} ${textLines[0]}`, ...textLines.slice(1)];
+    return {
+      lines,
+      changed: lines.join("\n") !== startLine,
+    };
+  }
+
+  const taskTodo = startLine.match(/^(-\s+\[ \]\s+)(\d{2}:\d{2})\s+(.*)$/);
+  if (taskTodo) {
+    const lines = [`${taskTodo[1]}${taskTodo[2]} ${textLines[0]}`, ...textLines.slice(1)];
+    return {
+      lines,
+      changed: lines.join("\n") !== startLine,
+    };
+  }
+
+  const regular = startLine.match(/^(-\s+)(\d{2}:\d{2})\s+(.*)$/);
+  if (regular) {
+    const lines = [`${regular[1]}[ ] ${regular[2]} ${textLines[0]}`, ...textLines.slice(1)];
+    return {
+      lines,
+      changed: lines.join("\n") !== startLine,
+    };
+  }
+
+  return { lines: [startLine], changed: false };
+}
+
+function replaceMomentEntryBlock(
+  lines: string[],
+  range: { startIndex: number; endIndex: number },
+  text: string,
+): { lines: string[]; changed: boolean } {
+  const result = buildMomentEntryLines(lines[range.startIndex], text);
+  if (!result.changed) {
+    return { lines, changed: false };
+  }
+
+  const nextLines = [
+    ...lines.slice(0, range.startIndex),
+    ...result.lines,
+    ...lines.slice(range.endIndex),
+  ];
+
+  return {
+    lines: nextLines,
+    changed: nextLines.join("\n") !== lines.join("\n"),
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Read/write operations
 // ---------------------------------------------------------------------------
@@ -62,44 +172,32 @@ export function readMoments(notesDir: string, date: string): MomentEntry[] {
   const lines = body.split("\n");
   const entries: MomentEntry[] = [];
 
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i].trim();
-    if (!line) {
+  for (let i = 0; i < lines.length; ) {
+    const start = parseMomentEntryStart(lines[i]);
+    if (!start) {
+      i++;
       continue;
     }
 
-    // Checked:     - [x] HH:mm text
-    // Unchecked:   - [ ] HH:mm text
-    // Legacy:      - HH:mm text
-    const taskDone = line.match(/^-\s+\[x\]\s+(\d{2}:\d{2})\s+(.*)/i);
-    const taskTodo = line.match(/^-\s+\[ \]\s+(\d{2}:\d{2})\s+(.*)/i);
-    const regular = line.match(/^-\s+(\d{2}:\d{2})\s+(.*)/);
-
-    if (taskDone) {
-      entries.push({
-        index: i,
-        time: taskDone[1],
-        text: taskDone[2],
-        done: true,
-        tags: extractMomentTags(taskDone[2]),
-      });
-    } else if (taskTodo) {
-      entries.push({
-        index: i,
-        time: taskTodo[1],
-        text: taskTodo[2],
-        done: false,
-        tags: extractMomentTags(taskTodo[2]),
-      });
-    } else if (regular) {
-      entries.push({
-        index: i,
-        time: regular[1],
-        text: regular[2],
-        done: false,
-        tags: extractMomentTags(regular[2]),
-      });
+    const range = findMomentEntryRange(lines, i);
+    if (!range) {
+      i++;
+      continue;
     }
+
+    const textLines = [start.text, ...lines.slice(range.startIndex + 1, range.endIndex)];
+    while (textLines.length > 1 && textLines[textLines.length - 1].trim() === "") {
+      textLines.pop();
+    }
+    const text = textLines.join("\n");
+    entries.push({
+      index: range.startIndex,
+      time: start.time,
+      text,
+      done: start.done,
+      tags: extractMomentTags(text),
+    });
+    i = range.endIndex;
   }
 
   return entries;
@@ -258,7 +356,8 @@ export function ensureMomentsFile(notesDir: string, date: string): string {
 export function appendMoment(notesDir: string, date: string, text: string): void {
   const filePath = ensureMomentsFile(notesDir, date);
   const time = formatTime(new Date());
-  const entry = `- [ ] ${time} ${text.trim()}\n`;
+  const entryText = text.replace(/\r\n/g, "\n").trim();
+  const entry = `- [ ] ${time} ${entryText}\n`;
 
   let content = fs.readFileSync(filePath, "utf8");
   // Ensure ends with newline before appending
@@ -305,13 +404,17 @@ export function saveMomentEdit(notesDir: string, date: string, index: number, te
     return false;
   }
 
-  const result = replaceMomentEntryText(lines[fileLineIdx], text);
+  const range = findMomentEntryRange(lines, fileLineIdx);
+  if (!range) {
+    return false;
+  }
+
+  const result = replaceMomentEntryBlock(lines, range, text);
   if (!result.changed) {
     return false;
   }
 
-  lines[fileLineIdx] = result.line;
-  fs.writeFileSync(filePath, lines.join("\n"), "utf8");
+  fs.writeFileSync(filePath, result.lines.join("\n"), "utf8");
   return true;
 }
 
@@ -324,12 +427,13 @@ export function deleteMomentEntry(notesDir: string, date: string, index: number)
   const raw = fs.readFileSync(filePath, "utf8");
   const lines = raw.split("\n");
   const fileLineIdx = mapMomentBodyIndexToFileLine(raw, index);
-  const result = deleteMomentLine(lines, fileLineIdx);
-  if (!result.changed) {
+  const range = findMomentEntryRange(lines, fileLineIdx);
+  if (!range) {
     return false;
   }
 
-  fs.writeFileSync(filePath, result.lines.join("\n"), "utf8");
+  const nextLines = [...lines.slice(0, range.startIndex), ...lines.slice(range.endIndex)];
+  fs.writeFileSync(filePath, nextLines.join("\n"), "utf8");
   return true;
 }
 

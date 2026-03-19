@@ -27,6 +27,13 @@ import {
   sortOpenTaskOverview,
   toggleMomentTaskLine,
 } from "../momentsPanel";
+import {
+  appendMoment,
+  deleteMomentEntry,
+  getMomentsFilePath,
+  readMoments,
+  saveMomentEdit,
+} from "../moments/fileIo";
 
 // You can import and use all API from the 'vscode' module
 // as well as import your extension to test it
@@ -441,6 +448,55 @@ suite("Extension Test Suite", () => {
       line: "- [ ] 09:00 updated note",
       changed: true,
     });
+  });
+
+  test("multiline moments round-trip through append and read", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "noteeees-moments-"));
+    try {
+      appendMoment(tmpDir, "2026-03-07", "First line\nSecond line\nThird line");
+      const entries = readMoments(tmpDir, "2026-03-07");
+
+      assert.strictEqual(entries.length, 1);
+      assert.strictEqual(entries[0].text, "First line\nSecond line\nThird line");
+      assert.deepStrictEqual(entries[0].tags, []);
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  test("multiline moments save and delete operate on full blocks", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "noteeees-moments-"));
+    const date = "2026-03-07";
+    const filePath = getMomentsFilePath(tmpDir, date);
+
+    try {
+      fs.mkdirSync(path.dirname(filePath), { recursive: true });
+      fs.writeFileSync(
+        filePath,
+        `---\ntype: moments\ndate: ${date}\n---\n\n- [ ] 09:00 First line\nSecond line\n- [ ] 09:30 Next entry\n`,
+        "utf8",
+      );
+
+      assert.strictEqual(saveMomentEdit(tmpDir, date, 1, "Updated first\nUpdated second"), true);
+      let entries = readMoments(tmpDir, date);
+      assert.strictEqual(entries.length, 2);
+      assert.strictEqual(entries[0].text, "Updated first\nUpdated second");
+      assert.strictEqual(entries[1].text, "Next entry");
+
+      assert.strictEqual(deleteMomentEntry(tmpDir, date, 1), true);
+      entries = readMoments(tmpDir, date);
+      assert.deepStrictEqual(entries, [
+        {
+          index: 1,
+          time: "09:30",
+          text: "Next entry",
+          done: false,
+          tags: [],
+        },
+      ]);
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
   });
 
   test("moment line deletion removes only the targeted line", () => {
