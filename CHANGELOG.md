@@ -6,6 +6,11 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.1.12] - 2026-03-19
+
+### Fixed
+- **Moments feed performance**: Lazy loading no longer reads every older Moments file on each refresh, which keeps the feed responsive on larger histories.
+
 ## [0.1.11] - 2026-03-19
 
 ### Changed
