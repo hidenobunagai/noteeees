@@ -317,7 +317,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
   }
 
   .nav-btn {
-    flex: 1;
+    flex: none;
     text-align: center;
     background: none;
     border: none;
@@ -329,6 +329,12 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     font-weight: 500;
     opacity: 0.7;
     transition: opacity 0.15s, background 0.15s;
+  }
+  .nav-btn.icon-only {
+    min-width: 26px;
+    padding: 3px 4px;
+    font-size: 13px;
+    line-height: 1;
   }
   .nav-btn:hover { opacity: 1; background: var(--vscode-toolbar-hoverBackground); }
 
@@ -878,11 +884,11 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
 </style>
 </head>
 <body>
-<div class="topbar">
+  <div class="topbar">
   <div class="topbar-row topbar-row-actions">
-    <button class="nav-btn" id="allBtn" title="Show all recent moments">All</button>
-    <button class="nav-btn" id="openBtn" title="Show unchecked moments only">Open</button>
-    <button class="nav-btn" id="inboxBtn" title="Show Moments across all days">&#128230; Inbox</button>
+    <button class="nav-btn icon-only" id="allBtn" title="Show all recent moments" aria-label="Show all recent moments">☰</button>
+    <button class="nav-btn icon-only" id="openBtn" title="Show unchecked moments only" aria-label="Show unchecked moments only">○</button>
+    <button class="nav-btn icon-only" id="inboxBtn" title="Show Moments across all days" aria-label="Show Moments across all days">&#128230;</button>
     <button class="nav-btn active" id="activeTagBtn" title="Clear active hashtag filter" style="display:none"></button>
     <button class="open-btn" id="openFileBtn" title="Open today's file in editor">&#8599;</button>
     <button class="open-btn export-btn" id="exportBtn" title="Export selected entries as a note">&#128203;</button>
