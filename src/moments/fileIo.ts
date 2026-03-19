@@ -354,32 +354,39 @@ export function collectMomentsFeed(
   const today = formatDate(new Date());
   const safeSectionCount = normalizeMomentsFeedDayCount(sectionCount);
   const fileDates = listMomentFileDates(notesDir).filter((date) => date < anchorDate);
-  const olderVisibleDates = fileDates.filter((date) => readMoments(notesDir, date).length > 0);
-  const oldestVisibleDate = olderVisibleDates.at(-1) ?? anchorDate;
-  const totalVisibleSections = 1 + olderVisibleDates.length;
-  const sections: MomentDaySection[] = [];
+  const sections: MomentDaySection[] = [
+    {
+      date: anchorDate,
+      dateLabel: buildMomentsDateLabel(anchorDate, today),
+      isToday: anchorDate === today,
+      entries: readMoments(notesDir, anchorDate),
+    },
+  ];
+  let hasMoreOlder = false;
 
-  for (let offset = 0; ; offset++) {
-    const date = offsetDate(anchorDate, -offset);
+  for (const date of fileDates) {
     const entries = readMoments(notesDir, date);
+    if (entries.length === 0) {
+      continue;
+    }
 
-    if (offset === 0 || entries.length > 0) {
+    if (sections.length < safeSectionCount) {
       sections.push({
         date,
         dateLabel: buildMomentsDateLabel(date, today),
         isToday: date === today,
         entries,
       });
+      continue;
     }
 
-    if (sections.length >= safeSectionCount || date === oldestVisibleDate) {
-      break;
-    }
+    hasMoreOlder = true;
+    break;
   }
 
   return {
     sections,
-    hasMoreOlder: sections.length < totalVisibleSections,
+    hasMoreOlder,
   };
 }
 
