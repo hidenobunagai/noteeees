@@ -6,6 +6,15 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.1.10] - 2026-03-19
+
+### Changed
+- **Moments**: Multiline posts now preserve internal line breaks in the feed, editor, and inbox instead of losing everything after the first line.
+- **Moments header**: The All, Open, and Inbox controls now use compact icon buttons so hashtag filters have more room.
+
+### Fixed
+- **Moments parsing**: Entry parsing and mutation now treat a post as a block, so editing and deleting multiline entries keeps the full text intact.
+
 ## [0.1.9] - 2026-03-18
 
 ### Fixed
