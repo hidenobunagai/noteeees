@@ -38,6 +38,21 @@ export function getMomentsDirectory(notesDir: string): string {
   return path.join(notesDir, getMomentsSubfolder());
 }
 
+function listMomentFileDates(notesDir: string): string[] {
+  const momentsDir = getMomentsDirectory(notesDir);
+  if (!fs.existsSync(momentsDir)) {
+    return [];
+  }
+
+  const dateFilePattern = /^(\d{4}-\d{2}-\d{2})\.md$/;
+  return fs
+    .readdirSync(momentsDir, { withFileTypes: true })
+    .filter((entry) => entry.isFile())
+    .map((entry) => entry.name.match(dateFilePattern)?.[1])
+    .filter((date): date is string => Boolean(date))
+    .sort((a, b) => b.localeCompare(a));
+}
+
 function parseMomentEntryStart(
   line: string,
 ): { time: string; text: string; done: boolean } | null {
@@ -326,18 +341,46 @@ export function buildMomentsDateLabel(date: string, today: string): string {
   return date;
 }
 
-export function collectMomentsFeed(notesDir: string, anchorDate: string): MomentDaySection[] {
-  const today = formatDate(new Date());
-  const feedDayCount = getMomentsFeedDayCount();
+export interface MomentsFeedData {
+  sections: MomentDaySection[];
+  hasMoreOlder: boolean;
+}
 
-  return buildMomentsFeedDates(anchorDate, feedDayCount)
-    .map((date) => ({
-      date,
-      dateLabel: buildMomentsDateLabel(date, today),
-      isToday: date === today,
-      entries: readMoments(notesDir, date),
-    }))
-    .filter((section, index) => index === 0 || section.entries.length > 0);
+export function collectMomentsFeed(
+  notesDir: string,
+  anchorDate: string,
+  sectionCount: number = getMomentsFeedDayCount(),
+): MomentsFeedData {
+  const today = formatDate(new Date());
+  const safeSectionCount = normalizeMomentsFeedDayCount(sectionCount);
+  const fileDates = listMomentFileDates(notesDir).filter((date) => date < anchorDate);
+  const olderVisibleDates = fileDates.filter((date) => readMoments(notesDir, date).length > 0);
+  const oldestVisibleDate = olderVisibleDates.at(-1) ?? anchorDate;
+  const totalVisibleSections = 1 + olderVisibleDates.length;
+  const sections: MomentDaySection[] = [];
+
+  for (let offset = 0; ; offset++) {
+    const date = offsetDate(anchorDate, -offset);
+    const entries = readMoments(notesDir, date);
+
+    if (offset === 0 || entries.length > 0) {
+      sections.push({
+        date,
+        dateLabel: buildMomentsDateLabel(date, today),
+        isToday: date === today,
+        entries,
+      });
+    }
+
+    if (sections.length >= safeSectionCount || date === oldestVisibleDate) {
+      break;
+    }
+  }
+
+  return {
+    sections,
+    hasMoreOlder: sections.length < totalVisibleSections,
+  };
 }
 
 export function ensureMomentsFile(notesDir: string, date: string): string {

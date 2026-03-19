@@ -29,8 +29,10 @@ import {
 } from "../momentsPanel";
 import {
   appendMoment,
+  collectMomentsFeed,
   deleteMomentEntry,
   getMomentsFilePath,
+  formatDate,
   readMoments,
   saveMomentEdit,
 } from "../moments/fileIo";
@@ -494,6 +496,48 @@ suite("Extension Test Suite", () => {
           tags: [],
         },
       ]);
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  test("moments feed can load older visible days incrementally", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "noteeees-moments-"));
+    const today = formatDate(new Date());
+    const [todayDate, yesterdayDate, twoDaysAgoDate, threeDaysAgoDate] = buildMomentsFeedDates(today, 4);
+
+    try {
+      appendMoment(tmpDir, todayDate, "Today entry");
+      fs.writeFileSync(
+        getMomentsFilePath(tmpDir, yesterdayDate),
+        `---\ntype: moments\ndate: ${yesterdayDate}\n---\n\n`,
+        "utf8",
+      );
+      fs.writeFileSync(
+        getMomentsFilePath(tmpDir, twoDaysAgoDate),
+        `---\ntype: moments\ndate: ${twoDaysAgoDate}\n---\n\n- [ ] 09:00 Two days ago\n`,
+        "utf8",
+      );
+      fs.writeFileSync(
+        getMomentsFilePath(tmpDir, threeDaysAgoDate),
+        `---\ntype: moments\ndate: ${threeDaysAgoDate}\n---\n\n- [ ] 08:00 Three days ago\n`,
+        "utf8",
+      );
+
+      const initial = collectMomentsFeed(tmpDir, today, 2);
+      assert.deepStrictEqual(initial.sections.map((section) => section.date), [
+        todayDate,
+        twoDaysAgoDate,
+      ]);
+      assert.strictEqual(initial.hasMoreOlder, true);
+
+      const expanded = collectMomentsFeed(tmpDir, today, 3);
+      assert.deepStrictEqual(expanded.sections.map((section) => section.date), [
+        todayDate,
+        twoDaysAgoDate,
+        threeDaysAgoDate,
+      ]);
+      assert.strictEqual(expanded.hasMoreOlder, false);
     } finally {
       fs.rmSync(tmpDir, { recursive: true, force: true });
     }

@@ -1,7 +1,12 @@
 import * as fs from "fs";
 import * as path from "path";
 import * as vscode from "vscode";
-import { MOMENT_TAG_PATTERN, getSendOnEnter, resolvePinnedEntries } from "./config.js";
+import {
+  MOMENT_TAG_PATTERN,
+  getSendOnEnter,
+  getMomentsFeedDayCount,
+  resolvePinnedEntries,
+} from "./config.js";
 import {
   formatDate,
   getMomentsFilePath,
@@ -26,6 +31,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
   private readonly _getNotesDir: () => string | undefined;
   private readonly _extensionUri: vscode.Uri;
   private readonly _context: vscode.ExtensionContext;
+  private _feedSectionCount = getMomentsFeedDayCount();
 
   constructor(getNotesDir: () => string | undefined, extensionUri: vscode.Uri, context: vscode.ExtensionContext) {
     this._getNotesDir = getNotesDir;
@@ -50,8 +56,19 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
       const notesDir = this._getNotesDir();
       switch (message.command) {
         case "ready":
+          this._feedSectionCount = Math.max(this._feedSectionCount, getMomentsFeedDayCount());
           this._sendEntries();
           break;
+
+        case "loadMore": {
+          if (!notesDir) {
+            return;
+          }
+
+          this._feedSectionCount += Math.max(1, getMomentsFeedDayCount());
+          this._sendEntries();
+          break;
+        }
 
         case "addMoment": {
           if (!notesDir) {
@@ -237,7 +254,10 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     }
     const notesDir = this._getNotesDir();
     const today = formatDate(new Date());
-    const sections = notesDir ? collectMomentsFeed(notesDir, today) : [];
+    const feedSectionCount = Math.max(this._feedSectionCount, getMomentsFeedDayCount());
+    this._feedSectionCount = feedSectionCount;
+    const feed = notesDir ? collectMomentsFeed(notesDir, today, feedSectionCount) : { sections: [], hasMoreOlder: false };
+    const sections = feed.sections;
     const sendOnEnter = getSendOnEnter();
 
     this._view.webview.postMessage({
@@ -246,6 +266,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
       sendOnEnter,
       todayDate: today,
       pinnedEntries: resolvePinnedEntries(this._getPinnedEntries(), sections),
+      hasMoreOlder: feed.hasMoreOlder,
     });
   }
 
@@ -961,6 +982,9 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
   let selectMode = false;
   const selectedEntries = new Set();
   let pendingScrollMode = 'top';
+  let pendingScrollTop = 0;
+  let hasMoreOlder = false;
+  let loadingOlder = false;
   let todayDate = '';
   const momentTagPattern = ${JSON.stringify(MOMENT_TAG_PATTERN)};
 
@@ -975,6 +999,8 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
       latestSections = msg.sections;
       todayDate = msg.todayDate || '';
       currentPinnedEntries = msg.pinnedEntries || [];
+      hasMoreOlder = Boolean(msg.hasMoreOlder);
+      loadingOlder = false;
       if (
         editingEntryKey !== null
         && !latestSections.some((section) => section.entries.some((entry) => (section.date + ':' + entry.index) === editingEntryKey))
@@ -985,8 +1011,13 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
       renderTimeline(latestSections);
       if (pendingScrollMode === 'top') {
         timeline.scrollTop = 0;
+      } else if (pendingScrollMode === 'preserve') {
+        timeline.scrollTop = pendingScrollTop;
       }
       pendingScrollMode = null;
+      window.requestAnimationFrame(() => {
+        maybeLoadOlderEntries();
+      });
     } else if (msg.command === 'error') {
       showError(msg.message);
     }
@@ -1049,6 +1080,31 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
   function autoResizeTextarea(textarea) {
     textarea.style.height = 'auto';
     textarea.style.height = Math.min(textarea.scrollHeight, 180) + 'px';
+  }
+
+  function requestLoadOlderEntries() {
+    if (loadingOlder || !hasMoreOlder) {
+      return;
+    }
+
+    loadingOlder = true;
+    pendingScrollMode = 'preserve';
+    pendingScrollTop = timeline.scrollTop;
+    vscode.postMessage({ command: 'loadMore' });
+  }
+
+  function maybeLoadOlderEntries() {
+    if (loadingOlder || !hasMoreOlder) {
+      return;
+    }
+
+    const threshold = 180;
+    const nearBottom = timeline.scrollTop + timeline.clientHeight >= timeline.scrollHeight - threshold;
+    const contentShort = timeline.scrollHeight <= timeline.clientHeight + threshold;
+
+    if (nearBottom || contentShort) {
+      requestLoadOlderEntries();
+    }
   }
 
   function renderTimeline(sections) {
@@ -1509,6 +1565,9 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
 
   openFileBtn.addEventListener('click', () => vscode.postMessage({ command: 'openFile' }));
   inboxBtn.addEventListener('click', () => vscode.postMessage({ command: 'showOpenTasksOverview' }));
+  timeline.addEventListener('scroll', () => {
+    maybeLoadOlderEntries();
+  }, { passive: true });
   allBtn.addEventListener('click', () => {
     if (activeFilter !== 'all') {
       activeFilter = 'all';

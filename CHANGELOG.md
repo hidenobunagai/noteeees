@@ -6,6 +6,9 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+### Changed
+- **Moments feed**: Older days load automatically as you scroll downward, so the recent feed is no longer capped to a fixed day window.
+
 ## [0.1.10] - 2026-03-19
 
 ### Changed
