@@ -6,6 +6,9 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+### Changed
+- **Moments cards**: Task checkboxes now align with the header metadata instead of sitting in a separate left gutter, which improves scanability in the narrow panel.
+
 ## [0.1.12] - 2026-03-19
 
 ### Fixed

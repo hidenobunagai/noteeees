@@ -464,50 +464,35 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     min-width: 0;
   }
 
+  .entry-header-leading {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    min-width: 0;
+    flex: 1 1 auto;
+  }
+
   .entry-time {
     color: var(--vscode-descriptionForeground);
     white-space: nowrap;
     font-variant-numeric: tabular-nums;
   }
 
-  .entry-main {
-    display: flex;
-    align-items: flex-start;
-    gap: 8px;
-  }
-
-  .entry-body {
-    display: flex;
-    gap: 8px;
-    align-items: stretch;
-  }
-
   .entry-checkbox {
     flex: none;
-    width: 14px;
-    height: 14px;
+    width: 15px;
+    height: 15px;
     margin: 0;
     accent-color: var(--vscode-textLink-foreground);
     cursor: pointer;
+    margin-top: 1px;
   }
-
-  .entry-icon-wrapper {
-    flex: none;
-    width: 14px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
+  .entry-checkbox:disabled {
+    cursor: default;
+    opacity: 0.55;
   }
 
   .entry-content {
-    min-width: 0;
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-
-  .entry-body-content {
     min-width: 0;
     flex: 1;
     display: flex;
@@ -799,11 +784,12 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
   .select-entry-cb {
     display: none;
     flex: none;
-    width: 14px;
-    height: 14px;
+    width: 15px;
+    height: 15px;
     margin: 0;
     accent-color: var(--vscode-textLink-foreground);
     cursor: pointer;
+    margin-top: 1px;
   }
 
   body.select-mode .select-entry-cb {
@@ -1182,6 +1168,9 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
         const header = document.createElement('div');
         header.className = 'entry-header';
 
+        const headerLeading = document.createElement('div');
+        headerLeading.className = 'entry-header-leading';
+
         const textSpan = document.createElement('div');
         textSpan.className = 'entry-text';
         textSpan.innerHTML = renderText(pinned.text);
@@ -1195,15 +1184,6 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
 
         const content = document.createElement('div');
         content.className = 'entry-content';
-
-        const main = document.createElement('div');
-        main.className = 'entry-main';
-
-        const body = document.createElement('div');
-        body.className = 'entry-body';
-
-        const iconWrapper = document.createElement('div');
-        iconWrapper.className = 'entry-icon-wrapper';
 
         const checkbox = document.createElement('input');
         checkbox.type = 'checkbox';
@@ -1224,7 +1204,8 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
             vscode.postMessage({ command: 'toggleTask', date: pinned.date, index: pinned.index });
           });
         }
-        iconWrapper.appendChild(checkbox);
+        headerLeading.appendChild(checkbox);
+        headerLeading.appendChild(meta);
 
         const actions = document.createElement('div');
         actions.className = 'entry-actions entry-header-actions';
@@ -1240,20 +1221,11 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
         });
         actions.appendChild(unpinButton);
 
-        header.appendChild(meta);
+        header.appendChild(headerLeading);
         header.appendChild(actions);
         content.appendChild(header);
         content.appendChild(textSpan);
-        main.appendChild(content);
-
-        const bodyContent = document.createElement('div');
-        bodyContent.className = 'entry-body-content';
-        bodyContent.appendChild(main);
-
-        body.appendChild(iconWrapper);
-        body.appendChild(bodyContent);
-
-        div.appendChild(body);
+        div.appendChild(content);
         pinnedSectionEl.appendChild(div);
       });
 
@@ -1422,18 +1394,6 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
       const content = document.createElement('div');
       content.className = 'entry-content';
 
-      const main = document.createElement('div');
-      main.className = 'entry-main';
-
-      const body = document.createElement('div');
-      body.className = 'entry-body';
-
-      const bodyContent = document.createElement('div');
-      bodyContent.className = 'entry-body-content';
-
-      const iconWrapper = document.createElement('div');
-      iconWrapper.className = 'entry-icon-wrapper';
-
       const checkbox = document.createElement('input');
       checkbox.type = 'checkbox';
       checkbox.className = 'entry-checkbox';
@@ -1443,7 +1403,6 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
       checkbox.addEventListener('change', () => {
         vscode.postMessage({ command: 'toggleTask', date: section.date, index: entry.index });
       });
-      iconWrapper.appendChild(checkbox);
 
       const selectCb = document.createElement('input');
       selectCb.type = 'checkbox';
@@ -1460,10 +1419,6 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
         }
         updateExportBar();
       });
-      body.appendChild(selectCb);
-      body.appendChild(iconWrapper);
-
-      main.appendChild(content);
 
       const actions = document.createElement('div');
       actions.className = 'entry-actions entry-header-actions';
@@ -1511,15 +1466,17 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
       actions.appendChild(pinButton);
       actions.appendChild(deleteButton);
 
-      header.appendChild(meta);
+      const headerLeading = document.createElement('div');
+      headerLeading.className = 'entry-header-leading';
+      headerLeading.appendChild(selectCb);
+      headerLeading.appendChild(checkbox);
+      headerLeading.appendChild(meta);
+
+      header.appendChild(headerLeading);
       header.appendChild(actions);
       content.appendChild(header);
       content.appendChild(textSpan);
-      main.appendChild(content);
-
-      bodyContent.appendChild(main);
-      body.appendChild(bodyContent);
-      div.appendChild(body);
+      div.appendChild(content);
       sectionEl.appendChild(div);
     });
 
