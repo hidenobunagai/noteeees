@@ -8,6 +8,7 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ### Changed
 - **Moments cards**: Task checkboxes now align with the header metadata instead of sitting in a separate left gutter, which improves scanability in the narrow panel.
+- **Moments polish**: The active hashtag filter now appears as a chip beside search, and the time / due / action header treatments are more compact and consistent in the narrow webview.
 
 ## [0.1.12] - 2026-03-19
 

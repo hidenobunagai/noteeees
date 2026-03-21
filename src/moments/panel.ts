@@ -327,6 +327,11 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     min-width: 0;
   }
 
+  .topbar-row-search {
+    align-items: stretch;
+    gap: 6px;
+  }
+
   .topbar-row-actions {
     display: flex;
     justify-content: center;
@@ -450,7 +455,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     align-items: center;
     flex: 1 1 auto;
     flex-wrap: wrap;
-    gap: 6px;
+    gap: 4px;
     min-width: 0;
     color: var(--vscode-descriptionForeground);
     font-size: 11px;
@@ -473,9 +478,16 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
   }
 
   .entry-time {
+    display: inline-flex;
+    align-items: center;
+    min-height: 20px;
+    padding: 0 6px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--vscode-foreground) 8%, transparent);
     color: var(--vscode-descriptionForeground);
     white-space: nowrap;
     font-variant-numeric: tabular-nums;
+    font-weight: 500;
   }
 
   .entry-checkbox {
@@ -543,6 +555,16 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     flex-wrap: nowrap;
     justify-content: flex-end;
     margin-left: auto;
+    gap: 2px;
+    padding: 2px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--vscode-foreground) 6%, transparent);
+    border: 1px solid color-mix(in srgb, var(--vscode-panel-border) 90%, transparent);
+  }
+
+  .entry:hover .entry-header-actions,
+  .entry:focus-within .entry-header-actions {
+    background: color-mix(in srgb, var(--vscode-toolbar-hoverBackground, rgba(90, 93, 94, 0.31)) 80%, transparent);
   }
 
   .entry-action,
@@ -613,9 +635,11 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
 
   /* ---- Due date badges ---- */
   .due-badge {
-    display: inline-block;
-    padding: 0 5px;
-    border-radius: 3px;
+    display: inline-flex;
+    align-items: center;
+    min-height: 20px;
+    padding: 0 6px;
+    border-radius: 999px;
     font-size: 11px;
     font-weight: 500;
     line-height: 1.4;
@@ -732,6 +756,8 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
   .search-bar {
     position: relative;
     width: 100%;
+    flex: 1 1 auto;
+    min-width: 0;
   }
 
   .search-bar input {
@@ -774,6 +800,33 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     transition: opacity 0.15s;
   }
   .clear-search-btn:hover { opacity: 1; }
+
+  .filter-chip-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    min-width: 0;
+    max-width: 40%;
+    border: 1px solid color-mix(in srgb, var(--vscode-textLink-foreground) 35%, var(--vscode-panel-border));
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--vscode-textLink-foreground) 12%, transparent);
+    color: var(--vscode-textLink-foreground);
+    padding: 0 8px;
+    font-size: 11px;
+    font-weight: 500;
+    line-height: 1;
+    cursor: pointer;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: background 0.15s, border-color 0.15s, color 0.15s, opacity 0.15s;
+  }
+
+  .filter-chip-btn:hover {
+    background: color-mix(in srgb, var(--vscode-textLink-foreground) 18%, transparent);
+    border-color: color-mix(in srgb, var(--vscode-textLink-foreground) 50%, var(--vscode-panel-border));
+  }
 
   /* ---- Export select mode ---- */
   .export-btn.active {
@@ -896,15 +949,15 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     <button class="nav-btn icon-only" id="allBtn" title="Show all recent moments" aria-label="Show all recent moments">☰</button>
     <button class="nav-btn icon-only" id="openBtn" title="Show unchecked moments only" aria-label="Show unchecked moments only">○</button>
     <button class="nav-btn icon-only" id="inboxBtn" title="Show Moments across all days" aria-label="Show Moments across all days">&#128230;</button>
-    <button class="nav-btn active" id="activeTagBtn" title="Clear active hashtag filter" style="display:none"></button>
     <button class="open-btn" id="openFileBtn" title="Open today's file in editor">&#8599;</button>
     <button class="open-btn export-btn" id="exportBtn" title="Export selected entries as a note">&#128203;</button>
   </div>
-  <div class="topbar-row">
+  <div class="topbar-row topbar-row-search">
     <div class="search-bar">
       <input type="text" id="searchInput" placeholder="Search moments..." autocomplete="off" />
       <button id="clearSearch" class="clear-search-btn" title="Clear search" style="display:none">&#10005;</button>
     </div>
+    <button class="filter-chip-btn" id="activeTagBtn" title="Clear active hashtag filter" style="display:none"></button>
   </div>
 </div>
 
@@ -1112,6 +1165,8 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     openBtn.setAttribute('aria-pressed', String(activeFilter === 'open'));
     activeTagBtn.style.display = activeTag ? '' : 'none';
     activeTagBtn.textContent = activeTag ? activeTagLabel + ' ×' : '';
+    activeTagBtn.title = activeTag ? ('Clear hashtag filter ' + activeTagLabel) : 'Clear active hashtag filter';
+    activeTagBtn.setAttribute('aria-label', activeTag ? ('Clear hashtag filter ' + activeTagLabel) : 'Clear active hashtag filter');
 
     if (visibleSections.length === 0) {
       emptyState.style.display = 'block';
