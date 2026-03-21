@@ -62,6 +62,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
 
         case "loadMore": {
           if (!notesDir) {
+            this._sendEntries();
             return;
           }
 
@@ -82,6 +83,8 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
 
         case "toggleTask": {
           if (!notesDir) {
+            this._showError("Notes directory is not configured.");
+            this._sendEntries();
             return;
           }
           toggleTask(notesDir, message.date ?? formatDate(new Date()), message.index);
