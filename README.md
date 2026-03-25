@@ -11,7 +11,7 @@ A quick-capture timeline panel for fleeting thoughts, tasks, and ideas — alway
 
 - **`Cmd+Shift+M`**: Open the Moments panel from the Activity Bar (⚡ lightning icon)
 - **Timeline view**: Entries displayed as a continuous recent feed with timestamps, task status, and quick actions
-- **Quick input**: Type a thought, press `Enter` to save instantly; use `Shift+Enter` for multiline posts
+- **Quick input**: The composer stays pinned below the topbar so you can type immediately; press `Enter` to save instantly, or use `Shift+Enter` for multiline posts
 - **Post-level checkboxes**: Every Moment can be checked on or off directly in the feed, so posts stay left-aligned whether they started as a note or a todo
 - **Inline editing**: Edit a Moment in place and save without leaving the panel
 - **Safe deletion**: Delete a Moment from the panel with a confirmation step

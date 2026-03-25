@@ -18,6 +18,7 @@ import {
   getDueDateStatus,
   getNextInboxFilter,
   mapMomentBodyIndexToFileLine,
+  MomentsViewProvider,
   normalizeMomentLineToUnchecked,
   normalizeInboxTaskFilter,
   normalizeMomentsFeedDayCount,
@@ -57,6 +58,79 @@ import {
   movePinnedItem,
 } from "../sidebarProvider";
 // import * as myExtension from '../../extension';
+
+function createMementoStub(): vscode.Memento & { setKeysForSync(keys: readonly string[]): void } {
+  const store = new Map<string, unknown>();
+
+  return {
+    get<T>(key: string, defaultValue?: T): T {
+      if (!store.has(key)) {
+        return defaultValue as T;
+      }
+
+      return store.get(key) as T;
+    },
+    keys(): readonly string[] {
+      return Array.from(store.keys());
+    },
+    update(key: string, value: unknown): Thenable<void> {
+      store.set(key, value);
+      return Promise.resolve();
+    },
+    setKeysForSync(_keys: readonly string[]): void {
+      return;
+    },
+  };
+}
+
+function createExtensionContextStub(): vscode.ExtensionContext {
+  const context = {
+    globalState: createMementoStub(),
+  } satisfies Pick<vscode.ExtensionContext, "globalState">;
+
+  return context as vscode.ExtensionContext;
+}
+
+function renderMomentsWebviewHtml(): string {
+  const webview: Pick<
+    vscode.Webview,
+    "cspSource" | "html" | "options" | "asWebviewUri" | "onDidReceiveMessage" | "postMessage"
+  > = {
+    cspSource: "vscode-webview-resource://test",
+    html: "",
+    options: {},
+    asWebviewUri(uri: vscode.Uri): vscode.Uri {
+      return uri;
+    },
+    onDidReceiveMessage<T>(_listener: (e: T) => unknown): vscode.Disposable {
+      return new vscode.Disposable(() => undefined);
+    },
+    postMessage(): Thenable<boolean> {
+      return Promise.resolve(true);
+    },
+  };
+
+  const webviewView = {
+    webview,
+    show(_preserveFocus?: boolean): void {
+      return;
+    },
+  } satisfies Pick<vscode.WebviewView, "webview" | "show">;
+
+  const provider = new MomentsViewProvider(
+    () => undefined,
+    vscode.Uri.file("/tmp/noteeees-tests"),
+    createExtensionContextStub(),
+  );
+
+  provider.resolveWebviewView(
+    webviewView as vscode.WebviewView,
+    {} as vscode.WebviewViewResolveContext,
+    {} as vscode.CancellationToken,
+  );
+
+  return webview.html;
+}
 
 suite("Extension Test Suite", () => {
   vscode.window.showInformationMessage("Start all tests.");
@@ -323,6 +397,35 @@ suite("Extension Test Suite", () => {
       { index: 0, time: "09:00", text: "todo", done: false },
       { index: 2, time: "10:00", text: "note", done: false },
     ]);
+  });
+
+  test("Moments webview renders the composer before the timeline", () => {
+    const html = renderMomentsWebviewHtml();
+    const topbarIndex = html.indexOf('<div class="topbar">');
+    const inputIndex = html.indexOf('<div class="input-area">');
+    const timelineIndex = html.indexOf('<div class="timeline" id="timeline">');
+
+    assert.ok(topbarIndex >= 0, "expected topbar markup to be present");
+    assert.ok(inputIndex >= 0, "expected composer markup to be present");
+    assert.ok(timelineIndex >= 0, "expected timeline markup to be present");
+    assert.ok(topbarIndex < inputIndex, "expected the composer to remain below the topbar");
+    assert.ok(inputIndex < timelineIndex, "expected the composer to render above the timeline");
+  });
+
+  test("Moments webview uses a bottom divider below the top composer", () => {
+    const html = renderMomentsWebviewHtml();
+    const inputAreaRuleMatch = html.match(/\.input-area\s*\{[^}]*\}/s);
+
+    assert.ok(inputAreaRuleMatch, "expected the .input-area CSS rule to be present");
+    const inputAreaRule = inputAreaRuleMatch[0];
+    assert.ok(
+      inputAreaRule.includes("border-bottom: 1px solid var(--vscode-panel-border);"),
+      "expected the top composer to divide from the timeline below it",
+    );
+    assert.ok(
+      !inputAreaRule.includes("border-top:"),
+      "expected the top composer to avoid a duplicate border under the topbar",
+    );
   });
 
   test("pinned Moments resolve against the latest feed entries", () => {

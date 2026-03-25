@@ -671,7 +671,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
   .input-area {
     flex-shrink: 0;
     padding: 8px 10px 10px;
-    border-top: 1px solid var(--vscode-panel-border);
+    border-bottom: 1px solid var(--vscode-panel-border);
     background: var(--vscode-sideBar-background, var(--vscode-editor-background));
   }
 
@@ -964,16 +964,6 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
   </div>
 </div>
 
-<div class="timeline" id="timeline">
-  <div class="empty-state" id="emptyState">
-  <svg width="32" height="32" viewBox="0 0 16 16" fill="currentColor" style="opacity: 0.5; margin-bottom: 8px;">
-    <path fill-rule="evenodd" clip-rule="evenodd" d="M14.5 2H1.5l-.5.5v11l.5.5h13l.5-.5v-11l-.5-.5zM2 3h12v10H2V3zM4 6h8V5H4v1zm8 2H4v1h8V8zm-8 3h6v-1H4v1z" />
-  </svg>
-  <div>No moments yet today</div>
-  <div style="font-size: 11px; margin-top: 4px; opacity: 0.8;">Capture ideas, or add #tags to categorize</div>
-</div>
-</div>
-
 <div class="input-area">
   <div id="errorBanner" style="display:none"></div>
   <div class="input-container" id="inputContainer">
@@ -984,6 +974,16 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
       </button>
     </div>
   </div>
+</div>
+
+<div class="timeline" id="timeline">
+  <div class="empty-state" id="emptyState">
+  <svg width="32" height="32" viewBox="0 0 16 16" fill="currentColor" style="opacity: 0.5; margin-bottom: 8px;">
+    <path fill-rule="evenodd" clip-rule="evenodd" d="M14.5 2H1.5l-.5.5v11l.5.5h13l.5-.5v-11l-.5-.5zM2 3h12v10H2V3zM4 6h8V5H4v1zm8 2H4v1h8V8zm-8 3h6v-1H4v1z" />
+  </svg>
+  <div>No moments yet today</div>
+  <div style="font-size: 11px; margin-top: 4px; opacity: 0.8;">Capture ideas, or add #tags to categorize</div>
+</div>
 </div>
 
 <div class="export-action-bar" id="exportActionBar">
