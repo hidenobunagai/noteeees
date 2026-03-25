@@ -6,6 +6,11 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.1.14] - 2026-03-25
+
+### Changed
+- **Moments composer**: The quick-capture input now stays pinned directly below the topbar, so posting feels more like a social feed while the timeline scrolls underneath it.
+
 ## [0.1.13] - 2026-03-21
 
 ### Changed
