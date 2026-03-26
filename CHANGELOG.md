@@ -6,6 +6,12 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.1.17] - 2026-03-26
+
+### Added
+- **Due date syntax in Moments**: Write `@2026-03-31` anywhere in a Moments entry (or existing `📅YYYY-MM-DD` / `due:YYYY-MM-DD`) to set a due date. The date is shown as a badge in the AI Task Dashboard and is preserved when adding extracted tasks to `tasks/YYYY-MM-DD.md`.
+- AI Extract now returns a `dueDate` field for each task and includes the date in the AI prompt context.
+
 ## [0.1.16] - 2026-03-26
 
 ### Fixed
