@@ -1,5 +1,5 @@
 export function parseDueDate(text: string): string | null {
-  const match = text.match(/(?:📅|due:)(\d{4}-\d{2}-\d{2})/);
+  const match = text.match(/(?:📅|due:|@)(\d{4}-\d{2}-\d{2})/);
   return match ? match[1] : null;
 }
 

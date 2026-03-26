@@ -8,6 +8,7 @@ export interface ExtractedTask {
   category: TaskCategory;
   priority: "high" | "medium" | "low";
   timeEstimateMin: number;
+  dueDate?: string | null;
 }
 
 export interface DayPlanItem {
@@ -53,6 +54,7 @@ export async function extractTasksFromMoments(
 - "category": "work" | "personal" | "health" | "learning" | "admin" のいずれか
 - "priority": "high" | "medium" | "low" のいずれか
 - "timeEstimateMin": 所要時間の見積もり（分、整数）
+- "dueDate": テキスト中に @YYYY-MM-DD / 📅YYYY-MM-DD / due:YYYY-MM-DD 形式の日付があれば "YYYY-MM-DD" 文字列、なければ null
 
 JSON 配列のみ返してください。説明文は不要です。
 

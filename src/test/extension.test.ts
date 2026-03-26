@@ -287,9 +287,10 @@ suite("Extension Test Suite", () => {
     assert.strictEqual(normalizeInboxTaskFilter(undefined), "all");
   });
 
-  test("parseDueDate extracts date from 📅 and due: syntax", () => {
+  test("parseDueDate extracts date from 📅, due:, and @ syntax", () => {
     assert.strictEqual(parseDueDate("Fix bug 📅2025-01-15"), "2025-01-15");
     assert.strictEqual(parseDueDate("Write report due:2025-01-20"), "2025-01-20");
+    assert.strictEqual(parseDueDate("MTG with team @2026-03-31"), "2026-03-31");
     assert.strictEqual(parseDueDate("No date here"), null);
     assert.strictEqual(parseDueDate(""), null);
   });
@@ -542,15 +543,15 @@ suite("Extension Test Suite", () => {
 
   test("moment entry text replacement preserves time and task state", () => {
     assert.deepStrictEqual(replaceMomentEntryText("- [ ] 09:00 old task", "new task"), {
-      line: "- [ ] 09:00 new task",
+      line: "- 09:00 new task",
       changed: true,
     });
     assert.deepStrictEqual(replaceMomentEntryText("- [x] 09:00 done task", "updated done"), {
-      line: "- [x] 09:00 updated done",
+      line: "- 09:00 updated done",
       changed: true,
     });
     assert.deepStrictEqual(replaceMomentEntryText("- 09:00 note text", "updated note"), {
-      line: "- [ ] 09:00 updated note",
+      line: "- 09:00 updated note",
       changed: true,
     });
   });

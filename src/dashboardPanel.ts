@@ -15,6 +15,7 @@ export interface DashTask {
   text: string;
   done: boolean;
   date: string | null;
+  dueDate: string | null;
   tags: string[];
 }
 
@@ -31,6 +32,7 @@ export interface WeekDay {
 
 const TASK_RE = /^- \[([ xX])\] (.+)$/;
 const TAG_RE = /#[\w\u3040-\u9FFF\u4E00-\u9FFF-]+/g;
+const DUE_DATE_RE = /(?:📅|due:|@)(\d{4}-\d{2}-\d{2})/;
 
 function pad2(n: number): string {
   return String(n).padStart(2, "0");
@@ -79,6 +81,7 @@ export function collectTasksFromNotes(notesDir: string, momentsSubfolder = "mome
           const done = m[1].toLowerCase() === "x";
           const text = m[2].trim();
           const tags = [...new Set(text.match(TAG_RE) ?? [])];
+          const dueDateMatch = DUE_DATE_RE.exec(text);
           tasks.push({
             id: `${relPath}:${i}`,
             filePath: fullPath,
@@ -86,6 +89,7 @@ export function collectTasksFromNotes(notesDir: string, momentsSubfolder = "mome
             text,
             done,
             date,
+            dueDate: dueDateMatch ? dueDateMatch[1] : null,
             tags,
           });
         }
@@ -284,8 +288,8 @@ export class DashboardPanel {
       }
 
       case "addExtractedTask": {
-        const { text } = message as { command: string; text: string };
-        void this._addExtractedTask(text);
+        const { text, dueDate } = message as { command: string; text: string; dueDate?: string | null };
+        void this._addExtractedTask(text, dueDate);
         break;
       }
     }
@@ -434,7 +438,7 @@ export class DashboardPanel {
     }
   }
 
-  private async _addExtractedTask(text: string): Promise<void> {
+  private async _addExtractedTask(text: string, dueDate?: string | null): Promise<void> {
     const notesDir = this._getNotesDir();
     if (!notesDir) return;
 
@@ -447,7 +451,8 @@ export class DashboardPanel {
     }
     const existing = fs.readFileSync(taskFile, "utf8");
     const sep = existing.endsWith("\n") ? "" : "\n";
-    fs.writeFileSync(taskFile, `${existing}${sep}- [ ] ${text}\n`, "utf8");
+    const dueSuffix = dueDate ? ` @${dueDate}` : "";
+    fs.writeFileSync(taskFile, `${existing}${sep}- [ ] ${text}${dueSuffix}\n`, "utf8");
 
     vscode.window.showInformationMessage(`タスクを追加しました: ${text}`);
     this._update();
@@ -482,9 +487,10 @@ export class DashboardPanel {
               const safeTxt = escHtml(t.text);
               const safeId = escAttr(t.id);
               const safePath = escAttr(t.filePath);
+              const dueBadge = t.dueDate ? ` <span class="due-badge">${escHtml(t.dueDate)}</span>` : "";
               return `<div class="task-item${doneClass}">
             <input type="checkbox" ${t.done ? "checked" : ""} data-task-id="${safeId}">
-            <span class="task-text" data-file="${safePath}" data-line="${t.lineIndex}">${safeTxt}</span>
+            <span class="task-text" data-file="${safePath}" data-line="${t.lineIndex}">${safeTxt}${dueBadge}</span>
           </div>`;
             })
             .join("");
@@ -587,6 +593,8 @@ export class DashboardPanel {
   .extract-task { display: flex; align-items: flex-start; gap: 6px; padding: 4px 0; font-size: 12px; }
   .extract-info { flex: 1; }
   .extract-meta { font-size: 10px; color: var(--vscode-descriptionForeground); }
+  .due-badge { font-size: 10px; background: var(--vscode-badge-background); color: var(--vscode-badge-foreground); border-radius: 3px; padding: 0 4px; margin-left: 4px; vertical-align: middle; }
+  .due-overdue { background: var(--vscode-inputValidation-errorBackground,#5a1d1d); color: var(--vscode-inputValidation-errorForeground,#f48771); }
   .empty { font-size: 12px; color: var(--vscode-descriptionForeground); padding: 8px 0; }
   input[type="checkbox"] { accent-color: var(--vscode-textLink-foreground); cursor: pointer; margin-top: 2px; flex-shrink: 0; }
 </style>
@@ -672,7 +680,7 @@ document.getElementById('ai-result')?.addEventListener('click', function(e) {
     const el = document.getElementById('ai-result');
     const tasks = el._tasks;
     if (!tasks || !tasks[idx]) return;
-    vscode.postMessage({ command: 'addExtractedTask', text: tasks[idx].text });
+    vscode.postMessage({ command: 'addExtractedTask', text: tasks[idx].text, dueDate: tasks[idx].dueDate ?? null });
     btn.disabled = true;
     btn.textContent = '✓';
   }
@@ -708,7 +716,7 @@ function showExtractResult(tasks) {
   const items = tasks.map((t, idx) =>
     \`<div class="extract-task">
       <div class="extract-info">
-        <div>\${esc(t.text)}</div>
+        <div>\${esc(t.text)}\${t.dueDate ? ' <span class="due-badge">' + esc(t.dueDate) + '</span>' : ''}</div>
         <div class="extract-meta">\${esc(t.category)} · \${esc(t.priority)} · ~\${t.timeEstimateMin}min</div>
       </div>
       <button class="btn add-task-btn" style="font-size:11px" data-idx="\${idx}">+ Add</button>

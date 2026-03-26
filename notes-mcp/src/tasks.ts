@@ -8,8 +8,8 @@ import { deleteTasksByFile, getStoredTaskMtimes, upsertTask } from "./db.js";
 
 // Matches: - [ ] text  and  - [x] text  (notes tasks)
 const TASK_RE = /^- \[([ xX])\] (.+)$/;
-// Matches #due:YYYY-MM-DD or due:YYYY-MM-DD anywhere in text
-const DUE_TAG_RE = /#?due:(\d{4}-\d{2}-\d{2})/i;
+// Matches #due:YYYY-MM-DD, due:YYYY-MM-DD, or @YYYY-MM-DD anywhere in text
+const DUE_TAG_RE = /(?:#?due:|@)(\d{4}-\d{2}-\d{2})/i;
 // Matches inline #tag tokens
 const TAG_RE = /#[\w\u3040-\u9FFF-]+/g;
 
