@@ -12,13 +12,15 @@ export interface ExtractedTask {
 }
 
 export interface DayPlanItem {
-  time: string;
-  task: string;
-  durationMin: number;
+  text: string;
+  priority: "high" | "medium" | "low";
+  reason: string;
+  timeEstimateMin: number;
 }
 
 export interface DayPlan {
   summary: string;
+  estimatedHours: number;
   items: DayPlanItem[];
 }
 
@@ -87,24 +89,32 @@ export async function planDay(
   const model = await getModel();
   if (!model) return null;
 
-  if (tasks.length === 0) return { summary: "タスクがありません。", items: [] };
+  if (tasks.length === 0)
+    return { summary: "今日のタスクはありません。", estimatedHours: 0, items: [] };
 
   const taskList = tasks
-    .map((t) => `- ${t.text}${t.tags.length ? " " + t.tags.join(" ") : ""}`)
+    .map(
+      (t, i) =>
+        `${i + 1}. ${t.text}${t.dueDate ? ` @${t.dueDate}` : ""}${t.tags.length ? " " + t.tags.join(" ") : ""}`,
+    )
     .join("\n");
 
-  const prompt = `今日 (${date}) の以下のタスクリストから、現実的な一日の作業スケジュールを作成してください。
-優先度・所要時間・カテゴリを考慮し、達成可能なプランにしてください。
-作業時間帯の目安: 9:00〜18:00。休憩も含めてください。
+  const prompt = `今日 (${date}) のタスクリストを優先順位の高い順に並べ替えてください。
+
+【厳守ルール】
+- 以下のタスクリストにあるタスクのみを返すこと
+- 「メール確認」「休憩」「振り返り」などリストにないタスクを絶対に追加しないこと
+- 各タスクに「優先する理由」と「現実的な所要時間（分）」を付けること
 
 タスクリスト:
 ${taskList}
 
 以下の JSON 形式のみ返してください（説明文なし）:
 {
-  "summary": "今日のプランの一言サマリー（日本語）",
+  "summary": "今日の作業量の一言コメント（例：軽めの一日 / ボリュームあり）",
+  "estimatedHours": 3.5,
   "items": [
-    { "time": "09:00", "task": "タスク名", "durationMin": 30 }
+    { "text": "タスクの元のテキスト", "priority": "high", "reason": "優先する理由（1行）", "timeEstimateMin": 90 }
   ]
 }`;
 

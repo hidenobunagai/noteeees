@@ -350,7 +350,7 @@ export class DashboardPanel {
     this._panel.webview.postMessage({
       type: "aiStatus",
       status: "processing",
-      message: "AIがプランを生成中...",
+      message: "AIがタスクを優先順位付け中...",
     });
 
     try {
@@ -592,10 +592,14 @@ export class DashboardPanel {
   #ai-status { font-size: 12px; color: var(--vscode-descriptionForeground); margin-top: 6px; min-height: 18px; }
   #ai-status.error { color: var(--vscode-errorForeground); }
   .plan-result { margin-top: 8px; }
-  .plan-summary { font-size: 12px; font-style: italic; margin-bottom: 8px; color: var(--vscode-descriptionForeground); }
-  .plan-item { display: flex; gap: 8px; padding: 4px 0; border-bottom: 1px solid var(--vscode-panel-border,#0001); font-size: 12px; }
-  .plan-time { width: 44px; flex-shrink: 0; font-variant-numeric: tabular-nums; color: var(--vscode-textLink-foreground); }
-  .plan-dur { color: var(--vscode-descriptionForeground); width: 50px; flex-shrink: 0; text-align: right; }
+  .plan-summary { font-size: 12px; font-style: italic; margin-bottom: 8px; color: var(--vscode-descriptionForeground); display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .plan-hours { font-size: 11px; background: var(--vscode-badge-background); color: var(--vscode-badge-foreground); border-radius: 10px; padding: 1px 7px; font-style: normal; }
+  .plan-item { padding: 6px 0; border-bottom: 1px solid var(--vscode-panel-border,#0001); font-size: 12px; }
+  .plan-item-header { display: flex; gap: 8px; align-items: baseline; }
+  .plan-priority { font-size: 11px; flex-shrink: 0; }
+  .plan-task { flex: 1; }
+  .plan-dur { color: var(--vscode-descriptionForeground); font-size: 11px; flex-shrink: 0; }
+  .plan-reason { font-size: 11px; color: var(--vscode-descriptionForeground); margin-top: 2px; padding-left: 20px; }
   .extract-task { display: flex; align-items: flex-start; gap: 6px; padding: 4px 0; font-size: 12px; }
   .extract-info { flex: 1; }
   .extract-meta { font-size: 10px; color: var(--vscode-descriptionForeground); }
@@ -711,10 +715,27 @@ function esc(s) {
 
 function showPlanResult(plan) {
   const el = document.getElementById('ai-result');
-  const items = (plan.items || []).map(i =>
-    \`<div class="plan-item"><span class="plan-time">\${esc(i.time)}</span><span class="plan-task">\${esc(i.task)}</span><span class="plan-dur">\${i.durationMin}min</span></div>\`
-  ).join('');
-  el.innerHTML = \`<div class="plan-result"><div class="plan-summary">\${esc(plan.summary)}</div>\${items}</div>\`;
+  const priorityIcon = { high: '\uD83D\uDD34', medium: '\uD83D\uDFE1', low: '\uD83D\uDD35' };
+  const priorityLabel = { high: '\u9ad8', medium: '\u4e2d', low: '\u4f4e' };
+  const items = (plan.items || []).map(function(i) {
+    const icon = priorityIcon[i.priority] || '\u25CF';
+    const label = priorityLabel[i.priority] || i.priority;
+    return '<div class="plan-item">' +
+      '<div class="plan-item-header">' +
+      '<span class="plan-priority plan-priority-' + esc(i.priority) + '">' + icon + ' ' + label + '</span>' +
+      '<span class="plan-task">' + esc(i.text) + '</span>' +
+      '<span class="plan-dur">' + i.timeEstimateMin + 'min</span>' +
+      '</div>' +
+      '<div class="plan-reason">' + esc(i.reason) + '</div>' +
+      '</div>';
+  }).join('');
+  const hours = plan.estimatedHours
+    ? '<span class="plan-hours">\u5408\u8a08 ' + plan.estimatedHours + 'h\u7a0b\u5ea6</span>'
+    : '';
+  el.innerHTML = '<div class="plan-result">' +
+    '<div class="plan-summary">' + esc(plan.summary) + hours + '</div>' +
+    items +
+    '</div>';
 }
 
 function showExtractResult(tasks) {
