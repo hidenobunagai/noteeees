@@ -19,11 +19,7 @@ function extractDateFromFilename(filePath: string): string | null {
   return m ? m[1] : null;
 }
 
-export function parseTasksFromFile(
-  filePath: string,
-  content: string,
-  mtime: number,
-): TaskRow[] {
+export function parseTasksFromFile(filePath: string, content: string, mtime: number): TaskRow[] {
   const date = extractDateFromFilename(filePath);
   const now = new Date().toISOString();
   const tasks: TaskRow[] = [];
@@ -34,7 +30,7 @@ export function parseTasksFromFile(
     if (!m) continue;
     const done = m[1].toLowerCase() === "x";
     const rawText = m[2].trim();
-    const tags = [...new Set((rawText.match(TAG_RE) ?? []))];
+    const tags = [...new Set(rawText.match(TAG_RE) ?? [])];
     const id = `${filePath}:${i}`;
     tasks.push({
       id,

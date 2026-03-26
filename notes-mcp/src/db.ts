@@ -289,10 +289,11 @@ export function queryTasks(
 
 export function setTaskDone(notesDir: string, id: string, done: boolean): void {
   const db = getDb(notesDir);
-  db.run(
-    "UPDATE tasks_cache SET done = ?, updated_at = ? WHERE id = ?",
-    [done ? 1 : 0, new Date().toISOString(), id],
-  );
+  db.run("UPDATE tasks_cache SET done = ?, updated_at = ? WHERE id = ?", [
+    done ? 1 : 0,
+    new Date().toISOString(),
+    id,
+  ]);
 }
 
 export function getTaskStats(notesDir: string): {
@@ -332,8 +333,9 @@ export function syncTasksForFile(notesDir: string, filePath: string, tasks: Task
 
 export function getStoredTaskMtimes(notesDir: string): Map<string, number> {
   const db = getDb(notesDir);
-  const rows = db
-    .query("SELECT DISTINCT file_path, mtime FROM tasks_cache")
-    .all() as { file_path: string; mtime: number }[];
+  const rows = db.query("SELECT DISTINCT file_path, mtime FROM tasks_cache").all() as {
+    file_path: string;
+    mtime: number;
+  }[];
   return new Map(rows.map((r) => [r.file_path, r.mtime]));
 }

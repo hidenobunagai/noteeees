@@ -4,8 +4,16 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import * as fs from "fs";
 import * as path from "path";
-import { closeDb, startFileWatcher, stopFileWatcher, queryTasks, getTaskById, setTaskDone, getTaskStats, syncTasksForFile } from "./db.js";
-import { parseTasksFromFile, syncTasksIndex, extractDueDate } from "./tasks.js";
+import {
+  closeDb,
+  getTaskById,
+  getTaskStats,
+  queryTasks,
+  setTaskDone,
+  startFileWatcher,
+  stopFileWatcher,
+  syncTasksForFile,
+} from "./db.js";
 import {
   clearSearchIndexCache,
   executeStructuredSearch,
@@ -19,6 +27,7 @@ import {
   type SearchStrategy,
   type SearchWeights,
 } from "./search.js";
+import { extractDueDate, parseTasksFromFile, syncTasksIndex } from "./tasks.js";
 
 function getNotesDir(): string {
   const notesDir = process.env.NOTES_DIRECTORY;
@@ -43,10 +52,17 @@ function todayDate(): string {
 }
 
 function sanitizeTitle(title: string): string {
-  return title.replace(/[/\\:*?"<>|]/g, "_").replace(/\s+/g, "_").slice(0, 80);
+  return title
+    .replace(/[/\\:*?"<>|]/g, "_")
+    .replace(/\s+/g, "_")
+    .slice(0, 80);
 }
 
-function buildNoteContent(title: string, content: string | undefined, tags: string[] | undefined): string {
+function buildNoteContent(
+  title: string,
+  content: string | undefined,
+  tags: string[] | undefined,
+): string {
   const tagLines =
     tags && tags.length > 0
       ? `tags:\n${tags.map((t) => `  - ${t.replace(/^#/, "")}`).join("\n")}\n`
@@ -92,7 +108,11 @@ function _syncTasksIfNeeded(notesDir: string): void {
         walk(full);
       } else if (entry.isFile() && entry.name.endsWith(".md")) {
         const stat = fs.statSync(full);
-        diskFiles.push({ filePath: full, mtime: stat.mtimeMs, content: fs.readFileSync(full, "utf8") });
+        diskFiles.push({
+          filePath: full,
+          mtime: stat.mtimeMs,
+          content: fs.readFileSync(full, "utf8"),
+        });
       }
     }
   }
@@ -292,8 +312,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
           },
           date: {
             type: "string",
-            description:
-              "Target date in YYYY-MM-DD format. Defaults to today if omitted.",
+            description: "Target date in YYYY-MM-DD format. Defaults to today if omitted.",
           },
         },
         required: ["text"],
@@ -351,7 +370,10 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
       inputSchema: {
         type: "object" as const,
         properties: {
-          days_ahead: { type: "number", description: "今日から何日先までを取得するか（デフォルト: 7）" },
+          days_ahead: {
+            type: "number",
+            description: "今日から何日先までを取得するか（デフォルト: 7）",
+          },
         },
       },
     },
@@ -566,12 +588,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     }
 
     case "create_note": {
-      const {
-        title,
-        content,
-        tags,
-        subfolder,
-      } = request.params.arguments as {
+      const { title, content, tags, subfolder } = request.params.arguments as {
         title: string;
         content?: string;
         tags?: string[];
@@ -692,20 +709,35 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const task = getTaskById(notesDir, task_id);
       if (!task) {
         return {
-          content: [{ type: "text" as const, text: JSON.stringify({ error: `Task not found: ${task_id}` }) }],
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify({ error: `Task not found: ${task_id}` }),
+            },
+          ],
         };
       }
       const filePath = task.filePath;
       if (!fs.existsSync(filePath)) {
         return {
-          content: [{ type: "text" as const, text: JSON.stringify({ error: `File not found: ${filePath}` }) }],
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify({ error: `File not found: ${filePath}` }),
+            },
+          ],
         };
       }
       const fileLines = fs.readFileSync(filePath, "utf8").split("\n");
       const line = fileLines[task.lineIndex];
       if (!line) {
         return {
-          content: [{ type: "text" as const, text: JSON.stringify({ error: `Line ${task.lineIndex} not found in file` }) }],
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify({ error: `Line ${task.lineIndex} not found in file` }),
+            },
+          ],
         };
       }
       const updatedLine = done
@@ -742,7 +774,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       syncTasksForFile(notesDir, taskFilePath, newTasks);
       clearSearchIndexCache();
       return {
-        content: [{ type: "text" as const, text: JSON.stringify({ added: taskLine, date: targetDate }) }],
+        content: [
+          { type: "text" as const, text: JSON.stringify({ added: taskLine, date: targetDate }) },
+        ],
       };
     }
 
