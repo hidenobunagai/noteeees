@@ -6,6 +6,11 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.1.21] - 2026-03-27
+
+### Fixed
+- **Moments due date highlighting**: `@YYYY-MM-DD` due dates in Moments entries are now displayed with an inline orange pill badge, matching the style of `#tag` highlighting.
+
 ## [0.1.17] - 2026-03-26
 
 ### Added
