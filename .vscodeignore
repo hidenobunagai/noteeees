@@ -1,10 +1,13 @@
-.jj/
+# VCS
 .git/
 .github/
+
+# IDE
 .vscode/
-.superset/
-docs/
-notes-mcp/
+.vscode-test/
+.vscode-test.mjs
+
+# Build tooling
 node_modules/
 src/
 out/
@@ -14,7 +17,21 @@ out/
 eslint.config.mjs
 tsconfig.json
 esbuild.js
-vsc-extension-quickstart.md
+
+# Bun
+bun.lock
+bunfig.toml
+
+# Superpowers
+.superpowers/
+
+# Docs / misc
+docs/
 CHANGELOG.md
+vsc-extension-quickstart.md
+webview_test.html
 *.vsix
+.DS_Store
+
+# Keep snippets
 !snippets/
