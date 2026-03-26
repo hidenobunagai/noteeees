@@ -53,7 +53,8 @@ Cards use a subtle gradient background (`color @ 15–25% opacity`) with a match
 2. `task.date === null` (undated)
 3. `task.dueDate` is set and `dueDate <= today + 7 days`
 
-Tasks are sorted: open first (sorted by due date ascending, then text), done tasks last.
+Tasks are sorted: open first (sorted by due date ascending, then text), done tasks last.  
+Undated tasks (no `dueDate`) sort after all tasks that have an explicit due date, ordered alphabetically by text.
 
 **Per-task display:**
 - Checkbox (squares with rounded corners, hover glow)
@@ -76,7 +77,7 @@ Bar heights are proportional to `weekMax = max(open + done across 7 days, 1)`.
 Unchanged functionality. Visual update: bar fill changes from flat color to a `linear-gradient(90deg, #89b4fa, #cba6f7)`.
 
 ### Section: AI Actions
-Background changes to `linear-gradient(135deg, editorWidget-bg, a slightly purple-tinted dark)` with a faint purple border, visually distinguishing it from other cards.
+Background changes to `linear-gradient(135deg, var(--vscode-editorWidget-background, #1e1e2e), #1e1a2e)` with a faint purple border (`#cba6f725`), visually distinguishing it from other cards.
 
 Button styles:
 - **Plan My Day** — gradient primary button (`#89b4fa → #cba6f7`, dark text)
@@ -137,4 +138,4 @@ Button styles:
 - [ ] AI Actions card has distinct purple-tinted background
 - [ ] Primary button uses gradient; secondary button uses bordered style
 - [ ] No regressions: checkbox toggle, file open, plan day, AI extract all work
-- [ ] Renders acceptably on VS Code light themes (no invisible text)
+- [ ] Renders acceptably on VS Code light themes: no invisible text (text contrast ≥ 4.5:1), no white-on-white or black-on-black combinations
