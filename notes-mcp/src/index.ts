@@ -4,7 +4,8 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import * as fs from "fs";
 import * as path from "path";
-import { closeDb, startFileWatcher, stopFileWatcher } from "./db.js";
+import { closeDb, startFileWatcher, stopFileWatcher, queryTasks, getTaskById, setTaskDone, getTaskStats, syncTasksForFile } from "./db.js";
+import { parseTasksFromFile, syncTasksIndex, extractDueDate } from "./tasks.js";
 import {
   clearSearchIndexCache,
   executeStructuredSearch,
@@ -77,6 +78,28 @@ function currentTime(): string {
 }
 
 const server = new Server({ name: "notes-mcp", version: "3.0.0" }, { capabilities: { tools: {} } });
+
+// Sync tasks index for all .md files in the notes directory (non-moments only)
+function _syncTasksIfNeeded(notesDir: string): void {
+  if (!fs.existsSync(notesDir)) return;
+  const diskFiles: { filePath: string; mtime: number; content: string }[] = [];
+  function walk(dir: string): void {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        // skip moments subfolder — Moments are tweet-style, no tasks
+        if (entry.name === "moments") continue;
+        walk(full);
+      } else if (entry.isFile() && entry.name.endsWith(".md")) {
+        const stat = fs.statSync(full);
+        diskFiles.push({ filePath: full, mtime: stat.mtimeMs, content: fs.readFileSync(full, "utf8") });
+      }
+    }
+  }
+  walk(notesDir);
+  // syncTasksIndex only rewrites files whose mtime changed
+  syncTasksIndex(notesDir, diskFiles);
+}
 
 server.setRequestHandler(ListToolsRequestSchema, async () => ({
   tools: [
@@ -274,6 +297,62 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
           },
         },
         required: ["text"],
+      },
+    },
+    {
+      name: "get_tasks",
+      description: "Notes全体からタスク（- [ ] / - [x]）を取得。ステータス・日付でフィルタ可能。",
+      inputSchema: {
+        type: "object" as const,
+        properties: {
+          status: {
+            type: "string",
+            enum: ["all", "open", "done"],
+            description: "フィルタするステータス (デフォルト: open)",
+          },
+          date_from: { type: "string", description: "開始日 YYYY-MM-DD" },
+          date_to: { type: "string", description: "終了日 YYYY-MM-DD" },
+          limit: { type: "number", description: "最大件数 (デフォルト: 50)" },
+        },
+      },
+    },
+    {
+      name: "get_task_stats",
+      description: "タスク統計: 合計・完了数・未完了数・日付別集計を返す。",
+      inputSchema: { type: "object" as const, properties: {} },
+    },
+    {
+      name: "update_task_status",
+      description: "指定タスクの完了/未完了を切り替え、Markdownファイルも更新する。",
+      inputSchema: {
+        type: "object" as const,
+        required: ["task_id", "done"],
+        properties: {
+          task_id: { type: "string", description: "タスクID ({file_path}:{line_index})" },
+          done: { type: "boolean", description: "true=完了, false=未完了" },
+        },
+      },
+    },
+    {
+      name: "add_task",
+      description: "Notesに新しいタスクを追加する（- [ ] 形式）。tasks/{date}.md に書き込む。",
+      inputSchema: {
+        type: "object" as const,
+        required: ["text"],
+        properties: {
+          text: { type: "string", description: "タスクのテキスト" },
+          date: { type: "string", description: "YYYY-MM-DD（省略時: 今日）" },
+        },
+      },
+    },
+    {
+      name: "get_reminders",
+      description: "期日付きタスク（#due:YYYY-MM-DD または due:YYYY-MM-DD）を取得。",
+      inputSchema: {
+        type: "object" as const,
+        properties: {
+          days_ahead: { type: "number", description: "今日から何日先までを取得するか（デフォルト: 7）" },
+        },
       },
     },
   ],
@@ -564,7 +643,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       ensureMomentsFile(filePath, targetDate);
 
       const time = currentTime();
-      const line = `- [ ] ${time} ${text}`;
+      const line = `- ${time} ${text}`;
       const existing = fs.readFileSync(filePath, "utf8");
       const separator = existing.endsWith("\n") ? "" : "\n";
       fs.writeFileSync(filePath, `${existing}${separator}${line}\n`, "utf8");
@@ -577,6 +656,110 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             text: JSON.stringify({ added: line, date: targetDate }),
           },
         ],
+      };
+    }
+
+    case "get_tasks": {
+      const {
+        status = "open",
+        date_from,
+        date_to,
+        limit = 50,
+      } = (request.params.arguments ?? {}) as {
+        status?: "all" | "open" | "done";
+        date_from?: string;
+        date_to?: string;
+        limit?: number;
+      };
+      _syncTasksIfNeeded(notesDir);
+      const tasks = queryTasks(notesDir, { status, dateFrom: date_from, dateTo: date_to, limit });
+      return {
+        content: [{ type: "text" as const, text: JSON.stringify(tasks, null, 2) }],
+      };
+    }
+
+    case "get_task_stats": {
+      _syncTasksIfNeeded(notesDir);
+      const stats = getTaskStats(notesDir);
+      return {
+        content: [{ type: "text" as const, text: JSON.stringify(stats, null, 2) }],
+      };
+    }
+
+    case "update_task_status": {
+      const { task_id, done } = request.params.arguments as { task_id: string; done: boolean };
+      _syncTasksIfNeeded(notesDir);
+      const task = getTaskById(notesDir, task_id);
+      if (!task) {
+        return {
+          content: [{ type: "text" as const, text: JSON.stringify({ error: `Task not found: ${task_id}` }) }],
+        };
+      }
+      const filePath = task.filePath;
+      if (!fs.existsSync(filePath)) {
+        return {
+          content: [{ type: "text" as const, text: JSON.stringify({ error: `File not found: ${filePath}` }) }],
+        };
+      }
+      const fileLines = fs.readFileSync(filePath, "utf8").split("\n");
+      const line = fileLines[task.lineIndex];
+      if (!line) {
+        return {
+          content: [{ type: "text" as const, text: JSON.stringify({ error: `Line ${task.lineIndex} not found in file` }) }],
+        };
+      }
+      const updatedLine = done
+        ? line.replace(/^- \[ \]/, "- [x]")
+        : line.replace(/^- \[[xX]\]/, "- [ ]");
+      fileLines[task.lineIndex] = updatedLine;
+      fs.writeFileSync(filePath, fileLines.join("\n"), "utf8");
+      setTaskDone(notesDir, task_id, done);
+      clearSearchIndexCache();
+      return {
+        content: [{ type: "text" as const, text: JSON.stringify({ updated: task_id, done }) }],
+      };
+    }
+
+    case "add_task": {
+      const { text: taskText, date: taskDate } = (request.params.arguments ?? {}) as {
+        text: string;
+        date?: string;
+      };
+      const targetDate = taskDate ?? todayDate();
+      const taskDir = path.join(notesDir, "tasks");
+      fs.mkdirSync(taskDir, { recursive: true });
+      const taskFilePath = path.join(taskDir, `${targetDate}.md`);
+      if (!fs.existsSync(taskFilePath)) {
+        fs.writeFileSync(taskFilePath, `---\ntype: tasks\ndate: ${targetDate}\n---\n\n`, "utf8");
+      }
+      const taskLine = `- [ ] ${taskText}`;
+      const existingTaskContent = fs.readFileSync(taskFilePath, "utf8");
+      const sep = existingTaskContent.endsWith("\n") ? "" : "\n";
+      fs.writeFileSync(taskFilePath, `${existingTaskContent}${sep}${taskLine}\n`, "utf8");
+      const taskMtime = fs.statSync(taskFilePath).mtimeMs;
+      const taskFileContent = fs.readFileSync(taskFilePath, "utf8");
+      const newTasks = parseTasksFromFile(taskFilePath, taskFileContent, taskMtime);
+      syncTasksForFile(notesDir, taskFilePath, newTasks);
+      clearSearchIndexCache();
+      return {
+        content: [{ type: "text" as const, text: JSON.stringify({ added: taskLine, date: targetDate }) }],
+      };
+    }
+
+    case "get_reminders": {
+      const { days_ahead = 7 } = (request.params.arguments ?? {}) as { days_ahead?: number };
+      _syncTasksIfNeeded(notesDir);
+      const today = todayDate();
+      const limitDate = new Date();
+      limitDate.setDate(limitDate.getDate() + Math.max(0, days_ahead));
+      const dateTo = `${limitDate.getFullYear()}-${pad(limitDate.getMonth() + 1)}-${pad(limitDate.getDate())}`;
+      const allOpen = queryTasks(notesDir, { status: "open", limit: 0 });
+      const reminders = allOpen
+        .map((t) => ({ ...t, dueDate: extractDueDate(t.text) }))
+        .filter((t) => t.dueDate !== null && t.dueDate >= today && t.dueDate <= dateTo)
+        .sort((a, b) => (a.dueDate ?? "").localeCompare(b.dueDate ?? ""));
+      return {
+        content: [{ type: "text" as const, text: JSON.stringify(reminders, null, 2) }],
       };
     }
 
