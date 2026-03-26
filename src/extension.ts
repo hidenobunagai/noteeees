@@ -1,8 +1,8 @@
 import * as fs from "fs";
 import * as vscode from "vscode";
-import { archiveMoments, MomentsViewProvider, showOpenTasksOverview } from "./momentsPanel";
-import { DashboardPanel } from "./dashboardPanel";
 import { createTaskFileWatcher } from "./aiTaskIndexer";
+import { DashboardPanel } from "./dashboardPanel";
+import { archiveMoments, MomentsViewProvider, showOpenTasksOverview } from "./momentsPanel";
 import {
   buildIndexedNotes,
   collectNoteFiles,
@@ -94,7 +94,10 @@ export function activate(context: vscode.ExtensionContext) {
     );
   }
 
-  async function setNotesDir(notesDir: string, scope: "global" | "workspace" = "global"): Promise<void> {
+  async function setNotesDir(
+    notesDir: string,
+    scope: "global" | "workspace" = "global",
+  ): Promise<void> {
     if (scope === "workspace") {
       await vscode.workspace
         .getConfiguration("notes")
@@ -142,7 +145,9 @@ export function activate(context: vscode.ExtensionContext) {
     }
   }
 
-  async function selectNotesDirectory(scope: "global" | "workspace" = "global"): Promise<string | undefined> {
+  async function selectNotesDirectory(
+    scope: "global" | "workspace" = "global",
+  ): Promise<string | undefined> {
     const selected = await vscode.window.showOpenDialog({
       canSelectFiles: false,
       canSelectFolders: true,
@@ -333,14 +338,23 @@ export function activate(context: vscode.ExtensionContext) {
 
   // Run Setup command
   const runSetupDisposable = vscode.commands.registerCommand("notes.runSetup", async () => {
-    const hasWorkspace = vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0;
+    const hasWorkspace =
+      vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0;
     let scope: "global" | "workspace" = "global";
 
     if (hasWorkspace) {
       const choice = await vscode.window.showQuickPick(
         [
-          { label: "$(globe) Global (all workspaces)", description: "Stored in machine-local extension storage", value: "global" as const },
-          { label: "$(folder) This Workspace only", description: "Stored in workspace settings (.vscode/settings.json)", value: "workspace" as const },
+          {
+            label: "$(globe) Global (all workspaces)",
+            description: "Stored in machine-local extension storage",
+            value: "global" as const,
+          },
+          {
+            label: "$(folder) This Workspace only",
+            description: "Stored in workspace settings (.vscode/settings.json)",
+            value: "workspace" as const,
+          },
         ],
         { placeHolder: "Set notes directory for..." },
       );
@@ -543,9 +557,13 @@ export function activate(context: vscode.ExtensionContext) {
 
       const { archived, skipped } = await archiveMoments(notesDir);
       if (archived === 0) {
-        vscode.window.showInformationMessage(`No Moments files to archive (${skipped} recent files kept).`);
+        vscode.window.showInformationMessage(
+          `No Moments files to archive (${skipped} recent files kept).`,
+        );
       } else {
-        vscode.window.showInformationMessage(`Archived ${archived} Moments file${archived === 1 ? "" : "s"} (${skipped} recent files kept).`);
+        vscode.window.showInformationMessage(
+          `Archived ${archived} Moments file${archived === 1 ? "" : "s"} (${skipped} recent files kept).`,
+        );
         momentsProvider.refresh();
       }
     },
