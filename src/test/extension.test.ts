@@ -8,6 +8,15 @@ import {
   resolveNotesDirectory,
 } from "../extension";
 import {
+  appendMoment,
+  collectMomentsFeed,
+  deleteMomentEntry,
+  formatDate,
+  getMomentsFilePath,
+  readMoments,
+  saveMomentEdit,
+} from "../moments/fileIo";
+import {
   buildMomentsDateLabel,
   buildMomentsFeedDates,
   buildTaskSearchDetail,
@@ -19,24 +28,15 @@ import {
   getNextInboxFilter,
   mapMomentBodyIndexToFileLine,
   MomentsViewProvider,
-  normalizeMomentLineToUnchecked,
   normalizeInboxTaskFilter,
+  normalizeMomentLineToUnchecked,
   normalizeMomentsFeedDayCount,
   parseDueDate,
-  resolvePinnedEntries,
   replaceMomentEntryText,
+  resolvePinnedEntries,
   sortOpenTaskOverview,
   toggleMomentTaskLine,
 } from "../momentsPanel";
-import {
-  appendMoment,
-  collectMomentsFeed,
-  deleteMomentEntry,
-  getMomentsFilePath,
-  formatDate,
-  readMoments,
-  saveMomentEdit,
-} from "../moments/fileIo";
 
 // You can import and use all API from the 'vscode' module
 // as well as import your extension to test it
@@ -144,15 +144,30 @@ suite("Extension Test Suite", () => {
   });
 
   test("notes directory prefers local storage over synced settings", () => {
-    assert.strictEqual(resolveNotesDirectory("/local/notes", "/synced/notes", undefined), "/local/notes");
-    assert.strictEqual(resolveNotesDirectory(undefined, "/synced/notes", undefined), "/synced/notes");
+    assert.strictEqual(
+      resolveNotesDirectory("/local/notes", "/synced/notes", undefined),
+      "/local/notes",
+    );
+    assert.strictEqual(
+      resolveNotesDirectory(undefined, "/synced/notes", undefined),
+      "/synced/notes",
+    );
     assert.strictEqual(resolveNotesDirectory(undefined, undefined, undefined), undefined);
   });
 
   test("notes directory workspace setting overrides global storage", () => {
-    assert.strictEqual(resolveNotesDirectory("/global/notes", undefined, "/workspace/notes"), "/workspace/notes");
-    assert.strictEqual(resolveNotesDirectory("/global/notes", "/synced/notes", "/workspace/notes"), "/workspace/notes");
-    assert.strictEqual(resolveNotesDirectory(undefined, undefined, "/workspace/notes"), "/workspace/notes");
+    assert.strictEqual(
+      resolveNotesDirectory("/global/notes", undefined, "/workspace/notes"),
+      "/workspace/notes",
+    );
+    assert.strictEqual(
+      resolveNotesDirectory("/global/notes", "/synced/notes", "/workspace/notes"),
+      "/workspace/notes",
+    );
+    assert.strictEqual(
+      resolveNotesDirectory(undefined, undefined, "/workspace/notes"),
+      "/workspace/notes",
+    );
   });
 
   test("note metadata prefers heading title and merges tags", () => {
@@ -608,7 +623,10 @@ suite("Extension Test Suite", () => {
   test("moments feed can load older visible days incrementally", () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "noteeees-moments-"));
     const today = formatDate(new Date());
-    const [todayDate, yesterdayDate, twoDaysAgoDate, threeDaysAgoDate] = buildMomentsFeedDates(today, 4);
+    const [todayDate, yesterdayDate, twoDaysAgoDate, threeDaysAgoDate] = buildMomentsFeedDates(
+      today,
+      4,
+    );
 
     try {
       appendMoment(tmpDir, todayDate, "Today entry");
@@ -629,18 +647,17 @@ suite("Extension Test Suite", () => {
       );
 
       const initial = collectMomentsFeed(tmpDir, today, 2);
-      assert.deepStrictEqual(initial.sections.map((section) => section.date), [
-        todayDate,
-        twoDaysAgoDate,
-      ]);
+      assert.deepStrictEqual(
+        initial.sections.map((section) => section.date),
+        [todayDate, twoDaysAgoDate],
+      );
       assert.strictEqual(initial.hasMoreOlder, true);
 
       const expanded = collectMomentsFeed(tmpDir, today, 3);
-      assert.deepStrictEqual(expanded.sections.map((section) => section.date), [
-        todayDate,
-        twoDaysAgoDate,
-        threeDaysAgoDate,
-      ]);
+      assert.deepStrictEqual(
+        expanded.sections.map((section) => section.date),
+        [todayDate, twoDaysAgoDate, threeDaysAgoDate],
+      );
       assert.strictEqual(expanded.hasMoreOlder, false);
     } finally {
       fs.rmSync(tmpDir, { recursive: true, force: true });

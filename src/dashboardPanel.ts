@@ -288,7 +288,11 @@ export class DashboardPanel {
       }
 
       case "addExtractedTask": {
-        const { text, dueDate } = message as { command: string; text: string; dueDate?: string | null };
+        const { text, dueDate } = message as {
+          command: string;
+          text: string;
+          dueDate?: string | null;
+        };
         void this._addExtractedTask(text, dueDate);
         break;
       }
@@ -487,7 +491,9 @@ export class DashboardPanel {
               const safeTxt = escHtml(t.text);
               const safeId = escAttr(t.id);
               const safePath = escAttr(t.filePath);
-              const dueBadge = t.dueDate ? ` <span class="due-badge">${escHtml(t.dueDate)}</span>` : "";
+              const dueBadge = t.dueDate
+                ? ` <span class="due-badge">${escHtml(t.dueDate)}</span>`
+                : "";
               return `<div class="task-item${doneClass}">
             <input type="checkbox" ${t.done ? "checked" : ""} data-task-id="${safeId}">
             <span class="task-text" data-file="${safePath}" data-line="${t.lineIndex}">${safeTxt}${dueBadge}</span>
