@@ -746,8 +746,31 @@ export class DashboardPanel {
 <div class="header">
   <div class="header-title">📋 AI Task Dashboard</div>
   <div class="header-date">${escHtml(data.today)}</div>
-  <div class="header-stats">Open: ${data.totalOpen} / Done: ${data.totalDone}</div>
-  <button class="btn" id="btn-refresh">⟳ Refresh</button>
+  <button class="btn" id="btn-refresh">↻ Refresh</button>
+</div>
+
+<div class="stats-row">
+  <div class="stat-card open">
+    <div class="stat-icon">📌</div>
+    <div>
+      <div class="stat-value">${data.totalOpen}</div>
+      <div class="stat-label">Open tasks</div>
+    </div>
+  </div>
+  <div class="stat-card done">
+    <div class="stat-icon">✅</div>
+    <div>
+      <div class="stat-value">${data.totalDone}</div>
+      <div class="stat-label">Done</div>
+    </div>
+  </div>
+  <div class="stat-card rate">
+    <div class="stat-icon">🎯</div>
+    <div>
+      <div class="stat-value">${data.completionRate}%</div>
+      <div class="stat-label">Completion rate</div>
+    </div>
+  </div>
 </div>
 
 <div class="grid">
