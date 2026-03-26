@@ -828,12 +828,12 @@ export class DashboardPanel {
 </div>
 
 <div class="card" style="margin-bottom:var(--gap)">
-  <h2>Categories (open tasks)</h2>
+  <div class="card-title">Categories <span style="color:var(--vscode-foreground);text-transform:none;font-weight:400;letter-spacing:0;opacity:.6">(open tasks)</span></div>
   ${catHtml}
 </div>
 
-<div class="card" id="ai-card">
-  <h2>AI Actions</h2>
+<div class="card ai-card" id="ai-card">
+  <div class="card-title">✨ AI Actions</div>
   <div class="ai-row">
     <button class="btn btn-primary" id="btn-plan-day">✨ Plan My Day</button>
     <button class="btn" id="btn-ai-extract">🤖 AI Extract from Moments</button>
@@ -868,14 +868,14 @@ document.getElementById('btn-refresh')?.addEventListener('click', refresh);
 document.getElementById('btn-plan-day')?.addEventListener('click', planDay);
 document.getElementById('btn-ai-extract')?.addEventListener('click', aiExtract);
 
-document.getElementById('today-tasks-card')?.addEventListener('change', function(e) {
+document.getElementById('upcoming-tasks-card')?.addEventListener('change', function(e) {
   const target = e.target;
   if (target && target.type === 'checkbox') {
     const taskId = target.dataset.taskId;
     if (taskId) toggleTask(target, taskId);
   }
 });
-document.getElementById('today-tasks-card')?.addEventListener('click', function(e) {
+document.getElementById('upcoming-tasks-card')?.addEventListener('click', function(e) {
   const span = e.target.closest('.task-text');
   if (span) {
     openFile(span.dataset.file || '', parseInt(span.dataset.line || '0', 10));
