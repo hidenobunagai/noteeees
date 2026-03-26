@@ -1,6 +1,8 @@
 import * as fs from "fs";
 import * as vscode from "vscode";
 import { archiveMoments, MomentsViewProvider, showOpenTasksOverview } from "./momentsPanel";
+import { DashboardPanel } from "./dashboardPanel";
+import { createTaskFileWatcher } from "./aiTaskIndexer";
 import {
   buildIndexedNotes,
   collectNoteFiles,
@@ -292,6 +294,16 @@ export function activate(context: vscode.ExtensionContext) {
     dispose: () => mdWatcher?.dispose(),
   });
 
+  let taskWatcher: vscode.Disposable | undefined;
+  const refreshTaskWatcher = () => {
+    taskWatcher?.dispose();
+    taskWatcher = undefined;
+    const dir = getNotesDir();
+    if (dir) taskWatcher = createTaskFileWatcher(dir, context);
+  };
+  refreshTaskWatcher();
+  context.subscriptions.push({ dispose: () => taskWatcher?.dispose() });
+
   const configChangeDisposable = vscode.workspace.onDidChangeConfiguration((event) => {
     if (
       event.affectsConfiguration("notes.notesDirectory") ||
@@ -299,6 +311,7 @@ export function activate(context: vscode.ExtensionContext) {
     ) {
       void migrateNotesDirectoryStorage().then(() => {
         refreshMarkdownWatcher();
+        refreshTaskWatcher();
         refreshNotesViews();
       });
       return;
@@ -311,6 +324,7 @@ export function activate(context: vscode.ExtensionContext) {
     ) {
       if (event.affectsConfiguration("notes.momentsSubfolder")) {
         refreshMarkdownWatcher();
+        refreshTaskWatcher();
       }
 
       refreshNotesViews();
@@ -498,6 +512,15 @@ export function activate(context: vscode.ExtensionContext) {
     },
   );
 
+  const openDashboardDisposable = vscode.commands.registerCommand(
+    "notes.openDashboard",
+    async () => {
+      const notesDir = await ensureNotesDirectory();
+      if (!notesDir) return;
+      DashboardPanel.createOrShow(getNotesDir, context.extensionUri);
+    },
+  );
+
   const archiveMomentsDisposable = vscode.commands.registerCommand(
     "notes.archiveMoments",
     async () => {
@@ -545,6 +568,7 @@ export function activate(context: vscode.ExtensionContext) {
     movePinnedNoteDownDisposable,
     openDailyNoteDisposable,
     archiveMomentsDisposable,
+    openDashboardDisposable,
   );
 }
 

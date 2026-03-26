@@ -123,6 +123,11 @@
         "command": "notes.archiveMoments",
         "title": "Noteeees Moments: Archive Old Moments",
         "icon": "$(archive)"
+      },
+      {
+        "command": "notes.openDashboard",
+        "title": "Noteeees: Open AI Task Dashboard",
+        "icon": "$(checklist)"
       }
     ],
     "keybindings": [
