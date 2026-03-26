@@ -3,21 +3,20 @@ import * as path from "path";
 import * as vscode from "vscode";
 import {
   MOMENT_TAG_PATTERN,
-  getSendOnEnter,
   getMomentsFeedDayCount,
+  getSendOnEnter,
   resolvePinnedEntries,
 } from "./config.js";
 import {
-  formatDate,
-  getMomentsFilePath,
-  collectMomentsFeed,
   appendMoment,
-  toggleTask,
-  saveMomentEdit,
+  collectMomentsFeed,
   deleteMomentEntry,
   ensureMomentsFile,
+  formatDate,
+  getMomentsFilePath,
+  saveMomentEdit,
 } from "./fileIo.js";
-import { showOpenTasksOverview } from "./taskOverview.js";
+
 import type { PinnedEntryData } from "./types.js";
 
 // ---------------------------------------------------------------------------
@@ -33,7 +32,11 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
   private readonly _context: vscode.ExtensionContext;
   private _feedSectionCount = getMomentsFeedDayCount();
 
-  constructor(getNotesDir: () => string | undefined, extensionUri: vscode.Uri, context: vscode.ExtensionContext) {
+  constructor(
+    getNotesDir: () => string | undefined,
+    extensionUri: vscode.Uri,
+    context: vscode.ExtensionContext,
+  ) {
     this._getNotesDir = getNotesDir;
     this._extensionUri = extensionUri;
     this._context = context;
@@ -77,17 +80,6 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
             return;
           }
           appendMoment(notesDir, formatDate(new Date()), message.text);
-          this._sendEntries();
-          break;
-        }
-
-        case "toggleTask": {
-          if (!notesDir) {
-            this._showError("Notes directory is not configured.");
-            this._sendEntries();
-            return;
-          }
-          toggleTask(notesDir, message.date ?? formatDate(new Date()), message.index);
           this._sendEntries();
           break;
         }
@@ -159,31 +151,28 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
           break;
         }
 
-        case "showOpenTasksOverview": {
-          if (!notesDir) {
-            this._showError("Notes directory is not configured.");
-            return;
-          }
-
-          void showOpenTasksOverview(notesDir);
-          break;
-        }
-
         case "exportToNote": {
           if (!notesDir) {
             this._showError("Notes directory is not configured.");
             return;
           }
 
-          const entries: Array<{ date: string; index: number; text: string }> =
-            Array.isArray(message.entries) ? message.entries : [];
+          const entries: Array<{ date: string; index: number; text: string }> = Array.isArray(
+            message.entries,
+          )
+            ? message.entries
+            : [];
           if (entries.length === 0) {
             return;
           }
 
           entries.sort((a, b) => {
-            if (a.date < b.date) { return -1; }
-            if (a.date > b.date) { return 1; }
+            if (a.date < b.date) {
+              return -1;
+            }
+            if (a.date > b.date) {
+              return 1;
+            }
             return a.index - b.index;
           });
 
@@ -226,7 +215,12 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
           const pinned = this._getPinnedEntries();
           const pinnedId = `${message.date}:${message.index}`;
           if (!pinned.some((e) => `${e.date}:${e.index}` === pinnedId)) {
-            pinned.push({ date: message.date, index: message.index, text: message.text, time: message.time });
+            pinned.push({
+              date: message.date,
+              index: message.index,
+              text: message.text,
+              time: message.time,
+            });
             this._setPinnedEntries(pinned);
           }
           this._sendEntries();
@@ -259,7 +253,9 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     const today = formatDate(new Date());
     const feedSectionCount = Math.max(this._feedSectionCount, getMomentsFeedDayCount());
     this._feedSectionCount = feedSectionCount;
-    const feed = notesDir ? collectMomentsFeed(notesDir, today, feedSectionCount) : { sections: [], hasMoreOlder: false };
+    const feed = notesDir
+      ? collectMomentsFeed(notesDir, today, feedSectionCount)
+      : { sections: [], hasMoreOlder: false };
     const sections = feed.sections;
     const sendOnEnter = getSendOnEnter();
 
@@ -278,11 +274,11 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
   }
 
   private _getPinnedEntries(): PinnedEntryData[] {
-    return this._context.globalState.get<PinnedEntryData[]>('moments.pinnedEntries', []);
+    return this._context.globalState.get<PinnedEntryData[]>("moments.pinnedEntries", []);
   }
 
   private _setPinnedEntries(entries: PinnedEntryData[]): void {
-    void this._context.globalState.update('moments.pinnedEntries', entries);
+    void this._context.globalState.update("moments.pinnedEntries", entries);
   }
 
   private _getHtml(webview: vscode.Webview): string {
@@ -493,19 +489,6 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     font-weight: 500;
   }
 
-  .entry-checkbox {
-    flex: none;
-    width: 15px;
-    height: 15px;
-    margin: 0;
-    accent-color: var(--vscode-textLink-foreground);
-    cursor: pointer;
-    margin-top: 1px;
-  }
-  .entry-checkbox:disabled {
-    cursor: default;
-    opacity: 0.55;
-  }
 
   .entry-content {
     min-width: 0;
@@ -515,15 +498,6 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     gap: 6px;
   }
 
-  .entry.task-done {
-    background: color-mix(in srgb, var(--vscode-textLink-foreground) 8%, var(--vscode-editor-background));
-    border-color: color-mix(in srgb, var(--vscode-textLink-foreground) 35%, var(--vscode-panel-border));
-  }
-
-  .entry.task-done .entry-text {
-    color: var(--vscode-textLink-foreground);
-    text-decoration: line-through;
-  }
 
   .entry-text {
     line-height: 1.45;
@@ -950,8 +924,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
   <div class="topbar">
   <div class="topbar-row topbar-row-actions">
     <button class="nav-btn icon-only" id="allBtn" title="Show all recent moments" aria-label="Show all recent moments">☰</button>
-    <button class="nav-btn icon-only" id="openBtn" title="Show unchecked moments only" aria-label="Show unchecked moments only">○</button>
-    <button class="nav-btn icon-only" id="inboxBtn" title="Show Moments across all days" aria-label="Show Moments across all days">&#128230;</button>
+    <button class="nav-btn icon-only" id="inboxBtn" title="Open AI Task Dashboard" aria-label="Open AI Task Dashboard">&#9881;</button>
     <button class="open-btn" id="openFileBtn" title="Open today's file in editor">&#8599;</button>
     <button class="open-btn export-btn" id="exportBtn" title="Export selected entries as a note">&#128203;</button>
   </div>
@@ -1002,7 +975,6 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
   const timeline = document.getElementById('timeline');
   const emptyState = document.getElementById('emptyState');
   const inboxBtn = document.getElementById('inboxBtn');
-  const openBtn = document.getElementById('openBtn');
   const allBtn = document.getElementById('allBtn');
   const activeTagBtn = document.getElementById('activeTagBtn');
   const openFileBtn = document.getElementById('openFileBtn');
@@ -1013,7 +985,6 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
   const selectedCountLabel = document.getElementById('selectedCountLabel');
   const exportNoteBtn = document.getElementById('exportNoteBtn');
   const exportCancelBtn = document.getElementById('exportCancelBtn');
-  let activeFilter = 'all';
   let activeTag = null;
   let activeTagLabel = '';
   let currentSearchText = '';
@@ -1154,7 +1125,6 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
       .map((section) => ({
         ...section,
         entries: section.entries
-          .filter((entry) => activeFilter !== 'open' || !entry.done)
           .filter((entry) => !activeTag || getEntryTags(entry).includes(activeTag))
           .filter((entry) => !currentSearchText || entry.text.toLowerCase().includes(currentSearchText))
           .slice()
@@ -1162,10 +1132,8 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
       }))
       .filter((section) => section.entries.length > 0);
 
-    allBtn.classList.toggle('active', activeFilter !== 'open');
-    allBtn.setAttribute('aria-pressed', String(activeFilter !== 'open'));
-    openBtn.classList.toggle('active', activeFilter === 'open');
-    openBtn.setAttribute('aria-pressed', String(activeFilter === 'open'));
+    allBtn.classList.add('active');
+    allBtn.setAttribute('aria-pressed', 'true');
     activeTagBtn.style.display = activeTag ? '' : 'none';
     activeTagBtn.textContent = activeTag ? activeTagLabel + ' ×' : '';
     activeTagBtn.title = activeTag ? ('Clear hashtag filter ' + activeTagLabel) : 'Clear active hashtag filter';
@@ -1174,20 +1142,12 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     if (visibleSections.length === 0) {
       emptyState.style.display = 'block';
       timeline.querySelectorAll('.day-section, .pinned-section').forEach(e => e.remove());
-      if (currentSearchText && activeTag && activeFilter === 'open') {
-        emptyState.textContent = 'No open moments tagged ' + activeTagLabel + ' matching "' + currentSearchText + '"';
-      } else if (currentSearchText && activeTag) {
+      if (currentSearchText && activeTag) {
         emptyState.textContent = 'No moments tagged ' + activeTagLabel + ' matching "' + currentSearchText + '"';
-      } else if (currentSearchText && activeFilter === 'open') {
-        emptyState.textContent = 'No open moments matching "' + currentSearchText + '"';
       } else if (currentSearchText) {
         emptyState.textContent = 'No moments matching "' + currentSearchText + '"';
-      } else if (activeTag && activeFilter === 'open') {
-        emptyState.textContent = 'No open moments tagged ' + activeTagLabel + ' in this recent feed';
       } else if (activeTag) {
         emptyState.textContent = 'No moments tagged ' + activeTagLabel + ' in this recent feed';
-      } else if (activeFilter === 'open') {
-        emptyState.textContent = 'No open moments in this recent feed';
       } else {
         emptyState.textContent = 'No moments yet — capture your first thought!';
       }
@@ -1213,7 +1173,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
 
       currentPinnedEntries.forEach((pinned) => {
         const div = document.createElement('div');
-        div.className = 'entry pinned-entry' + (pinned.done ? ' task-done' : '');
+        div.className = 'entry pinned-entry';
 
         const meta = document.createElement('div');
         meta.className = 'entry-meta';
@@ -1243,26 +1203,6 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
         const content = document.createElement('div');
         content.className = 'entry-content';
 
-        const checkbox = document.createElement('input');
-        checkbox.type = 'checkbox';
-        checkbox.className = 'entry-checkbox';
-        checkbox.checked = Boolean(pinned.done);
-        checkbox.disabled = pinned.isAvailable === false;
-        checkbox.title = pinned.isAvailable === false
-          ? 'Pinned entry is no longer available'
-          : (pinned.done ? 'Mark as open' : 'Mark as done');
-        checkbox.setAttribute(
-          'aria-label',
-          pinned.isAvailable === false
-            ? 'Pinned entry is no longer available'
-            : (pinned.done ? 'Mark as open' : 'Mark as done'),
-        );
-        if (pinned.isAvailable !== false) {
-          checkbox.addEventListener('change', () => {
-            vscode.postMessage({ command: 'toggleTask', date: pinned.date, index: pinned.index });
-          });
-        }
-        headerLeading.appendChild(checkbox);
         headerLeading.appendChild(meta);
 
         const actions = document.createElement('div');
@@ -1313,7 +1253,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
       const entryKey = section.date + ':' + entry.index;
       const exportKey = JSON.stringify({ date: section.date, index: entry.index });
       const div = document.createElement('div');
-      div.className = 'entry' + (entry.done ? ' task-done' : '') + (selectMode && selectedEntries.has(exportKey) ? ' selected-for-export' : '');
+      div.className = 'entry' + (selectMode && selectedEntries.has(exportKey) ? ' selected-for-export' : '');
 
       const meta = document.createElement('div');
       meta.className = 'entry-meta';
@@ -1452,16 +1392,6 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
       const content = document.createElement('div');
       content.className = 'entry-content';
 
-      const checkbox = document.createElement('input');
-      checkbox.type = 'checkbox';
-      checkbox.className = 'entry-checkbox';
-      checkbox.checked = entry.done;
-      checkbox.title = entry.done ? 'Mark as open' : 'Mark as done';
-      checkbox.setAttribute('aria-label', entry.done ? 'Mark as open' : 'Mark as done');
-      checkbox.addEventListener('change', () => {
-        vscode.postMessage({ command: 'toggleTask', date: section.date, index: entry.index });
-      });
-
       const selectCb = document.createElement('input');
       selectCb.type = 'checkbox';
       selectCb.className = 'select-entry-cb';
@@ -1527,7 +1457,6 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
       const headerLeading = document.createElement('div');
       headerLeading.className = 'entry-header-leading';
       headerLeading.appendChild(selectCb);
-      headerLeading.appendChild(checkbox);
       headerLeading.appendChild(meta);
 
       header.appendChild(headerLeading);
@@ -1579,21 +1508,11 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
   }
 
   openFileBtn.addEventListener('click', () => vscode.postMessage({ command: 'openFile' }));
-  inboxBtn.addEventListener('click', () => vscode.postMessage({ command: 'showOpenTasksOverview' }));
   timeline.addEventListener('scroll', () => {
     maybeLoadOlderEntries();
   }, { passive: true });
   allBtn.addEventListener('click', () => {
-    if (activeFilter !== 'all') {
-      activeFilter = 'all';
-      renderTimeline(latestSections);
-    }
-  });
-  openBtn.addEventListener('click', () => {
-    if (activeFilter !== 'open') {
-      activeFilter = 'open';
-      renderTimeline(latestSections);
-    }
+    renderTimeline(latestSections);
   });
   activeTagBtn.addEventListener('click', () => {
     activeTag = null;

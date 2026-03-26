@@ -1,8 +1,14 @@
 import * as fs from "fs";
 import * as path from "path";
 import * as vscode from "vscode";
-import { extractMomentTags, getMomentsSubfolder, getMomentsFeedDayCount, MOMENTS_FEED_DAY_COUNT, normalizeMomentsFeedDayCount } from "./config.js";
-import type { MomentEntry, MomentDaySection } from "./types.js";
+import {
+  extractMomentTags,
+  getMomentsFeedDayCount,
+  getMomentsSubfolder,
+  MOMENTS_FEED_DAY_COUNT,
+  normalizeMomentsFeedDayCount,
+} from "./config.js";
+import type { MomentDaySection, MomentEntry } from "./types.js";
 
 // ---------------------------------------------------------------------------
 // Date helpers
@@ -53,9 +59,7 @@ function listMomentFileDates(notesDir: string): string[] {
     .sort((a, b) => b.localeCompare(a));
 }
 
-function parseMomentEntryStart(
-  line: string,
-): { time: string; text: string; done: boolean } | null {
+function parseMomentEntryStart(line: string): { time: string; text: string; done: boolean } | null {
   const taskDone = line.match(/^-\s+\[x\]\s+(\d{2}:\d{2})\s+(.*)/i);
   if (taskDone) {
     return {
@@ -86,7 +90,10 @@ function parseMomentEntryStart(
   return null;
 }
 
-function findMomentEntryRange(lines: string[], startIndex: number): { startIndex: number; endIndex: number } | null {
+function findMomentEntryRange(
+  lines: string[],
+  startIndex: number,
+): { startIndex: number; endIndex: number } | null {
   if (startIndex < 0 || startIndex >= lines.length) {
     return null;
   }
@@ -103,7 +110,10 @@ function findMomentEntryRange(lines: string[], startIndex: number): { startIndex
   return { startIndex, endIndex };
 }
 
-function buildMomentEntryLines(startLine: string, text: string): { lines: string[]; changed: boolean } {
+function buildMomentEntryLines(
+  startLine: string,
+  text: string,
+): { lines: string[]; changed: boolean } {
   const normalizedText = text.replace(/\r\n/g, "\n").trim();
   if (!normalizedText) {
     return { lines: [startLine], changed: false };
@@ -111,27 +121,22 @@ function buildMomentEntryLines(startLine: string, text: string): { lines: string
 
   const textLines = normalizedText.split("\n");
 
-  const taskDone = startLine.match(/^(-\s+\[x\]\s+)(\d{2}:\d{2})\s+(.*)$/i);
+  // All patterns (task done, task todo, regular) are rewritten as plain `- HH:MM text`
+  const taskDone = startLine.match(/^-\s+\[x\]\s+(\d{2}:\d{2})\s+(.*)$/i);
   if (taskDone) {
-    const lines = [`${taskDone[1]}${taskDone[2]} ${textLines[0]}`, ...textLines.slice(1)];
-    return {
-      lines,
-      changed: lines.join("\n") !== startLine,
-    };
+    const lines = [`- ${taskDone[1]} ${textLines[0]}`, ...textLines.slice(1)];
+    return { lines, changed: true };
   }
 
-  const taskTodo = startLine.match(/^(-\s+\[ \]\s+)(\d{2}:\d{2})\s+(.*)$/);
+  const taskTodo = startLine.match(/^-\s+\[ \]\s+(\d{2}:\d{2})\s+(.*)$/);
   if (taskTodo) {
-    const lines = [`${taskTodo[1]}${taskTodo[2]} ${textLines[0]}`, ...textLines.slice(1)];
-    return {
-      lines,
-      changed: lines.join("\n") !== startLine,
-    };
+    const lines = [`- ${taskTodo[1]} ${textLines[0]}`, ...textLines.slice(1)];
+    return { lines, changed: true };
   }
 
   const regular = startLine.match(/^(-\s+)(\d{2}:\d{2})\s+(.*)$/);
   if (regular) {
-    const lines = [`${regular[1]}[ ] ${regular[2]} ${textLines[0]}`, ...textLines.slice(1)];
+    const lines = [`${regular[1]}${regular[2]} ${textLines[0]}`, ...textLines.slice(1)];
     return {
       lines,
       changed: lines.join("\n") !== startLine,
@@ -288,25 +293,22 @@ export function replaceMomentEntryText(
     return { line, changed: false };
   }
 
-  const taskDone = line.match(/^(-\s+\[x\]\s+)(\d{2}:\d{2})\s+(.*)$/i);
+  // All patterns rewritten as plain `- HH:MM text` (no checkbox)
+  const taskDone = line.match(/^-\s+\[x\]\s+(\d{2}:\d{2})\s+(.*)$/i);
   if (taskDone) {
-    return {
-      line: `${taskDone[1]}${taskDone[2]} ${normalizedText}`,
-      changed: taskDone[3] !== normalizedText,
-    };
+    const nextLine = `- ${taskDone[1]} ${normalizedText}`;
+    return { line: nextLine, changed: true };
   }
 
-  const taskTodo = line.match(/^(-\s+\[ \]\s+)(\d{2}:\d{2})\s+(.*)$/);
+  const taskTodo = line.match(/^-\s+\[ \]\s+(\d{2}:\d{2})\s+(.*)$/);
   if (taskTodo) {
-    return {
-      line: `${taskTodo[1]}${taskTodo[2]} ${normalizedText}`,
-      changed: taskTodo[3] !== normalizedText,
-    };
+    const nextLine = `- ${taskTodo[1]} ${normalizedText}`;
+    return { line: nextLine, changed: true };
   }
 
   const regular = line.match(/^(-\s+)(\d{2}:\d{2})\s+(.*)$/);
   if (regular) {
-    const nextLine = `${regular[1]}[ ] ${regular[2]} ${normalizedText}`;
+    const nextLine = `${regular[1]}${regular[2]} ${normalizedText}`;
     return {
       line: nextLine,
       changed: nextLine !== line,
@@ -407,7 +409,7 @@ export function appendMoment(notesDir: string, date: string, text: string): void
   const filePath = ensureMomentsFile(notesDir, date);
   const time = formatTime(new Date());
   const entryText = text.replace(/\r\n/g, "\n").trim();
-  const entry = `- [ ] ${time} ${entryText}\n`;
+  const entry = `- ${time} ${entryText}\n`;
 
   let content = fs.readFileSync(filePath, "utf8");
   // Ensure ends with newline before appending
@@ -441,7 +443,12 @@ export function toggleTask(notesDir: string, date: string, index: number): void 
   fs.writeFileSync(filePath, lines.join("\n"), "utf8");
 }
 
-export function saveMomentEdit(notesDir: string, date: string, index: number, text: string): boolean {
+export function saveMomentEdit(
+  notesDir: string,
+  date: string,
+  index: number,
+  text: string,
+): boolean {
   const filePath = getMomentsFilePath(notesDir, date);
   if (!fs.existsSync(filePath)) {
     return false;
@@ -487,7 +494,9 @@ export function deleteMomentEntry(notesDir: string, date: string, index: number)
   return true;
 }
 
-export async function archiveMoments(notesDir: string): Promise<{ archived: number; skipped: number }> {
+export async function archiveMoments(
+  notesDir: string,
+): Promise<{ archived: number; skipped: number }> {
   const config = vscode.workspace.getConfiguration("notes");
   const afterDays = Math.max(1, config.get<number>("momentsArchiveAfterDays") ?? 90);
 
