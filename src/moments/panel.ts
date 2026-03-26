@@ -610,6 +610,19 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     background: color-mix(in srgb, var(--vscode-textLink-foreground) 26%, transparent);
   }
 
+  .due-date-inline {
+    display: inline-block;
+    padding: 0 5px;
+    border-radius: 3px;
+    background: color-mix(in srgb, var(--vscode-charts-orange, #e8a838) 18%, transparent);
+    color: var(--vscode-charts-orange, #e8a838);
+    font-size: 11px;
+    font-weight: 500;
+    margin: 0 1px;
+    line-height: 1.4;
+    white-space: nowrap;
+  }
+
   /* ---- Due date badges ---- */
   .due-badge {
     display: inline-flex;
@@ -1055,6 +1068,8 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     // Highlight #tags
     let html = escapeHtml(text);
     html = html.replace(new RegExp(momentTagPattern, 'gu'), (tag) => '<button class="tag" type="button" data-tag="' + tag + '">' + tag + '</button>');
+    // Highlight @YYYY-MM-DD due dates
+    html = html.replace(/@(\d{4}-\d{2}-\d{2})/g, '<span class="due-date-inline">@$1</span>');
     // Auto-link URLs
     html = html.replace(/(https?:\\/\\/[^\\s<]+)/g, '<a href="$1" style="color:var(--vscode-textLink-foreground)">$1</a>');
     return html;
