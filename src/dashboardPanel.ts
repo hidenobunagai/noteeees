@@ -483,8 +483,8 @@ export class DashboardPanel {
               const safeId = escAttr(t.id);
               const safePath = escAttr(t.filePath);
               return `<div class="task-item${doneClass}">
-            <input type="checkbox" ${t.done ? "checked" : ""} onchange="toggleTask(this,'${safeId}')">
-            <span class="task-text" onclick="openFile('${safePath}',${t.lineIndex})">${safeTxt}</span>
+            <input type="checkbox" ${t.done ? "checked" : ""} data-task-id="${safeId}">
+            <span class="task-text" data-file="${safePath}" data-line="${t.lineIndex}">${safeTxt}</span>
           </div>`;
             })
             .join("");
@@ -530,7 +530,7 @@ export class DashboardPanel {
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'nonce-${nonce}'; script-src 'nonce-${nonce}';">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'nonce-${nonce}' 'unsafe-inline'; script-src 'nonce-${nonce}';">  
 <style nonce="${nonce}">
   :root {
     --radius: 6px;
@@ -596,11 +596,11 @@ export class DashboardPanel {
   <div class="header-title">📋 AI Task Dashboard</div>
   <div class="header-date">${escHtml(data.today)}</div>
   <div class="header-stats">Open: ${data.totalOpen} / Done: ${data.totalDone}</div>
-  <button class="btn" onclick="refresh()">⟳ Refresh</button>
+  <button class="btn" id="btn-refresh">⟳ Refresh</button>
 </div>
 
 <div class="grid">
-  <div class="card">
+  <div class="card" id="today-tasks-card">
     <h2>Today's Tasks (${data.todayTasks.filter((t) => !t.done).length} open)</h2>
     ${todayTasksHtml}
   </div>
@@ -618,8 +618,8 @@ export class DashboardPanel {
 <div class="card" id="ai-card">
   <h2>AI Actions</h2>
   <div class="ai-row">
-    <button class="btn btn-primary" onclick="planDay()">✨ Plan My Day</button>
-    <button class="btn" onclick="aiExtract()">🤖 AI Extract from Moments</button>
+    <button class="btn btn-primary" id="btn-plan-day">✨ Plan My Day</button>
+    <button class="btn" id="btn-ai-extract">🤖 AI Extract from Moments</button>
   </div>
   <div id="ai-status"></div>
   <div id="ai-result"></div>
@@ -646,6 +646,37 @@ function setStatus(type, msg) {
   el.className = type === 'error' ? 'error' : '';
   el.textContent = msg;
 }
+
+document.getElementById('btn-refresh')?.addEventListener('click', refresh);
+document.getElementById('btn-plan-day')?.addEventListener('click', planDay);
+document.getElementById('btn-ai-extract')?.addEventListener('click', aiExtract);
+
+document.getElementById('today-tasks-card')?.addEventListener('change', function(e) {
+  const target = e.target;
+  if (target && target.type === 'checkbox') {
+    const taskId = target.dataset.taskId;
+    if (taskId) toggleTask(target, taskId);
+  }
+});
+document.getElementById('today-tasks-card')?.addEventListener('click', function(e) {
+  const span = e.target.closest('.task-text');
+  if (span) {
+    openFile(span.dataset.file || '', parseInt(span.dataset.line || '0', 10));
+  }
+});
+
+document.getElementById('ai-result')?.addEventListener('click', function(e) {
+  const btn = e.target.closest('.add-task-btn');
+  if (btn) {
+    const idx = parseInt(btn.dataset.idx || '0', 10);
+    const el = document.getElementById('ai-result');
+    const tasks = el._tasks;
+    if (!tasks || !tasks[idx]) return;
+    vscode.postMessage({ command: 'addExtractedTask', text: tasks[idx].text });
+    btn.disabled = true;
+    btn.textContent = '✓';
+  }
+});
 
 window.addEventListener('message', (evt) => {
   const msg = evt.data;
@@ -680,24 +711,11 @@ function showExtractResult(tasks) {
         <div>\${esc(t.text)}</div>
         <div class="extract-meta">\${esc(t.category)} · \${esc(t.priority)} · ~\${t.timeEstimateMin}min</div>
       </div>
-      <button class="btn" style="font-size:11px" onclick="addTask(\${idx})">+ Add</button>
+      <button class="btn add-task-btn" style="font-size:11px" data-idx="\${idx}">+ Add</button>
     </div>\`
   ).join('');
   el._tasks = tasks;
   el.innerHTML = \`<div style="margin-top:8px"><div style="font-size:11px;color:var(--vscode-descriptionForeground);margin-bottom:4px">Momentsから \${tasks.length} 件のタスクを抽出:</div>\${items}</div>\`;
-}
-
-function addTask(idx) {
-  const el = document.getElementById('ai-result');
-  const tasks = el._tasks;
-  if (!tasks || !tasks[idx]) return;
-  vscode.postMessage({ command: 'addExtractedTask', text: tasks[idx].text });
-  // Visual feedback - dim the button
-  const buttons = el.querySelectorAll('button');
-  if (buttons[idx]) {
-    buttons[idx].disabled = true;
-    buttons[idx].textContent = '✓';
-  }
 }
 </script>
 </body>
