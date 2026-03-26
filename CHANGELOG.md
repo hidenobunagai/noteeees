@@ -6,6 +6,11 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.1.16] - 2026-03-26
+
+### Fixed
+- **AI Task Dashboard buttons**: Refresh, Plan My Day, AI Extract, and Add task buttons were silently blocked by Content Security Policy. Replaced all inline `onclick`/`onchange` event handlers with `addEventListener` and event delegation to comply with the webview CSP.
+
 ## [0.1.15] - 2026-03-26
 
 ### Added
