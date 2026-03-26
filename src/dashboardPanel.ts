@@ -511,21 +511,52 @@ export class DashboardPanel {
 
     const weekMax = Math.max(...data.week.map((d) => d.open + d.done), 1);
 
-    const todayTasksHtml =
+    const upcomingTasksHtml =
       data.upcomingTasks.length === 0
-        ? `<p class="empty">今日のタスクはありません 🎉</p>`
+        ? `<p class="empty">upcoming タスクはありません 🎉</p>`
         : data.upcomingTasks
             .map((t) => {
               const doneClass = t.done ? " done" : "";
               const safeTxt = escHtml(t.text);
               const safeId = escAttr(t.id);
               const safePath = escAttr(t.filePath);
-              const dueBadge = t.dueDate
-                ? ` <span class="due-badge">${escHtml(t.dueDate)}</span>`
+
+              // Tag badges: show first matching category tag only
+              const CATS = ["work", "personal", "health", "learning", "admin"];
+              const firstTag = t.tags.find((tag) =>
+                CATS.includes(tag.replace("#", "").toLowerCase()),
+              );
+              const tagBadge = firstTag
+                ? `<span class="badge badge-tag">${escHtml(firstTag)}</span>`
                 : "";
+
+              // Today badge
+              const todayBadge =
+                t.date === data.today
+                  ? `<span class="badge badge-today">Today</span>`
+                  : "";
+
+              // Due date badge
+              let dueBadge = "";
+              if (t.dueDate) {
+                const isOverdue = t.dueDate < data.today;
+                const badgeClass = isOverdue ? "badge badge-overdue" : "badge badge-due";
+                // Format YYYY-MM-DD → MMM DD
+                const [, mm, dd] = t.dueDate.split("-");
+                const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+                const monthName = months[parseInt(mm, 10) - 1] ?? mm;
+                dueBadge = `<span class="${badgeClass}">📅 ${monthName} ${dd}</span>`;
+              }
+
+              const meta = [tagBadge, todayBadge, dueBadge].filter(Boolean).join("");
+              const metaRow = meta ? `<div class="task-meta">${meta}</div>` : "";
+
               return `<div class="task-item${doneClass}">
-            <input type="checkbox" ${t.done ? "checked" : ""} data-task-id="${safeId}">
-            <span class="task-text" data-file="${safePath}" data-line="${t.lineIndex}">${safeTxt}${dueBadge}</span>
+            <input type="checkbox" class="task-check" ${t.done ? "checked" : ""} data-task-id="${safeId}">
+            <div class="task-body">
+              <div class="task-text" data-file="${safePath}" data-line="${t.lineIndex}">${safeTxt}</div>
+              ${metaRow}
+            </div>
           </div>`;
             })
             .join("");
@@ -774,9 +805,12 @@ export class DashboardPanel {
 </div>
 
 <div class="grid">
-  <div class="card" id="today-tasks-card">
-     <h2>Today's Tasks (${data.upcomingTasks.filter((t: DashTask) => !t.done).length} open)</h2>
-    ${todayTasksHtml}
+  <div class="card" id="upcoming-tasks-card">
+    <div class="card-title">
+      Upcoming Tasks
+      <span class="card-title-badge">${data.upcomingTasks.filter((t: DashTask) => !t.done).length} open</span>
+    </div>
+    ${upcomingTasksHtml}
   </div>
   <div class="card">
     <h2>Weekly Overview</h2>
