@@ -564,16 +564,21 @@ export class DashboardPanel {
     const weekBarsHtml = data.week
       .map((d) => {
         const total = d.open + d.done;
-        const doneW = total > 0 ? Math.round((d.done / weekMax) * 100) : 0;
-        const openW = total > 0 ? Math.round((d.open / weekMax) * 100) : 0;
+        const doneH = total > 0 ? Math.round((d.done / weekMax) * 100) : 0;
+        const openH = total > 0 ? Math.round((d.open / weekMax) * 100) : 0;
         const isToday = d.date === data.today;
+        // Format date as M/D (no leading zero)
+        const [, mm, dd] = d.date.split("-");
+        const dateLabel = `${parseInt(mm, 10)}/${parseInt(dd, 10)}`;
         return `<div class="week-day${isToday ? " today" : ""}">
-        <div class="week-label">${escHtml(d.label)}</div>
-        <div class="week-bar">
-          <div class="bar-done" style="width:${doneW}%"></div>
-          <div class="bar-open" style="width:${openW}%"></div>
+        <div class="week-bar-area">
+          <div class="bar-done" style="height:${doneH}%"></div>
+          <div class="bar-open" style="height:${openH}%"></div>
         </div>
-        <div class="week-count">${total}</div>
+        <div class="week-day-label">
+          <span class="week-day-name">${escHtml(d.label)}</span>
+          <span class="week-day-date">${escHtml(dateLabel)}</span>
+        </div>
       </div>`;
       })
       .join("");
@@ -813,8 +818,12 @@ export class DashboardPanel {
     ${upcomingTasksHtml}
   </div>
   <div class="card">
-    <h2>Weekly Overview</h2>
+    <div class="card-title">Weekly Overview</div>
     <div class="week-bars">${weekBarsHtml}</div>
+    <div class="week-legend">
+      <div class="legend-item"><div class="legend-dot" style="background:var(--vscode-testing-iconPassed,#a6e3a1)"></div>Done</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--vscode-textLink-foreground,#89b4fa);opacity:.6"></div>Open</div>
+    </div>
   </div>
 </div>
 
