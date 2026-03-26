@@ -116,6 +116,7 @@ function last7Days(): WeekDay[] {
 export class DashboardPanel {
   public static readonly viewType = "noteeeesDashboard";
   private static _instance: DashboardPanel | undefined;
+  private static _statusListener: ((processing: boolean) => void) | undefined;
 
   private readonly _panel: vscode.WebviewPanel;
   private readonly _getNotesDir: () => string | undefined;
@@ -146,6 +147,22 @@ export class DashboardPanel {
 
   static dispose(): void {
     DashboardPanel._instance?.dispose();
+  }
+
+  static setStatusListener(cb: (processing: boolean) => void): void {
+    DashboardPanel._statusListener = cb;
+  }
+
+  static runPlanDay(): void {
+    if (DashboardPanel._instance) {
+      void DashboardPanel._instance._runPlanDay();
+    }
+  }
+
+  static runAiExtract(): void {
+    if (DashboardPanel._instance) {
+      void DashboardPanel._instance._runAiExtract();
+    }
   }
 
   private constructor(
@@ -321,31 +338,36 @@ export class DashboardPanel {
     this._cancelToken = new vscode.CancellationTokenSource();
     const token = this._cancelToken.token;
 
+    DashboardPanel._statusListener?.(true);
     this._panel.webview.postMessage({
       type: "aiStatus",
       status: "processing",
       message: "AIがプランを生成中...",
     });
 
-    const notesDir = this._getNotesDir();
-    if (!notesDir) return;
+    try {
+      const notesDir = this._getNotesDir();
+      if (!notesDir) return;
 
-    const momentsSubfolder =
-      vscode.workspace.getConfiguration("notes").get<string>("momentsSubfolder") || "moments";
-    const tasks = collectTasksFromNotes(notesDir, momentsSubfolder);
-    const today = todayDateString();
-    const todayOpen = tasks.filter((t) => !t.done && (t.date === today || t.date === null));
+      const momentsSubfolder =
+        vscode.workspace.getConfiguration("notes").get<string>("momentsSubfolder") || "moments";
+      const tasks = collectTasksFromNotes(notesDir, momentsSubfolder);
+      const today = todayDateString();
+      const todayOpen = tasks.filter((t) => !t.done && (t.date === today || t.date === null));
 
-    const result = await planDay(today, todayOpen, token);
-    if (!result) {
-      this._panel.webview.postMessage({
-        type: "aiStatus",
-        status: "error",
-        message: "AI が利用できません。GitHub Copilot が有効か確認してください。",
-      });
-      return;
+      const result = await planDay(today, todayOpen, token);
+      if (!result) {
+        this._panel.webview.postMessage({
+          type: "aiStatus",
+          status: "error",
+          message: "AI が利用できません。GitHub Copilot が有効か確認してください。",
+        });
+        return;
+      }
+      this._panel.webview.postMessage({ type: "planDayResult", plan: result });
+    } finally {
+      DashboardPanel._statusListener?.(false);
     }
-    this._panel.webview.postMessage({ type: "planDayResult", plan: result });
   }
 
   private async _runAiExtract(): Promise<void> {
@@ -353,58 +375,63 @@ export class DashboardPanel {
     this._cancelToken = new vscode.CancellationTokenSource();
     const token = this._cancelToken.token;
 
+    DashboardPanel._statusListener?.(true);
     this._panel.webview.postMessage({
       type: "aiStatus",
       status: "processing",
       message: "今日の Moments を AI が分析中...",
     });
 
-    const notesDir = this._getNotesDir();
-    if (!notesDir) return;
+    try {
+      const notesDir = this._getNotesDir();
+      if (!notesDir) return;
 
-    const momentsSubfolder =
-      vscode.workspace.getConfiguration("notes").get<string>("momentsSubfolder") || "moments";
-    const today = todayDateString();
-    const momentsFile = path.join(notesDir, momentsSubfolder, `${today}.md`);
+      const momentsSubfolder =
+        vscode.workspace.getConfiguration("notes").get<string>("momentsSubfolder") || "moments";
+      const today = todayDateString();
+      const momentsFile = path.join(notesDir, momentsSubfolder, `${today}.md`);
 
-    if (!fs.existsSync(momentsFile)) {
-      this._panel.webview.postMessage({
-        type: "aiStatus",
-        status: "error",
-        message: "今日の Moments ファイルが見つかりません。",
-      });
-      return;
+      if (!fs.existsSync(momentsFile)) {
+        this._panel.webview.postMessage({
+          type: "aiStatus",
+          status: "error",
+          message: "今日の Moments ファイルが見つかりません。",
+        });
+        return;
+      }
+
+      const content = fs.readFileSync(momentsFile, "utf8");
+      // Strip front matter
+      const body = content.replace(/^---[\s\S]*?---\s*/m, "").trim();
+      // Strip timestamp prefixes to get clean text
+      const cleanText = body
+        .split("\n")
+        .filter((l) => l.startsWith("- "))
+        .map((l) => l.replace(/^- (\d{2}:\d{2} )?/, "").trim())
+        .join("\n");
+
+      if (!cleanText) {
+        this._panel.webview.postMessage({
+          type: "aiStatus",
+          status: "error",
+          message: "今日の Moments にテキストが見つかりません。",
+        });
+        return;
+      }
+
+      const extracted = await extractTasksFromMoments(cleanText, token);
+      if (extracted.length === 0) {
+        this._panel.webview.postMessage({
+          type: "aiStatus",
+          status: "done",
+          message: "実行可能なタスクは見つかりませんでした。",
+        });
+        return;
+      }
+      this._panel.webview.postMessage({ type: "extractResult", tasks: extracted });
+    } finally {
+      DashboardPanel._statusListener?.(false);
     }
-
-    const content = fs.readFileSync(momentsFile, "utf8");
-    // Strip front matter
-    const body = content.replace(/^---[\s\S]*?---\s*/m, "").trim();
-    // Strip timestamp prefixes to get clean text
-    const cleanText = body
-      .split("\n")
-      .filter((l) => l.startsWith("- "))
-      .map((l) => l.replace(/^- (\d{2}:\d{2} )?/, "").trim())
-      .join("\n");
-
-    if (!cleanText) {
-      this._panel.webview.postMessage({
-        type: "aiStatus",
-        status: "error",
-        message: "今日の Moments にテキストが見つかりません。",
-      });
-      return;
-    }
-
-    const extracted = await extractTasksFromMoments(cleanText, token);
-    if (extracted.length === 0) {
-      this._panel.webview.postMessage({
-        type: "aiStatus",
-        status: "done",
-        message: "実行可能なタスクは見つかりませんでした。",
-      });
-      return;
-    }
-    this._panel.webview.postMessage({ type: "extractResult", tasks: extracted });
   }
 
   private async _addExtractedTask(text: string): Promise<void> {

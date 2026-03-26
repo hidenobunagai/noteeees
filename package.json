@@ -128,6 +128,14 @@
         "command": "notes.openDashboard",
         "title": "Noteeees: Open AI Task Dashboard",
         "icon": "$(checklist)"
+      },
+      {
+        "command": "notes.aiPlanDay",
+        "title": "Noteeees: AI - Plan My Day"
+      },
+      {
+        "command": "notes.aiExtractTasks",
+        "title": "Noteeees: AI - Extract Tasks from Today's Moments"
       }
     ],
     "keybindings": [
@@ -158,6 +166,11 @@
         "key": "ctrl+shift+d",
         "mac": "cmd+shift+d",
         "when": "true"
+      },
+      {
+        "command": "notes.openDashboard",
+        "key": "ctrl+shift+t",
+        "mac": "cmd+shift+t"
       }
     ],
     "viewsContainers": {
@@ -353,6 +366,16 @@
           "default": "",
           "scope": "resource",
           "description": "Workspace-specific notes directory. When set, overrides the machine-global notes directory for this workspace only."
+        },
+        "notes.ai.autoEnrich": {
+          "type": "boolean",
+          "default": false,
+          "description": "ファイル保存時に自動で AI タスクエンリッチを実行する。GitHub Copilot が必要です。"
+        },
+        "notes.ai.autoPlanDay": {
+          "type": "boolean",
+          "default": false,
+          "description": "今日の Moments 更新時に自動で今日の計画を再生成する。GitHub Copilot が必要です。"
         }
       }
     }

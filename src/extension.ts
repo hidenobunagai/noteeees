@@ -309,6 +309,18 @@ export function activate(context: vscode.ExtensionContext) {
   refreshTaskWatcher();
   context.subscriptions.push({ dispose: () => taskWatcher?.dispose() });
 
+  // AI status bar item (Task 8)
+  const aiStatusBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
+  aiStatusBar.text = "$(checklist) AI Tasks";
+  aiStatusBar.tooltip = "Open AI Task Dashboard";
+  aiStatusBar.command = "notes.openDashboard";
+  aiStatusBar.show();
+  context.subscriptions.push(aiStatusBar);
+
+  DashboardPanel.setStatusListener((processing) => {
+    aiStatusBar.text = processing ? "$(loading~spin) AI: 解析中…" : "$(checklist) AI Tasks";
+  });
+
   const configChangeDisposable = vscode.workspace.onDidChangeConfiguration((event) => {
     if (
       event.affectsConfiguration("notes.notesDirectory") ||
@@ -535,6 +547,27 @@ export function activate(context: vscode.ExtensionContext) {
     },
   );
 
+  const aiPlanDayDisposable = vscode.commands.registerCommand(
+    "notes.aiPlanDay",
+    async () => {
+      const notesDir = await ensureNotesDirectory();
+      if (!notesDir) return;
+      DashboardPanel.createOrShow(getNotesDir, context.extensionUri);
+      // Give the panel a moment to initialize before triggering planDay
+      setTimeout(() => DashboardPanel.runPlanDay(), 300);
+    },
+  );
+
+  const aiExtractTasksDisposable = vscode.commands.registerCommand(
+    "notes.aiExtractTasks",
+    async () => {
+      const notesDir = await ensureNotesDirectory();
+      if (!notesDir) return;
+      DashboardPanel.createOrShow(getNotesDir, context.extensionUri);
+      setTimeout(() => DashboardPanel.runAiExtract(), 300);
+    },
+  );
+
   const archiveMomentsDisposable = vscode.commands.registerCommand(
     "notes.archiveMoments",
     async () => {
@@ -587,6 +620,8 @@ export function activate(context: vscode.ExtensionContext) {
     openDailyNoteDisposable,
     archiveMomentsDisposable,
     openDashboardDisposable,
+    aiPlanDayDisposable,
+    aiExtractTasksDisposable,
   );
 }
 

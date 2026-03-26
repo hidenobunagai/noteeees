@@ -6,6 +6,21 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.1.15] - 2026-03-26
+
+### Added
+- **AI Task Dashboard** (`Cmd+Shift+T`): New editor panel showing today's tasks, a 7-day weekly overview bar chart, and category breakdown from all your Notes files. Powered by GitHub Copilot — no separate API key required.
+- **Plan My Day**: Button inside the dashboard that asks Copilot to generate a time-blocked schedule from today's open tasks.
+- **AI Extract**: Button inside the dashboard that scans today's Moments for hidden action items and adds them to `tasks/YYYY-MM-DD.md`.
+- **AI status bar item**: Shows `AI Tasks` in the VS Code status bar; updates to a spinner while AI is processing. Click to open the dashboard.
+- **Auto-refresh**: Dashboard automatically refreshes whenever a `.md` file changes in your notes directory.
+- **MCP task tools**: Five new MCP tools — `get_tasks`, `get_task_stats`, `update_task_status`, `add_task`, `get_reminders` — let AI agents read and mutate your task list over the Model Context Protocol.
+- **AI settings**: `notes.ai.autoEnrich` and `notes.ai.autoPlanDay` configuration properties added.
+- New commands: `Noteeees: AI - Plan My Day` and `Noteeees: AI - Extract Tasks from Today's Moments`.
+
+### Changed
+- **Moments**: Posts are now plain timeline entries (`- HH:MM text`) with no checkboxes. Task management moves entirely to the AI Task Dashboard. Existing `- [ ]` / `- [x]` entries remain readable but are no longer created by the composer.
+
 ## [0.1.14] - 2026-03-25
 
 ### Changed

@@ -2,21 +2,38 @@
 
 [![GitHub](https://img.shields.io/badge/github-%23121011.svg?style=for-the-badge&logo=github&logoColor=white)](https://github.com/hidenobunagai/noteeees)
 
-Simple markdown notes extension. Accumulate individual note files and search them instantly via MCP.
+Simple markdown notes extension. Accumulate individual note files and search them instantly via MCP. Elevate rough Moments posts into structured tasks with the built-in AI Task Dashboard.
 
 ## Features
 
+### AI Task Dashboard
+Powered by **GitHub Copilot** (no separate API key required).
+
+- **`Cmd+Shift+T`**: Open the AI Task Dashboard — an editor panel showing today's tasks, a 7-day overview, and category breakdown
+- **Today's Tasks**: Live list of `- [ ]` / `- [x]` items from your Notes files, toggleable in-place
+- **Weekly Overview**: Bar chart of open vs done tasks per day over the last 7 days
+- **Categories**: Task counts broken down by `#work`, `#personal`, `#health`, `#learning`, `#admin`
+- **Plan My Day**: Ask Copilot to generate a time-blocked schedule from today's open tasks
+- **AI Extract**: Let Copilot scan today's Moments for hidden action items and add them to your task files
+- **Status bar indicator**: Shows `AI Tasks` in the status bar; updates to a spinner while AI is processing
+- **Auto-refresh**: The dashboard refreshes automatically whenever a `.md` file changes in your notes directory
+
+#### AI commands
+
+| Command | Description |
+| --- | --- |
+| `Noteeees: Open AI Task Dashboard` (`Cmd+Shift+T`) | Open or reveal the dashboard panel |
+| `Noteeees: AI - Plan My Day` | Open dashboard and kick off Plan My Day |
+| `Noteeees: AI - Extract Tasks from Today's Moments` | Open dashboard and run AI Extract |
+
 ### Moments
-A quick-capture timeline panel for fleeting thoughts, tasks, and ideas — always one keypress away.
+A quick-capture timeline panel for fleeting thoughts and ideas — always one keypress away.
 
 - **`Cmd+Shift+M`**: Open the Moments panel from the Activity Bar (⚡ lightning icon)
-- **Timeline view**: Entries displayed as a continuous recent feed with timestamps, task status, and quick actions
+- **Timeline view**: Entries displayed as a continuous recent feed with timestamps and quick actions
 - **Quick input**: The composer stays pinned below the topbar so you can type immediately; press `Enter` to save instantly, or use `Shift+Enter` for multiline posts
-- **Post-level checkboxes**: Every Moment can be checked on or off directly in the feed, so posts stay left-aligned whether they started as a note or a todo
 - **Inline editing**: Edit a Moment in place and save without leaving the panel
 - **Safe deletion**: Delete a Moment from the panel with a confirmation step
-- **Open filter**: Toggle `Open` to focus only on unchecked Moments across the recent feed
-- **Inbox overview**: Open `Inbox` to browse all Moments posts, switch between all/open/done views, remember that filter between launches, toggle done or undone inline, or jump to the exact line
 - **Sticky date markers**: Each day label stays visible while you scroll through the feed
 - **Hashtag feed filters**: Click a `#tag` in Moments to filter the current feed to that hashtag, then clear it from the header
 - **Open in editor**: `↗` opens today's raw Markdown file for editing
@@ -31,13 +48,12 @@ type: moments
 date: 2026-03-01
 ---
 
-- [ ] 09:15 Great idea for the API design #idea
-- [ ] 10:30 Follow up with the team #todo
-- [x] 11:00 Completed task
-- [ ] 14:22 Interesting article https://example.com
+- 09:15 Started working on the API design #work
+- 10:30 Need to follow up with the team
+- 14:22 Interesting article https://example.com
 ```
 
-Moments are excluded from the regular Notes sidebar but are **fully searchable via MCP** since they're plain `.md` files.
+Moments are excluded from the regular Notes sidebar but are **fully searchable via MCP** since they're plain `.md` files. Use **AI Extract** in the dashboard to turn your free-form posts into actionable tasks.
 
 ### Daily Note
 - **Daily Note** (`Cmd+Shift+D`): Open today's daily note — creates it from a template if it doesn't exist. File is saved as `YYYY-MM-DD_daily.md` in your notes directory root. Customize the template with `notes.dailyNoteTemplate` (supports `{date}`, `{weekday}`, `{time}` tokens).
@@ -134,6 +150,8 @@ When `notes.templates` is set, a picker will appear on note creation to choose b
 | `notes.sidebarTagSort` | Sort mode for the sidebar Tags section (`frequency` or `alphabetical`) |
 | `notes.momentsInboxFilter` | Default filter for the Moments Inbox (`all`, `open`, or `done`) |
 | `notes.momentsFeedDays` | Number of days shown in the stacked Moments feed (`1`-`30`) |
+| `notes.ai.autoEnrich` | Auto-run AI task enrichment on file save (requires GitHub Copilot) |
+| `notes.ai.autoPlanDay` | Auto-regenerate today's plan when today's Moments updates (requires GitHub Copilot) |
 
 ## Supercharge with MCP
 
