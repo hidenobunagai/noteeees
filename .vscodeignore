@@ -3,6 +3,7 @@
 .github/
 .vscode/
 .superset/
+docs/
 notes-mcp/
 node_modules/
 src/
