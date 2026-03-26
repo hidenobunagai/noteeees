@@ -221,11 +221,34 @@ export class DashboardPanel {
       }
     }
 
-    const todayTasks = tasks
-      .filter((t) => t.date === today || t.date === null)
-      .sort((a, b) => (a.done === b.done ? a.text.localeCompare(b.text) : a.done ? 1 : -1));
-
     const openTasks = tasks.filter((t) => !t.done);
+
+    // Compute the cutoff date string (today + 7 days, YYYY-MM-DD)
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() + 7);
+    const cutoffStr = `${cutoffDate.getFullYear()}-${pad2(cutoffDate.getMonth() + 1)}-${pad2(cutoffDate.getDate())}`;
+
+    const upcomingTasks = tasks
+      .filter((t) => {
+        if (t.date === today || t.date === null) return true;
+        if (t.dueDate && t.dueDate <= cutoffStr) return true;
+        return false;
+      })
+      .sort((a, b) => {
+        // Open tasks come before done tasks
+        if (a.done !== b.done) return a.done ? 1 : -1;
+        if (!a.done) {
+          // Both open: tasks with due dates first (ascending), then undated alphabetically
+          const aDue = a.dueDate ?? null;
+          const bDue = b.dueDate ?? null;
+          if (aDue && bDue) return aDue.localeCompare(bDue);
+          if (aDue) return -1;
+          if (bDue) return 1;
+          return a.text.localeCompare(b.text);
+        }
+        // Both done: alphabetical
+        return a.text.localeCompare(b.text);
+      });
 
     const CATEGORIES = ["work", "personal", "health", "learning", "admin"];
     const catCount: Record<string, number> = {};
@@ -243,13 +266,18 @@ export class DashboardPanel {
       if (!matched) catCount["other"]++;
     }
 
+    const totalDone = tasks.filter((t) => t.done).length;
+    const totalAll = tasks.length;
+    const completionRate = totalAll > 0 ? Math.round((totalDone / totalAll) * 100) : 0;
+
     const data = {
       today,
-      todayTasks,
+      upcomingTasks,
       week,
       catCount,
       totalOpen: openTasks.length,
-      totalDone: tasks.filter((t) => t.done).length,
+      totalDone,
+      completionRate,
     };
 
     this._panel.webview.html = this._getHtml(data);
@@ -472,20 +500,21 @@ export class DashboardPanel {
 
   private _getHtml(data: {
     today: string;
-    todayTasks: DashTask[];
+    upcomingTasks: DashTask[];
     week: WeekDay[];
     catCount: Record<string, number>;
     totalOpen: number;
     totalDone: number;
+    completionRate: number;
   }): string {
     const nonce = crypto.randomBytes(16).toString("hex");
 
     const weekMax = Math.max(...data.week.map((d) => d.open + d.done), 1);
 
     const todayTasksHtml =
-      data.todayTasks.length === 0
+      data.upcomingTasks.length === 0
         ? `<p class="empty">今日のタスクはありません 🎉</p>`
-        : data.todayTasks
+        : data.upcomingTasks
             .map((t) => {
               const doneClass = t.done ? " done" : "";
               const safeTxt = escHtml(t.text);
@@ -619,7 +648,7 @@ export class DashboardPanel {
 
 <div class="grid">
   <div class="card" id="today-tasks-card">
-    <h2>Today's Tasks (${data.todayTasks.filter((t) => !t.done).length} open)</h2>
+     <h2>Today's Tasks (${data.upcomingTasks.filter((t: DashTask) => !t.done).length} open)</h2>
     ${todayTasksHtml}
   </div>
   <div class="card">
