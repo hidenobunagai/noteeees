@@ -547,16 +547,13 @@ export function activate(context: vscode.ExtensionContext) {
     },
   );
 
-  const aiPlanDayDisposable = vscode.commands.registerCommand(
-    "notes.aiPlanDay",
-    async () => {
-      const notesDir = await ensureNotesDirectory();
-      if (!notesDir) return;
-      DashboardPanel.createOrShow(getNotesDir, context.extensionUri);
-      // Give the panel a moment to initialize before triggering planDay
-      setTimeout(() => DashboardPanel.runPlanDay(), 300);
-    },
-  );
+  const aiPlanDayDisposable = vscode.commands.registerCommand("notes.aiPlanDay", async () => {
+    const notesDir = await ensureNotesDirectory();
+    if (!notesDir) return;
+    DashboardPanel.createOrShow(getNotesDir, context.extensionUri);
+    // Give the panel a moment to initialize before triggering planDay
+    setTimeout(() => DashboardPanel.runPlanDay(), 300);
+  });
 
   const aiExtractTasksDisposable = vscode.commands.registerCommand(
     "notes.aiExtractTasks",
