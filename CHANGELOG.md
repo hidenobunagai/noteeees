@@ -6,6 +6,11 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-03-27
+
+### Changed
+- **Extension icon refresh**: Replaced the previous rounded-square app tile with a transparent layered-notes icon so the marketplace listing reads more like a native extension icon.
+
 ## [0.2.0] - 2026-03-27
 
 ### Added
