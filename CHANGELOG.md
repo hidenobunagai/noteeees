@@ -6,6 +6,11 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.2.3] - 2026-03-27
+
+### Fixed
+- **Moments inline due date highlighting**: `@YYYY-MM-DD` mentions in Moments now render with the same inline highlight treatment that was intended for due dates inside the feed cards.
+
 ## [0.2.2] - 2026-03-27
 
 ### Changed
