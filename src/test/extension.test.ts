@@ -4,6 +4,8 @@ import * as os from "os";
 import * as path from "path";
 import {
   classifyDashboardTask,
+  filterExtractedTasksForDisplay,
+  normalizeExtractedTaskIdentity,
   normalizeDashboardTaskText,
   resolveDashboardTaskFile,
   upsertDashboardDueDate,
@@ -704,6 +706,73 @@ suite("Extension Test Suite", () => {
       "Follow up #work @2026-03-05",
     );
     assert.strictEqual(upsertDashboardDueDate("Review spec @2026-03-01", null), "Review spec");
+  });
+
+  test("normalizeExtractedTaskIdentity collapses due markers and formatting noise", () => {
+    assert.strictEqual(
+      normalizeExtractedTaskIdentity("  Send   report due:2026-04-01  "),
+      "send report",
+    );
+    assert.strictEqual(normalizeExtractedTaskIdentity("整理する @2026-04-02"), "整理する");
+  });
+
+  test("filterExtractedTasksForDisplay hides existing, dismissed, and duplicate candidates", () => {
+    const result = filterExtractedTasksForDisplay(
+      [
+        {
+          text: "Send report",
+          category: "work",
+          priority: "high",
+          timeEstimateMin: 30,
+          dueDate: null,
+        },
+        {
+          text: "Review budget",
+          category: "work",
+          priority: "medium",
+          timeEstimateMin: 20,
+          dueDate: null,
+        },
+        {
+          text: "Review budget due:2026-03-31",
+          category: "work",
+          priority: "medium",
+          timeEstimateMin: 20,
+          dueDate: "2026-03-31",
+        },
+        {
+          text: "Organize receipts",
+          category: "admin",
+          priority: "low",
+          timeEstimateMin: 15,
+          dueDate: null,
+        },
+      ],
+      [
+        {
+          id: "tasks/inbox.md:1",
+          filePath: "/tmp/notes/tasks/inbox.md",
+          lineIndex: 1,
+          text: "Send report @2026-03-30",
+          done: false,
+          date: null,
+          dueDate: "2026-03-30",
+          tags: [],
+        },
+      ],
+      [
+        {
+          key: normalizeExtractedTaskIdentity("Organize receipts"),
+          dismissedAt: "2026-03-20",
+        },
+      ],
+      "2026-03-27",
+    );
+
+    assert.deepStrictEqual(result.visibleTasks.map((task) => task.text), ["Review budget"]);
+    assert.strictEqual(result.hiddenExisting, 1);
+    assert.strictEqual(result.hiddenDismissed, 1);
+    assert.strictEqual(result.hiddenDuplicates, 1);
   });
 
   test("dashboard task file resolver supports inbox and dated files", () => {

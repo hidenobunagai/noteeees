@@ -2,7 +2,7 @@ import * as crypto from "crypto";
 import * as fs from "fs";
 import * as path from "path";
 import * as vscode from "vscode";
-import { extractTasksFromMoments, planDay } from "./aiTaskProcessor.js";
+import { extractTasksFromMoments, planDay, type ExtractedTask } from "./aiTaskProcessor.js";
 
 // ---------------------------------------------------------------------------
 // Task types used by the extension side (no bun:sqlite dependency)
@@ -24,6 +24,18 @@ export interface WeekDay {
   label: string;
   open: number;
   done: number;
+}
+
+export interface DismissedExtractedTask {
+  key: string;
+  dismissedAt: string;
+}
+
+export interface ExtractedTaskFilterResult {
+  visibleTasks: ExtractedTask[];
+  hiddenExisting: number;
+  hiddenDismissed: number;
+  hiddenDuplicates: number;
 }
 
 export type DashboardTaskSection =
@@ -65,6 +77,8 @@ const TASK_RE = /^- \[([ xX])\] (.+)$/;
 const TAG_RE = /#[\w\u3040-\u9FFF\u4E00-\u9FFF-]+/g;
 const DUE_DATE_RE = /(?:📅|due:|@)(\d{4}-\d{2}-\d{2})/;
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const EXTRACTED_TASK_DISMISS_WINDOW_DAYS = 30;
+const MAX_DISMISSED_EXTRACTED_TASKS = 200;
 const SECTION_ORDER: Record<DashboardTaskSection, number> = {
   overdue: 0,
   today: 1,
@@ -118,6 +132,10 @@ function sanitizeTaskInputText(text: string): string {
 
 export function normalizeDashboardTaskText(text: string): string {
   return sanitizeTaskInputText(text);
+}
+
+export function normalizeExtractedTaskIdentity(text: string): string {
+  return stripDashboardDueDate(text).normalize("NFKC").toLowerCase();
 }
 
 export function stripDashboardDueDate(text: string): string {
@@ -204,6 +222,128 @@ function shiftDate(baseDate: string, days: number): string {
   const d = new Date(`${baseDate}T00:00:00`);
   d.setDate(d.getDate() + days);
   return formatDateString(d);
+}
+
+function normalizeDismissedExtractedTasks(value: unknown): DismissedExtractedTask[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .map((entry) => {
+      if (!entry || typeof entry !== "object") {
+        return null;
+      }
+
+      const key = "key" in entry && typeof entry.key === "string" ? entry.key : null;
+      const dismissedAt =
+        "dismissedAt" in entry && typeof entry.dismissedAt === "string" ? entry.dismissedAt : null;
+      if (!key || !isIsoDateString(dismissedAt)) {
+        return null;
+      }
+
+      return { key, dismissedAt };
+    })
+    .filter((entry): entry is DismissedExtractedTask => entry !== null);
+}
+
+function pruneDismissedExtractedTasks(
+  entries: DismissedExtractedTask[],
+  today = todayDateString(),
+): DismissedExtractedTask[] {
+  const cutoff = shiftDate(today, -EXTRACTED_TASK_DISMISS_WINDOW_DAYS);
+  const latestByKey = new Map<string, DismissedExtractedTask>();
+
+  for (const entry of entries) {
+    if (!entry.key || entry.dismissedAt < cutoff) {
+      continue;
+    }
+
+    const existing = latestByKey.get(entry.key);
+    if (!existing || existing.dismissedAt < entry.dismissedAt) {
+      latestByKey.set(entry.key, entry);
+    }
+  }
+
+  return Array.from(latestByKey.values())
+    .sort((a, b) => a.dismissedAt.localeCompare(b.dismissedAt))
+    .slice(-MAX_DISMISSED_EXTRACTED_TASKS);
+}
+
+export function filterExtractedTasksForDisplay(
+  extractedTasks: ExtractedTask[],
+  existingTasks: DashTask[],
+  dismissedTasks: DismissedExtractedTask[],
+  today = todayDateString(),
+): ExtractedTaskFilterResult {
+  const existingKeys = new Set(
+    existingTasks.map((task) => normalizeExtractedTaskIdentity(task.text)).filter(Boolean),
+  );
+  const dismissedKeys = new Set(
+    pruneDismissedExtractedTasks(dismissedTasks, today).map((entry) => entry.key),
+  );
+  const seenKeys = new Set<string>();
+
+  const visibleTasks: ExtractedTask[] = [];
+  let hiddenExisting = 0;
+  let hiddenDismissed = 0;
+  let hiddenDuplicates = 0;
+
+  for (const task of extractedTasks) {
+    const key = normalizeExtractedTaskIdentity(task.text);
+    if (!key) {
+      hiddenDuplicates++;
+      continue;
+    }
+
+    if (seenKeys.has(key)) {
+      hiddenDuplicates++;
+      continue;
+    }
+    seenKeys.add(key);
+
+    if (existingKeys.has(key)) {
+      hiddenExisting++;
+      continue;
+    }
+
+    if (dismissedKeys.has(key)) {
+      hiddenDismissed++;
+      continue;
+    }
+
+    visibleTasks.push(task);
+  }
+
+  return {
+    visibleTasks,
+    hiddenExisting,
+    hiddenDismissed,
+    hiddenDuplicates,
+  };
+}
+
+function buildExtractedTaskStatusMessage(result: ExtractedTaskFilterResult): string {
+  const hiddenParts: string[] = [];
+  if (result.hiddenExisting > 0) {
+    hiddenParts.push(`${result.hiddenExisting}件は既存タスクと重複`);
+  }
+  if (result.hiddenDismissed > 0) {
+    hiddenParts.push(`${result.hiddenDismissed}件は一時非表示`);
+  }
+  if (result.hiddenDuplicates > 0) {
+    hiddenParts.push(`${result.hiddenDuplicates}件は候補内で重複`);
+  }
+
+  if (result.visibleTasks.length === 0) {
+    return hiddenParts.length > 0
+      ? `新しい候補はありません。${hiddenParts.join("、")}として除外しました。`
+      : "実行可能なタスクは見つかりませんでした。";
+  }
+
+  return hiddenParts.length > 0
+    ? `${result.visibleTasks.length}件の候補を表示しています。${hiddenParts.join("、")}として除外しました。`
+    : `${result.visibleTasks.length}件の候補を表示しています。`;
 }
 
 export function collectTasksFromNotes(notesDir: string, momentsSubfolder = "moments"): DashTask[] {
@@ -455,10 +595,15 @@ export class DashboardPanel {
 
   private readonly _panel: vscode.WebviewPanel;
   private readonly _getNotesDir: () => string | undefined;
+  private readonly _stateStore: vscode.Memento;
   private _disposables: vscode.Disposable[] = [];
   private _cancelToken: vscode.CancellationTokenSource | undefined;
 
-  static createOrShow(getNotesDir: () => string | undefined, extensionUri: vscode.Uri): void {
+  static createOrShow(
+    getNotesDir: () => string | undefined,
+    extensionUri: vscode.Uri,
+    stateStore: vscode.Memento,
+  ): void {
     const column = vscode.window.activeTextEditor?.viewColumn ?? vscode.ViewColumn.One;
 
     if (DashboardPanel._instance) {
@@ -473,7 +618,7 @@ export class DashboardPanel {
       { enableScripts: true, retainContextWhenHidden: true },
     );
 
-    DashboardPanel._instance = new DashboardPanel(panel, getNotesDir, extensionUri);
+    DashboardPanel._instance = new DashboardPanel(panel, getNotesDir, extensionUri, stateStore);
   }
 
   static refresh(): void {
@@ -504,9 +649,11 @@ export class DashboardPanel {
     panel: vscode.WebviewPanel,
     getNotesDir: () => string | undefined,
     _extensionUri: vscode.Uri,
+    stateStore: vscode.Memento,
   ) {
     this._panel = panel;
     this._getNotesDir = getNotesDir;
+    this._stateStore = stateStore;
 
     this._panel.webview.options = { enableScripts: true };
     this._panel.onDidDispose(() => this.dispose(), null, this._disposables);
@@ -517,6 +664,43 @@ export class DashboardPanel {
     );
 
     this._update();
+  }
+
+  private _getDismissedExtractedStorageKey(notesDir: string): string {
+    const notesKey = crypto.createHash("sha1").update(path.resolve(notesDir)).digest("hex");
+    return `dashboard.dismissedExtracted.${notesKey}`;
+  }
+
+  private _loadDismissedExtractedTasks(notesDir: string): DismissedExtractedTask[] {
+    const storageKey = this._getDismissedExtractedStorageKey(notesDir);
+    const entries = normalizeDismissedExtractedTasks(this._stateStore.get(storageKey, []));
+    const pruned = pruneDismissedExtractedTasks(entries);
+
+    if (pruned.length !== entries.length) {
+      void this._stateStore.update(storageKey, pruned);
+    }
+
+    return pruned;
+  }
+
+  private _dismissExtractedTask(text: string): void {
+    const notesDir = this._getNotesDir();
+    if (!notesDir) {
+      return;
+    }
+
+    const key = normalizeExtractedTaskIdentity(text);
+    if (!key) {
+      return;
+    }
+
+    const storageKey = this._getDismissedExtractedStorageKey(notesDir);
+    const nextEntries = pruneDismissedExtractedTasks(
+      this._loadDismissedExtractedTasks(notesDir)
+        .filter((entry) => entry.key !== key)
+        .concat([{ key, dismissedAt: todayDateString() }]),
+    );
+    void this._stateStore.update(storageKey, nextEntries);
   }
 
   private dispose(): void {
@@ -618,6 +802,14 @@ export class DashboardPanel {
           dueDate?: string | null;
         };
         this._updateTask(taskId, text, normalizeOptionalDate(dueDate));
+        return;
+      }
+
+      case "dismissExtractedTask": {
+        const { text } = message as { text?: unknown };
+        if (typeof text === "string") {
+          this._dismissExtractedTask(text);
+        }
         return;
       }
 
@@ -854,16 +1046,28 @@ export class DashboardPanel {
       }
 
       const extracted = await extractTasksFromMoments(cleanText, token);
-      if (extracted.length === 0) {
+      const existingTasks = collectTasksFromNotes(notesDir, momentsSubfolder);
+      const filtered = filterExtractedTasksForDisplay(
+        extracted,
+        existingTasks,
+        this._loadDismissedExtractedTasks(notesDir),
+      );
+
+      if (filtered.visibleTasks.length === 0) {
         void this._panel.webview.postMessage({
           type: "aiStatus",
           status: "done",
-          message: "実行可能なタスクは見つかりませんでした。",
+          message: buildExtractedTaskStatusMessage(filtered),
         });
         return;
       }
 
-      void this._panel.webview.postMessage({ type: "extractResult", tasks: extracted });
+      void this._panel.webview.postMessage({
+        type: "aiStatus",
+        status: "done",
+        message: buildExtractedTaskStatusMessage(filtered),
+      });
+      void this._panel.webview.postMessage({ type: "extractResult", tasks: filtered.visibleTasks });
     } finally {
       DashboardPanel._statusListener?.(false);
     }
@@ -1897,7 +2101,7 @@ export class DashboardPanel {
               <div>
                 <div class="eyebrow">AI Assist</div>
                 <h3>Plan and extract</h3>
-                <p>Plan My Day は近い期限と backlog を使い、AI Extract は任意の日付の Moments を対象にできます。</p>
+                <p>Plan My Day は近い期限と backlog を使い、AI Extract は任意の日付の Moments から新しい候補だけを拾います。</p>
               </div>
             </div>
             <label class="field-compact">
@@ -2016,7 +2220,16 @@ export class DashboardPanel {
     }
 
     function extractedTaskKey(task) {
-      return task.text + "::" + (task.dueDate || "");
+      return normalizeTaskIdentity(task.text);
+    }
+
+    function normalizeTaskIdentity(text) {
+      return String(text || "")
+        .replace(/\s*(?:📅|due:|@)(\d{4}-\d{2}-\d{2})\b/g, "")
+        .replace(/\s+/g, " ")
+        .trim()
+        .normalize("NFKC")
+        .toLowerCase();
     }
 
     function getSaveTargetLabel() {
@@ -2025,6 +2238,16 @@ export class DashboardPanel {
 
     function updateComposerPreview() {
       composerTargetPreview.textContent = "保存先: " + getSaveTargetLabel();
+    }
+
+    function getExistingTaskKeys() {
+      return new Set(
+        (dashboardData.tasks || [])
+          .map(function (task) {
+            return normalizeTaskIdentity(task.text);
+          })
+          .filter(Boolean),
+      );
     }
 
     function matchesFilter(task) {
@@ -2222,14 +2445,13 @@ export class DashboardPanel {
     }
 
     function renderExtractResult() {
-      const tasks = state.extractedTasks || [];
-      if (tasks.length === 0) {
-        aiResult.innerHTML = "";
-        return;
-      }
-
-      const items = tasks
+      const existingTaskKeys = getExistingTaskKeys();
+      const visibleItems = (state.extractedTasks || [])
         .map(function (task, index) {
+          if (existingTaskKeys.has(extractedTaskKey(task))) {
+            return "";
+          }
+
           const key = extractedTaskKey(task);
           const isAdded = state.addedExtractedKeys.includes(key);
           const dueBadge = task.dueDate
@@ -2244,13 +2466,20 @@ export class DashboardPanel {
               '<div class="inline-actions">' +
                 dueBadge +
                 '<button type="button" class="btn btn-primary"' + (isAdded ? " disabled" : "") + ' data-action="add-extracted" data-index="' + index + '">' + (isAdded ? "Added" : "Add") + "</button>" +
+                '<button type="button" class="btn" data-action="dismiss-extracted" data-index="' + index + '">Hide for now</button>' +
               "</div>" +
             "</div>" +
           "</div>";
         })
+        .filter(Boolean)
         .join("");
 
-      aiResult.innerHTML = '<div class="helper">抽出したタスクは Composer の保存先を使って追加します。現在の保存先: ' + esc(getSaveTargetLabel()) + "</div>" + items;
+      if (!visibleItems) {
+        aiResult.innerHTML = "";
+        return;
+      }
+
+      aiResult.innerHTML = '<div class="helper">抽出したタスクは Composer の保存先を使って追加します。既存タスクと重複する候補は自動で隠します。現在の保存先: ' + esc(getSaveTargetLabel()) + "</div>" + visibleItems;
     }
 
     function renderAiResult() {
@@ -2359,6 +2588,46 @@ export class DashboardPanel {
       persistState();
     });
 
+    function handleAddExtractedAction(actionEl) {
+      const index = Number.parseInt(actionEl.dataset.index || "-1", 10);
+      if (Number.isNaN(index) || !state.extractedTasks[index]) {
+        return;
+      }
+
+      const task = state.extractedTasks[index];
+      const key = extractedTaskKey(task);
+      if (!state.addedExtractedKeys.includes(key)) {
+        state.addedExtractedKeys = state.addedExtractedKeys.concat([key]);
+        persistState();
+      }
+
+      vscode.postMessage({
+        command: "addExtractedTask",
+        text: task.text,
+        dueDate: task.dueDate || null,
+        targetDate: state.targetDate || null,
+      });
+      renderAiResult();
+    }
+
+    function handleDismissExtractedAction(actionEl) {
+      const index = Number.parseInt(actionEl.dataset.index || "-1", 10);
+      if (Number.isNaN(index) || !state.extractedTasks[index]) {
+        return;
+      }
+
+      const task = state.extractedTasks[index];
+      state.extractedTasks = state.extractedTasks.filter(function (_task, taskIndex) {
+        return taskIndex !== index;
+      });
+      persistState();
+      vscode.postMessage({
+        command: "dismissExtractedTask",
+        text: task.text,
+      });
+      renderAiResult();
+    }
+
     filterRow.addEventListener("click", function (event) {
       const button = event.target.closest("[data-filter]");
       if (!button) {
@@ -2433,26 +2702,27 @@ export class DashboardPanel {
       }
 
       if (action === "add-extracted") {
-        const index = Number.parseInt(actionEl.dataset.index || "-1", 10);
-        if (Number.isNaN(index) || !state.extractedTasks[index]) {
-          return;
-        }
-
-        const task = state.extractedTasks[index];
-        const key = extractedTaskKey(task);
-        if (!state.addedExtractedKeys.includes(key)) {
-          state.addedExtractedKeys = state.addedExtractedKeys.concat([key]);
-          persistState();
-        }
-
-        vscode.postMessage({
-          command: "addExtractedTask",
-          text: task.text,
-          dueDate: task.dueDate || null,
-          targetDate: state.targetDate || null,
-        });
-        renderAiResult();
+        handleAddExtractedAction(actionEl);
+        return;
       }
+
+      if (action === "dismiss-extracted") {
+        handleDismissExtractedAction(actionEl);
+      }
+    });
+
+    aiResult.addEventListener("click", function (event) {
+      const actionEl = event.target.closest("[data-action='add-extracted'], [data-action='dismiss-extracted']");
+      if (!actionEl) {
+        return;
+      }
+
+      if (actionEl.dataset.action === "dismiss-extracted") {
+        handleDismissExtractedAction(actionEl);
+        return;
+      }
+
+      handleAddExtractedAction(actionEl);
     });
 
     taskList.addEventListener("change", function (event) {
@@ -2491,7 +2761,6 @@ export class DashboardPanel {
         state.plan = null;
         state.extractedTasks = message.tasks || [];
         state.addedExtractedKeys = [];
-        setAiStatus("done", "");
         renderAiResult();
       }
     });

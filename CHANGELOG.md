@@ -6,6 +6,15 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-03-27
+
+### Changed
+- **AI Extract de-duplication**: Extracted task candidates now suppress items that already exist in your task files, so older posts do not keep resurfacing as the same suggestion.
+- **Candidate snoozing**: AI Extract now lets you hide a suggestion for now, and the dashboard remembers that choice per notes vault for 30 days.
+
+### Fixed
+- **Workspace noise**: Removed the tracked `excalidraw.log` file from the repository and added it to `.gitignore`, because it is an external Excalidraw MCP runtime log rather than an extension asset.
+
 ## [0.2.1] - 2026-03-27
 
 ### Changed

@@ -542,15 +542,19 @@ export function activate(context: vscode.ExtensionContext) {
     "notes.openDashboard",
     async () => {
       const notesDir = await ensureNotesDirectory();
-      if (!notesDir) return;
-      DashboardPanel.createOrShow(getNotesDir, context.extensionUri);
+      if (!notesDir) {
+        return;
+      }
+      DashboardPanel.createOrShow(getNotesDir, context.extensionUri, context.globalState);
     },
   );
 
   const aiPlanDayDisposable = vscode.commands.registerCommand("notes.aiPlanDay", async () => {
     const notesDir = await ensureNotesDirectory();
-    if (!notesDir) return;
-    DashboardPanel.createOrShow(getNotesDir, context.extensionUri);
+    if (!notesDir) {
+      return;
+    }
+    DashboardPanel.createOrShow(getNotesDir, context.extensionUri, context.globalState);
     // Give the panel a moment to initialize before triggering planDay
     setTimeout(() => DashboardPanel.runPlanDay(), 300);
   });
@@ -559,8 +563,10 @@ export function activate(context: vscode.ExtensionContext) {
     "notes.aiExtractTasks",
     async () => {
       const notesDir = await ensureNotesDirectory();
-      if (!notesDir) return;
-      DashboardPanel.createOrShow(getNotesDir, context.extensionUri);
+      if (!notesDir) {
+        return;
+      }
+      DashboardPanel.createOrShow(getNotesDir, context.extensionUri, context.globalState);
       setTimeout(() => DashboardPanel.runAiExtract(), 300);
     },
   );
