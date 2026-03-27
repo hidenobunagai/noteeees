@@ -2,30 +2,28 @@
 
 [![GitHub](https://img.shields.io/badge/github-%23121011.svg?style=for-the-badge&logo=github&logoColor=white)](https://github.com/hidenobunagai/noteeees)
 
-Simple markdown notes extension. Accumulate individual note files and search them instantly via MCP. Elevate rough Moments posts into structured tasks with the built-in AI Task Dashboard.
+Simple markdown notes extension. Accumulate individual note files and search them instantly via MCP. Elevate rough Moments posts into structured tasks with the built-in Task Dashboard.
 
 ## Features
 
-### AI Task Dashboard
+### Task Dashboard
 Powered by **GitHub Copilot** (no separate API key required).
 
-- **`Cmd+Shift+T`**: Open the AI Task Dashboard — a task cockpit for triage, creation, editing, AI planning, and extraction
+- **`Cmd+Shift+T`**: Open the Task Dashboard — a task cockpit for triage, creation, editing, and Moments extraction
 - **Task Workspace**: Filter/search across every `- [ ]` / `- [x]` task in your Notes files, grouped into Overdue / Today / Upcoming / Scheduled / Backlog / Done
 - **Inline Editing**: Update task text and due dates directly from the dashboard, jump to the source file, or delete a task line without leaving the view
 - **Composer**: Add new tasks to `tasks/inbox.md` or any future/past `tasks/YYYY-MM-DD.md` file instead of being limited to today's file
 - **Weekly Overview**: Bar chart of open vs done tasks scheduled across the next 7 days
 - **Categories**: Task counts broken down by `#work`, `#personal`, `#health`, `#learning`, `#admin`
-- **Plan My Day**: Ask Copilot to prioritize focus work from overdue, today, upcoming, and backlog tasks instead of only today's note
 - **AI Extract**: Let Copilot scan any day's Moments file for hidden action items, then add the extracted tasks into your chosen destination file
-- **Status bar indicator**: Shows `AI Tasks` in the status bar; updates to a spinner while AI is processing
+- **Status bar indicator**: Shows `Tasks` in the status bar; updates to a spinner while AI is processing
 - **Auto-refresh**: The dashboard refreshes automatically whenever a `.md` file changes in your notes directory
 
-#### AI commands
+#### Dashboard commands
 
 | Command | Description |
 | --- | --- |
-| `Noteeees: Open AI Task Dashboard` (`Cmd+Shift+T`) | Open or reveal the dashboard panel |
-| `Noteeees: AI - Plan My Day` | Open dashboard and kick off Plan My Day |
+| `Noteeees: Open Task Dashboard` (`Cmd+Shift+T`) | Open or reveal the dashboard panel |
 | `Noteeees: AI - Extract Tasks from Today's Moments` | Open dashboard and run AI Extract |
 
 ### Moments
@@ -153,7 +151,6 @@ When `notes.templates` is set, a picker will appear on note creation to choose b
 | `notes.momentsInboxFilter` | Default filter for the Moments Inbox (`all`, `open`, or `done`) |
 | `notes.momentsFeedDays` | Number of days shown in the stacked Moments feed (`1`-`30`) |
 | `notes.ai.autoEnrich` | Auto-run AI task enrichment on file save (requires GitHub Copilot) |
-| `notes.ai.autoPlanDay` | Auto-regenerate today's plan when today's Moments updates (requires GitHub Copilot) |
 
 ## Supercharge with MCP
 

@@ -304,21 +304,23 @@ export function activate(context: vscode.ExtensionContext) {
     taskWatcher?.dispose();
     taskWatcher = undefined;
     const dir = getNotesDir();
-    if (dir) taskWatcher = createTaskFileWatcher(dir, context);
+    if (dir) {
+      taskWatcher = createTaskFileWatcher(dir, context);
+    }
   };
   refreshTaskWatcher();
   context.subscriptions.push({ dispose: () => taskWatcher?.dispose() });
 
-  // AI status bar item (Task 8)
+  // Task dashboard status bar item
   const aiStatusBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
-  aiStatusBar.text = "$(checklist) AI Tasks";
-  aiStatusBar.tooltip = "Open AI Task Dashboard";
+  aiStatusBar.text = "$(checklist) Tasks";
+  aiStatusBar.tooltip = "Open Task Dashboard";
   aiStatusBar.command = "notes.openDashboard";
   aiStatusBar.show();
   context.subscriptions.push(aiStatusBar);
 
   DashboardPanel.setStatusListener((processing) => {
-    aiStatusBar.text = processing ? "$(loading~spin) AI: 解析中…" : "$(checklist) AI Tasks";
+    aiStatusBar.text = processing ? "$(loading~spin) Tasks: 解析中…" : "$(checklist) Tasks";
   });
 
   const configChangeDisposable = vscode.workspace.onDidChangeConfiguration((event) => {
@@ -549,16 +551,6 @@ export function activate(context: vscode.ExtensionContext) {
     },
   );
 
-  const aiPlanDayDisposable = vscode.commands.registerCommand("notes.aiPlanDay", async () => {
-    const notesDir = await ensureNotesDirectory();
-    if (!notesDir) {
-      return;
-    }
-    DashboardPanel.createOrShow(getNotesDir, context.extensionUri, context.globalState);
-    // Give the panel a moment to initialize before triggering planDay
-    setTimeout(() => DashboardPanel.runPlanDay(), 300);
-  });
-
   const aiExtractTasksDisposable = vscode.commands.registerCommand(
     "notes.aiExtractTasks",
     async () => {
@@ -623,7 +615,6 @@ export function activate(context: vscode.ExtensionContext) {
     openDailyNoteDisposable,
     archiveMomentsDisposable,
     openDashboardDisposable,
-    aiPlanDayDisposable,
     aiExtractTasksDisposable,
   );
 }

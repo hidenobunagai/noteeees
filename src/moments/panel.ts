@@ -941,7 +941,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
   <div class="topbar">
   <div class="topbar-row topbar-row-actions">
     <button class="nav-btn icon-only" id="allBtn" title="Show all recent moments" aria-label="Show all recent moments">☰</button>
-    <button class="nav-btn icon-only" id="inboxBtn" title="Open AI Task Dashboard" aria-label="Open AI Task Dashboard">&#9881;</button>
+    <button class="nav-btn icon-only" id="inboxBtn" title="Open Task Dashboard" aria-label="Open Task Dashboard">&#9881;</button>
     <button class="open-btn" id="openFileBtn" title="Open today's file in editor">&#8599;</button>
     <button class="open-btn export-btn" id="exportBtn" title="Export selected entries as a note">&#128203;</button>
   </div>

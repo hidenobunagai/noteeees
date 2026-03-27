@@ -8,7 +8,9 @@ import { DashboardPanel } from "./dashboardPanel.js";
 let debounceTimer: NodeJS.Timeout | undefined;
 
 function scheduleRefresh(): void {
-  if (debounceTimer) clearTimeout(debounceTimer);
+  if (debounceTimer) {
+    clearTimeout(debounceTimer);
+  }
   debounceTimer = setTimeout(() => {
     debounceTimer = undefined;
     DashboardPanel.refresh();
@@ -35,7 +37,9 @@ export function createTaskFileWatcher(
   };
 
   const onChange = (uri: vscode.Uri): void => {
-    if (!shouldSkip(uri)) scheduleRefresh();
+    if (!shouldSkip(uri)) {
+      scheduleRefresh();
+    }
   };
 
   watcher.onDidCreate(onChange, null, context.subscriptions);

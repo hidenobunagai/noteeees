@@ -2,7 +2,7 @@ import * as crypto from "crypto";
 import * as fs from "fs";
 import * as path from "path";
 import * as vscode from "vscode";
-import { extractTasksFromMoments, planDay, type ExtractedTask } from "./aiTaskProcessor.js";
+import { extractTasksFromMoments, type ExtractedTask } from "./aiTaskProcessor.js";
 
 // ---------------------------------------------------------------------------
 // Task types used by the extension side (no bun:sqlite dependency)
@@ -54,7 +54,7 @@ interface DashboardTaskView extends DashTask {
 
 interface DashboardSummary {
   totalOpen: number;
-  focusCount: number;
+  attentionCount: number;
   overdueCount: number;
   totalDone: number;
   completionRate: number;
@@ -87,7 +87,7 @@ const SECTION_ORDER: Record<DashboardTaskSection, number> = {
   backlog: 4,
   done: 5,
 };
-const FOCUS_SECTIONS = new Set<DashboardTaskSection>(["overdue", "today", "upcoming"]);
+const ATTENTION_SECTIONS = new Set<DashboardTaskSection>(["overdue", "today", "upcoming"]);
 
 function pad2(n: number): string {
   return String(n).padStart(2, "0");
@@ -582,25 +582,12 @@ function buildSummary(
 
   return {
     totalOpen,
-    focusCount: tasks.filter((task) => !task.done && FOCUS_SECTIONS.has(task.section)).length,
+    attentionCount: tasks.filter((task) => !task.done && ATTENTION_SECTIONS.has(task.section))
+      .length,
     overdueCount: sectionCounts.overdue,
     totalDone,
     completionRate,
   };
-}
-
-function buildPlannerTasks(tasks: DashTask[], today: string): DashTask[] {
-  const horizonDate = shiftDate(today, 7);
-  const focusTasks = tasks.filter((task) => {
-    if (task.done) {
-      return false;
-    }
-
-    const section = classifyDashboardTask(task, today, horizonDate);
-    return section === "overdue" || section === "today" || section === "upcoming" || section === "backlog";
-  });
-
-  return focusTasks.length > 0 ? focusTasks : tasks.filter((task) => !task.done);
 }
 
 // ---------------------------------------------------------------------------
@@ -632,7 +619,7 @@ export class DashboardPanel {
 
     const panel = vscode.window.createWebviewPanel(
       DashboardPanel.viewType,
-      "AI Task Dashboard",
+      "Task Dashboard",
       column,
       { enableScripts: true, retainContextWhenHidden: true },
     );
@@ -650,12 +637,6 @@ export class DashboardPanel {
 
   static setStatusListener(cb: (processing: boolean) => void): void {
     DashboardPanel._statusListener = cb;
-  }
-
-  static runPlanDay(): void {
-    if (DashboardPanel._instance) {
-      void DashboardPanel._instance._runPlanDay();
-    }
   }
 
   static runAiExtract(): void {
@@ -825,12 +806,6 @@ export class DashboardPanel {
         return;
       }
 
-      case "planDay": {
-        const { date } = message as { date?: string | null };
-        void this._runPlanDay(normalizeOptionalDate(date));
-        return;
-      }
-
       case "aiExtract": {
         const { sourceDate } = message as { sourceDate?: string | null };
         void this._runAiExtract(normalizeOptionalDate(sourceDate));
@@ -959,46 +934,6 @@ export class DashboardPanel {
     const position = new vscode.Position(lineIndex, 0);
     editor.selection = new vscode.Selection(position, position);
     editor.revealRange(new vscode.Range(position, position));
-  }
-
-  private async _runPlanDay(date?: string | null): Promise<void> {
-    this._cancelToken?.cancel();
-    this._cancelToken = new vscode.CancellationTokenSource();
-    const token = this._cancelToken.token;
-    const planDate = date ?? todayDateString();
-
-    DashboardPanel._statusListener?.(true);
-    void this._panel.webview.postMessage({
-      type: "aiStatus",
-      status: "processing",
-      message: `${planDate} のフォーカスタスクを整理しています...`,
-    });
-
-    try {
-      const notesDir = this._getNotesDir();
-      if (!notesDir) {
-        return;
-      }
-
-      const momentsSubfolder =
-        vscode.workspace.getConfiguration("notes").get<string>("momentsSubfolder") || "moments";
-      const tasks = collectTasksFromNotes(notesDir, momentsSubfolder);
-      const plannerTasks = buildPlannerTasks(tasks, planDate);
-
-      const result = await planDay(planDate, plannerTasks, token);
-      if (!result) {
-        void this._panel.webview.postMessage({
-          type: "aiStatus",
-          status: "error",
-          message: "AI が利用できません。GitHub Copilot が有効か確認してください。",
-        });
-        return;
-      }
-
-      void this._panel.webview.postMessage({ type: "planDayResult", plan: result });
-    } finally {
-      DashboardPanel._statusListener?.(false);
-    }
   }
 
   private async _runAiExtract(sourceDate?: string | null): Promise<void> {
@@ -1154,7 +1089,7 @@ export class DashboardPanel {
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'nonce-${nonce}' 'unsafe-inline'; script-src 'nonce-${nonce}';">
-<title>AI Task Dashboard</title>
+<title>Task Dashboard</title>
 <style nonce="${nonce}">
   :root {
     --bg: var(--vscode-editor-background, #111827);
@@ -1896,28 +1831,6 @@ export class DashboardPanel {
     margin-top: 12px;
   }
 
-  .plan-shell {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-  }
-
-  .plan-summary {
-    padding: 10px 12px;
-    border-radius: var(--radius-sm);
-    background: color-mix(in srgb, var(--accent) 10%, transparent);
-    border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--border));
-    color: var(--text);
-    font-size: 13px;
-  }
-
-  .plan-hours {
-    color: var(--muted);
-    font-size: 12px;
-    margin-top: 4px;
-  }
-
-  .plan-item,
   .extract-item {
     padding: 12px;
     border-radius: var(--radius-sm);
@@ -1925,7 +1838,6 @@ export class DashboardPanel {
     background: color-mix(in srgb, var(--surface) 88%, var(--bg));
   }
 
-  .plan-item-head,
   .extract-head {
     display: flex;
     justify-content: space-between;
@@ -1933,22 +1845,14 @@ export class DashboardPanel {
     align-items: flex-start;
   }
 
-  .plan-item-title,
   .extract-title {
     font-weight: 600;
     font-size: 13px;
   }
 
-  .plan-meta,
   .extract-meta {
     color: var(--muted);
     font-size: 12px;
-  }
-
-  .plan-reason {
-    color: var(--muted);
-    font-size: 12px;
-    margin-top: 6px;
   }
 
   @media (max-width: 1000px) {
@@ -1976,7 +1880,6 @@ export class DashboardPanel {
     }
 
     .task-head,
-    .plan-item-head,
     .extract-head {
       flex-direction: column;
     }
@@ -1991,9 +1894,9 @@ export class DashboardPanel {
   <div class="page">
     <section class="hero">
       <div class="hero-copy">
-        <div class="eyebrow">Trustworthy & Calm</div>
-        <h1 class="hero-title">AI Task Cockpit</h1>
-        <p class="hero-subtitle">タスクの作成、編集、優先順位付け、AI抽出を1つの画面で扱えるようにしました。日付指定が空なら inbox、日付を入れればその日のタスクファイルへ保存します。</p>
+        <div class="eyebrow">Capture, Manage, Review</div>
+        <h1 class="hero-title">Task Dashboard</h1>
+        <p class="hero-subtitle">Moments や Notes から生まれるタスクを、手動で整えながら見える化する画面です。日付指定が空なら inbox、日付を入れればその日のタスクファイルへ保存します。</p>
       </div>
       <div class="hero-meta">
         <div class="pill"><strong class="mono">${escHtml(data.today)}</strong><span>Today</span></div>
@@ -2009,9 +1912,9 @@ export class DashboardPanel {
         <div class="summary-note">未完了タスク全体</div>
       </article>
       <article class="summary-card is-accent">
-        <div class="summary-label">Focus Window</div>
-        <div class="summary-value">${data.summary.focusCount}</div>
-        <div class="summary-note">7日以内に見るべきタスク</div>
+        <div class="summary-label">Attention</div>
+        <div class="summary-value">${data.summary.attentionCount}</div>
+        <div class="summary-note">overdue / today / 7日以内</div>
       </article>
       <article class="summary-card is-warning">
         <div class="summary-label">Overdue</div>
@@ -2105,9 +2008,9 @@ export class DashboardPanel {
           <section class="card">
             <div class="card-header">
               <div>
-                <div class="eyebrow">AI Assist</div>
-                <h3>Plan and extract</h3>
-                <p>Plan My Day は近い期限と backlog を使い、AI Extract は任意の日付の Moments から新しい候補だけを拾います。</p>
+                <div class="eyebrow">Moments Intake</div>
+                <h3>Extract from Moments</h3>
+                <p>任意の日付の Moments から、まだタスク化していない候補だけを抽出します。追加先は Composer の保存先を使います。</p>
               </div>
             </div>
             <label class="field-compact">
@@ -2115,8 +2018,7 @@ export class DashboardPanel {
               <input id="ai-source-date" type="date" value="${escAttr(data.today)}" />
             </label>
             <div class="inline-actions" style="margin-top:14px">
-              <button class="btn btn-primary" id="btn-plan-day" type="button">Plan My Day</button>
-              <button class="btn" id="btn-ai-extract" type="button">Extract Tasks</button>
+              <button class="btn btn-primary" id="btn-ai-extract" type="button">Extract Tasks</button>
             </div>
             <div class="status-line" id="ai-status"></div>
             <div class="ai-result" id="ai-result"></div>
@@ -2131,15 +2033,13 @@ export class DashboardPanel {
     const dashboardData = ${payload};
     const savedState = vscode.getState() || {};
     const state = {
-      filter: savedState.filter || "focus",
+      filter: savedState.filter === "focus" ? "attention" : (savedState.filter || "attention"),
       search: savedState.search || "",
       targetDate: savedState.targetDate || "",
       composerText: savedState.composerText || "",
       composerDueDate: savedState.composerDueDate || "",
       aiSourceDate: savedState.aiSourceDate || dashboardData.today,
       editingId: savedState.editingId || null,
-      aiMode: savedState.aiMode || null,
-      plan: savedState.plan || null,
       extractedTasks: Array.isArray(savedState.extractedTasks) ? savedState.extractedTasks : [],
       addedExtractedKeys: Array.isArray(savedState.addedExtractedKeys) ? savedState.addedExtractedKeys : [],
       aiStatus: savedState.aiStatus || "",
@@ -2165,7 +2065,7 @@ export class DashboardPanel {
     const sectionOrder = ["overdue", "today", "upcoming", "scheduled", "backlog", "done"];
 
     const filterDefinitions = [
-      { id: "focus", label: "Focus", count: dashboardData.sectionCounts.overdue + dashboardData.sectionCounts.today + dashboardData.sectionCounts.upcoming },
+      { id: "attention", label: "Attention", count: dashboardData.sectionCounts.overdue + dashboardData.sectionCounts.today + dashboardData.sectionCounts.upcoming },
       { id: "all", label: "All", count: dashboardData.tasks.length },
       { id: "overdue", label: "Overdue", count: dashboardData.sectionCounts.overdue },
       { id: "today", label: "Today", count: dashboardData.sectionCounts.today },
@@ -2195,8 +2095,6 @@ export class DashboardPanel {
         composerDueDate: state.composerDueDate,
         aiSourceDate: state.aiSourceDate,
         editingId: state.editingId,
-        aiMode: state.aiMode,
-        plan: state.plan,
         extractedTasks: state.extractedTasks,
         addedExtractedKeys: state.addedExtractedKeys,
         aiStatus: state.aiStatus,
@@ -2261,7 +2159,7 @@ export class DashboardPanel {
         return true;
       }
 
-      if (state.filter === "focus") {
+      if (state.filter === "attention" || state.filter === "focus") {
         return task.section === "overdue" || task.section === "today" || task.section === "upcoming";
       }
 
@@ -2420,36 +2318,6 @@ export class DashboardPanel {
       aiStatus.textContent = state.aiStatus;
     }
 
-    function renderPlanResult() {
-      if (!state.plan) {
-        aiResult.innerHTML = "";
-        return;
-      }
-
-      const priorityLabels = { high: "High", medium: "Medium", low: "Low" };
-      const items = (state.plan.items || [])
-        .map(function (item) {
-          return '<div class="plan-item">' +
-            '<div class="plan-item-head">' +
-              '<div>' +
-                '<div class="plan-item-title">' + esc(item.text) + "</div>" +
-                '<div class="plan-meta">' + esc(priorityLabels[item.priority] || item.priority) + " · " + esc(String(item.timeEstimateMin)) + " min</div>" +
-              "</div>" +
-            "</div>" +
-            '<div class="plan-reason">' + esc(item.reason) + "</div>" +
-          "</div>";
-        })
-        .join("");
-
-      aiResult.innerHTML = '<div class="plan-shell">' +
-        '<div class="plan-summary">' +
-          esc(state.plan.summary || "") +
-          '<div class="plan-hours">Estimated ' + esc(String(state.plan.estimatedHours || 0)) + "h</div>" +
-        "</div>" +
-        items +
-      "</div>";
-    }
-
     function renderExtractResult() {
       const existingTaskKeys = getExistingTaskKeys();
       const visibleItems = (state.extractedTasks || [])
@@ -2489,17 +2357,7 @@ export class DashboardPanel {
     }
 
     function renderAiResult() {
-      if (state.aiMode === "plan") {
-        renderPlanResult();
-        return;
-      }
-
-      if (state.aiMode === "extract") {
-        renderExtractResult();
-        return;
-      }
-
-      aiResult.innerHTML = "";
+      renderExtractResult();
     }
 
     function syncStaticInputs() {
@@ -2549,19 +2407,7 @@ export class DashboardPanel {
       });
     });
 
-    document.getElementById("btn-plan-day").addEventListener("click", function () {
-      state.aiMode = "plan";
-      state.plan = null;
-      state.extractedTasks = [];
-      state.addedExtractedKeys = [];
-      setAiStatus("processing", "フォーカスタスクを整理しています...");
-      renderAiResult();
-      vscode.postMessage({ command: "planDay", date: dashboardData.today });
-    });
-
     document.getElementById("btn-ai-extract").addEventListener("click", function () {
-      state.aiMode = "extract";
-      state.plan = null;
       state.extractedTasks = [];
       state.addedExtractedKeys = [];
       setAiStatus("processing", state.aiSourceDate + " の Moments を分析しています...");
@@ -2752,19 +2598,7 @@ export class DashboardPanel {
         return;
       }
 
-      if (message.type === "planDayResult") {
-        state.aiMode = "plan";
-        state.plan = message.plan;
-        state.extractedTasks = [];
-        state.addedExtractedKeys = [];
-        setAiStatus("done", "");
-        renderAiResult();
-        return;
-      }
-
       if (message.type === "extractResult") {
-        state.aiMode = "extract";
-        state.plan = null;
         state.extractedTasks = message.tasks || [];
         state.addedExtractedKeys = [];
         renderAiResult();

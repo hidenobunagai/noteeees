@@ -2,7 +2,7 @@
   "name": "noteeees",
   "displayName": "Noteeees",
   "description": "Simple markdown notes extension",
-  "version": "0.2.4",
+  "version": "0.3.0",
   "publisher": "HidenobuNagai",
   "icon": "assets/icon.png",
   "repository": {
@@ -126,12 +126,8 @@
       },
       {
         "command": "notes.openDashboard",
-        "title": "Noteeees: Open AI Task Dashboard",
+        "title": "Noteeees: Open Task Dashboard",
         "icon": "$(checklist)"
-      },
-      {
-        "command": "notes.aiPlanDay",
-        "title": "Noteeees: AI - Plan My Day"
       },
       {
         "command": "notes.aiExtractTasks",
@@ -371,11 +367,6 @@
           "type": "boolean",
           "default": false,
           "description": "ファイル保存時に自動で AI タスクエンリッチを実行する。GitHub Copilot が必要です。"
-        },
-        "notes.ai.autoPlanDay": {
-          "type": "boolean",
-          "default": false,
-          "description": "今日の Moments 更新時に自動で今日の計画を再生成する。GitHub Copilot が必要です。"
         }
       }
     }

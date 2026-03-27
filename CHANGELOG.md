@@ -6,6 +6,12 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-03-28
+
+### Changed
+- **Task Dashboard simplification**: Removed the `Plan My Day` workflow and refocused the dashboard on manual task management, workload visibility, and task extraction from Moments.
+- **Task dashboard naming**: The main dashboard entry points now use `Task Dashboard` / `Tasks` labels for a simpler mental model in the command palette, status bar, and Moments shortcut.
+
 ## [0.2.4] - 2026-03-28
 
 ### Changed
