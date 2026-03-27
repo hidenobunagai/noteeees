@@ -413,18 +413,37 @@ export function collectTasksFromNotes(notesDir: string, momentsSubfolder = "mome
   return tasks;
 }
 
-function last7Days(): WeekDay[] {
+export function buildUpcomingWeek(tasks: DashTask[], today = todayDateString()): WeekDay[] {
   const days: WeekDay[] = [];
   const labels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-  for (let i = 6; i >= 0; i--) {
-    const d = new Date();
-    d.setDate(d.getDate() - i);
+  for (let i = 0; i < 7; i++) {
+    const date = shiftDate(today, i);
+    const d = new Date(`${date}T00:00:00`);
     days.push({
-      date: formatDateString(d),
+      date,
       label: labels[d.getDay()],
       open: 0,
       done: 0,
     });
+  }
+
+  const weekDaysByDate = new Map(days.map((day) => [day.date, day]));
+  for (const task of tasks) {
+    const effectiveDate = task.dueDate ?? task.date;
+    if (!effectiveDate) {
+      continue;
+    }
+
+    const day = weekDaysByDate.get(effectiveDate);
+    if (!day) {
+      continue;
+    }
+
+    if (task.done) {
+      day.done++;
+    } else {
+      day.open++;
+    }
   }
 
   return days;
@@ -727,20 +746,7 @@ export class DashboardPanel {
 
     const tasks = collectTasksFromNotes(notesDir, momentsSubfolder);
     const today = todayDateString();
-    const week = last7Days();
-
-    for (const task of tasks) {
-      const day = week.find((weekday) => weekday.date === task.date);
-      if (!day) {
-        continue;
-      }
-
-      if (task.done) {
-        day.done++;
-      } else {
-        day.open++;
-      }
-    }
+    const week = buildUpcomingWeek(tasks, today);
 
     const taskViews = buildDashboardTaskViews(tasks, today);
     const sectionCounts = buildSectionCounts(taskViews);
@@ -2075,8 +2081,8 @@ export class DashboardPanel {
           <section class="card">
             <div class="card-header">
               <div>
-                <div class="eyebrow">Weekly Volume</div>
-                <h3>7-day task flow</h3>
+                <div class="eyebrow">Upcoming Load</div>
+                <h3>Next 7 days</h3>
               </div>
             </div>
             <div class="week-chart">${weekBarsHtml}</div>

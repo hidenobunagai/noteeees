@@ -13,7 +13,7 @@ Powered by **GitHub Copilot** (no separate API key required).
 - **Task Workspace**: Filter/search across every `- [ ]` / `- [x]` task in your Notes files, grouped into Overdue / Today / Upcoming / Scheduled / Backlog / Done
 - **Inline Editing**: Update task text and due dates directly from the dashboard, jump to the source file, or delete a task line without leaving the view
 - **Composer**: Add new tasks to `tasks/inbox.md` or any future/past `tasks/YYYY-MM-DD.md` file instead of being limited to today's file
-- **Weekly Overview**: Bar chart of open vs done tasks per day over the last 7 days
+- **Weekly Overview**: Bar chart of open vs done tasks scheduled across the next 7 days
 - **Categories**: Task counts broken down by `#work`, `#personal`, `#health`, `#learning`, `#admin`
 - **Plan My Day**: Ask Copilot to prioritize focus work from overdue, today, upcoming, and backlog tasks instead of only today's note
 - **AI Extract**: Let Copilot scan any day's Moments file for hidden action items, then add the extracted tasks into your chosen destination file

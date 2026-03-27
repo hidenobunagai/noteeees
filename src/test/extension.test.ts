@@ -3,6 +3,7 @@ import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 import {
+  buildUpcomingWeek,
   classifyDashboardTask,
   filterExtractedTasksForDisplay,
   normalizeExtractedTaskIdentity,
@@ -861,6 +862,89 @@ suite("Extension Test Suite", () => {
         "2026-04-03",
       ),
       "done",
+    );
+  });
+
+  test("upcoming week chart uses the next 7 days and effective dates", () => {
+    const week = buildUpcomingWeek(
+      [
+        {
+          id: "tasks/2026-03-27.md:1",
+          filePath: "/tmp/notes/tasks/2026-03-27.md",
+          lineIndex: 1,
+          text: "Today task",
+          done: false,
+          date: "2026-03-27",
+          dueDate: null,
+          tags: [],
+        },
+        {
+          id: "tasks/2026-03-28.md:1",
+          filePath: "/tmp/notes/tasks/2026-03-28.md",
+          lineIndex: 1,
+          text: "Due later",
+          done: false,
+          date: "2026-03-28",
+          dueDate: "2026-03-30",
+          tags: [],
+        },
+        {
+          id: "tasks/2026-03-30.md:4",
+          filePath: "/tmp/notes/tasks/2026-03-30.md",
+          lineIndex: 4,
+          text: "Already finished",
+          done: true,
+          date: "2026-03-30",
+          dueDate: null,
+          tags: [],
+        },
+        {
+          id: "tasks/2026-04-03.md:2",
+          filePath: "/tmp/notes/tasks/2026-04-03.md",
+          lineIndex: 2,
+          text: "Outside window",
+          done: false,
+          date: "2026-04-03",
+          dueDate: null,
+          tags: [],
+        },
+        {
+          id: "tasks/inbox.md:7",
+          filePath: "/tmp/notes/tasks/inbox.md",
+          lineIndex: 7,
+          text: "Backlog",
+          done: false,
+          date: null,
+          dueDate: null,
+          tags: [],
+        },
+      ],
+      "2026-03-27",
+    );
+
+    assert.deepStrictEqual(
+      week.map((day) => day.date),
+      [
+        "2026-03-27",
+        "2026-03-28",
+        "2026-03-29",
+        "2026-03-30",
+        "2026-03-31",
+        "2026-04-01",
+        "2026-04-02",
+      ],
+    );
+    assert.deepStrictEqual(
+      week.map((day) => ({ date: day.date, open: day.open, done: day.done })),
+      [
+        { date: "2026-03-27", open: 1, done: 0 },
+        { date: "2026-03-28", open: 0, done: 0 },
+        { date: "2026-03-29", open: 0, done: 0 },
+        { date: "2026-03-30", open: 1, done: 1 },
+        { date: "2026-03-31", open: 0, done: 0 },
+        { date: "2026-04-01", open: 0, done: 0 },
+        { date: "2026-04-02", open: 0, done: 0 },
+      ],
     );
   });
 
