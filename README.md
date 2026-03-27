@@ -9,12 +9,14 @@ Simple markdown notes extension. Accumulate individual note files and search the
 ### AI Task Dashboard
 Powered by **GitHub Copilot** (no separate API key required).
 
-- **`Cmd+Shift+T`**: Open the AI Task Dashboard — an editor panel showing today's tasks, a 7-day overview, and category breakdown
-- **Today's Tasks**: Live list of `- [ ]` / `- [x]` items from your Notes files, toggleable in-place
+- **`Cmd+Shift+T`**: Open the AI Task Dashboard — a task cockpit for triage, creation, editing, AI planning, and extraction
+- **Task Workspace**: Filter/search across every `- [ ]` / `- [x]` task in your Notes files, grouped into Overdue / Today / Upcoming / Scheduled / Backlog / Done
+- **Inline Editing**: Update task text and due dates directly from the dashboard, jump to the source file, or delete a task line without leaving the view
+- **Composer**: Add new tasks to `tasks/inbox.md` or any future/past `tasks/YYYY-MM-DD.md` file instead of being limited to today's file
 - **Weekly Overview**: Bar chart of open vs done tasks per day over the last 7 days
 - **Categories**: Task counts broken down by `#work`, `#personal`, `#health`, `#learning`, `#admin`
-- **Plan My Day**: Ask Copilot to generate a time-blocked schedule from today's open tasks
-- **AI Extract**: Let Copilot scan today's Moments for hidden action items and add them to your task files
+- **Plan My Day**: Ask Copilot to prioritize focus work from overdue, today, upcoming, and backlog tasks instead of only today's note
+- **AI Extract**: Let Copilot scan any day's Moments file for hidden action items, then add the extracted tasks into your chosen destination file
 - **Status bar indicator**: Shows `AI Tasks` in the status bar; updates to a spinner while AI is processing
 - **Auto-refresh**: The dashboard refreshes automatically whenever a `.md` file changes in your notes directory
 

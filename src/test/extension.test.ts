@@ -3,6 +3,12 @@ import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 import {
+  classifyDashboardTask,
+  normalizeDashboardTaskText,
+  resolveDashboardTaskFile,
+  upsertDashboardDueDate,
+} from "../dashboardPanel";
+import {
   buildTagSearchItems,
   createNotesWatcherPattern,
   resolveNotesDirectory,
@@ -683,6 +689,101 @@ suite("Extension Test Suite", () => {
     assert.strictEqual(pattern.baseUri.fsPath, notesDir);
     assert.strictEqual(pattern.pattern, "**/*.md");
     assert.strictEqual(createNotesWatcherPattern(undefined), undefined);
+  });
+
+  test("dashboard task text normalization collapses multiline input", () => {
+    assert.strictEqual(
+      normalizeDashboardTaskText("  first line  \n\n second line \nthird "),
+      "first line / second line / third",
+    );
+  });
+
+  test("dashboard due date upsert replaces existing markers", () => {
+    assert.strictEqual(
+      upsertDashboardDueDate("Follow up due:2026-03-01 #work", "2026-03-05"),
+      "Follow up #work @2026-03-05",
+    );
+    assert.strictEqual(upsertDashboardDueDate("Review spec @2026-03-01", null), "Review spec");
+  });
+
+  test("dashboard task file resolver supports inbox and dated files", () => {
+    const notesDir = "/tmp/notes";
+    assert.strictEqual(resolveDashboardTaskFile(notesDir, null), "/tmp/notes/tasks/inbox.md");
+    assert.strictEqual(
+      resolveDashboardTaskFile(notesDir, "2026-03-31"),
+      "/tmp/notes/tasks/2026-03-31.md",
+    );
+  });
+
+  test("dashboard task classifier separates backlog upcoming and overdue", () => {
+    assert.strictEqual(
+      classifyDashboardTask(
+        {
+          id: "tasks/inbox.md:1",
+          filePath: "/tmp/notes/tasks/inbox.md",
+          lineIndex: 1,
+          text: "Inbox task",
+          done: false,
+          date: null,
+          dueDate: null,
+          tags: [],
+        },
+        "2026-03-27",
+        "2026-04-03",
+      ),
+      "backlog",
+    );
+    assert.strictEqual(
+      classifyDashboardTask(
+        {
+          id: "tasks/2026-03-27.md:4",
+          filePath: "/tmp/notes/tasks/2026-03-27.md",
+          lineIndex: 4,
+          text: "Due soon",
+          done: false,
+          date: "2026-03-27",
+          dueDate: "2026-03-30",
+          tags: [],
+        },
+        "2026-03-27",
+        "2026-04-03",
+      ),
+      "upcoming",
+    );
+    assert.strictEqual(
+      classifyDashboardTask(
+        {
+          id: "tasks/2026-03-20.md:2",
+          filePath: "/tmp/notes/tasks/2026-03-20.md",
+          lineIndex: 2,
+          text: "Overdue task",
+          done: false,
+          date: "2026-03-20",
+          dueDate: null,
+          tags: [],
+        },
+        "2026-03-27",
+        "2026-04-03",
+      ),
+      "overdue",
+    );
+    assert.strictEqual(
+      classifyDashboardTask(
+        {
+          id: "projects/roadmap.md:9",
+          filePath: "/tmp/notes/projects/roadmap.md",
+          lineIndex: 9,
+          text: "Done item",
+          done: true,
+          date: null,
+          dueDate: "2026-03-30",
+          tags: [],
+        },
+        "2026-03-27",
+        "2026-04-03",
+      ),
+      "done",
+    );
   });
 
   test("formatDateYMD zero-pads month and day", () => {

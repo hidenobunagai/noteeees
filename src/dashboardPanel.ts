@@ -21,9 +21,40 @@ export interface DashTask {
 
 export interface WeekDay {
   date: string;
-  label: string; // "Mon", "Tue", ...
+  label: string;
   open: number;
   done: number;
+}
+
+export type DashboardTaskSection =
+  | "overdue"
+  | "today"
+  | "upcoming"
+  | "scheduled"
+  | "backlog"
+  | "done";
+
+interface DashboardTaskView extends DashTask {
+  relativePath: string;
+  effectiveDate: string | null;
+  section: DashboardTaskSection;
+}
+
+interface DashboardSummary {
+  totalOpen: number;
+  focusCount: number;
+  overdueCount: number;
+  totalDone: number;
+  completionRate: number;
+}
+
+interface DashboardData {
+  today: string;
+  tasks: DashboardTaskView[];
+  week: WeekDay[];
+  catCount: Record<string, number>;
+  sectionCounts: Record<DashboardTaskSection, number>;
+  summary: DashboardSummary;
 }
 
 // ---------------------------------------------------------------------------
@@ -33,14 +64,35 @@ export interface WeekDay {
 const TASK_RE = /^- \[([ xX])\] (.+)$/;
 const TAG_RE = /#[\w\u3040-\u9FFF\u4E00-\u9FFF-]+/g;
 const DUE_DATE_RE = /(?:📅|due:|@)(\d{4}-\d{2}-\d{2})/;
+const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const SECTION_ORDER: Record<DashboardTaskSection, number> = {
+  overdue: 0,
+  today: 1,
+  upcoming: 2,
+  scheduled: 3,
+  backlog: 4,
+  done: 5,
+};
+const FOCUS_SECTIONS = new Set<DashboardTaskSection>(["overdue", "today", "upcoming"]);
 
 function pad2(n: number): string {
   return String(n).padStart(2, "0");
 }
 
+function formatDateString(date: Date): string {
+  return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
+}
+
 export function todayDateString(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+  return formatDateString(new Date());
+}
+
+function isIsoDateString(value: string | null | undefined): value is string {
+  return Boolean(value && ISO_DATE_RE.test(value));
+}
+
+function normalizeOptionalDate(value: unknown): string | null {
+  return typeof value === "string" && ISO_DATE_RE.test(value) ? value : null;
 }
 
 function dateFromFilePath(filePath: string): string | null {
@@ -48,51 +100,171 @@ function dateFromFilePath(filePath: string): string | null {
   return m ? m[1] : null;
 }
 
+function getRelativePathFromTaskId(taskId: string, fallbackFilePath: string): string {
+  const colonIdx = taskId.lastIndexOf(":");
+  return colonIdx >= 0 ? taskId.slice(0, colonIdx) : path.basename(fallbackFilePath);
+}
+
+function sanitizeTaskInputText(text: string): string {
+  return text
+    .replace(/\r\n/g, "\n")
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .join(" / ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+export function normalizeDashboardTaskText(text: string): string {
+  return sanitizeTaskInputText(text);
+}
+
+export function stripDashboardDueDate(text: string): string {
+  return sanitizeTaskInputText(text)
+    .replace(/\s*(?:📅|due:|@)(\d{4}-\d{2}-\d{2})\b/g, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
+export function upsertDashboardDueDate(text: string, dueDate?: string | null): string {
+  const baseText = stripDashboardDueDate(text);
+  if (!baseText) {
+    return "";
+  }
+
+  return isIsoDateString(dueDate) ? `${baseText} @${dueDate}` : baseText;
+}
+
+export function resolveDashboardTaskFile(notesDir: string, targetDate?: string | null): string {
+  const taskDir = path.join(notesDir, "tasks");
+  return isIsoDateString(targetDate)
+    ? path.join(taskDir, `${targetDate}.md`)
+    : path.join(taskDir, "inbox.md");
+}
+
+function buildTaskFileHeader(targetDate: string | null): string {
+  return targetDate
+    ? `---\ntype: tasks\ndate: ${targetDate}\n---\n\n`
+    : `---\ntype: tasks\n---\n\n`;
+}
+
+function ensureDashboardTaskFile(notesDir: string, targetDate: string | null): string {
+  const filePath = resolveDashboardTaskFile(notesDir, targetDate);
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+
+  if (!fs.existsSync(filePath)) {
+    fs.writeFileSync(filePath, buildTaskFileHeader(targetDate), "utf8");
+  }
+
+  return filePath;
+}
+
+function isPathInside(parentDir: string, candidatePath: string): boolean {
+  const resolvedParent = path.resolve(parentDir);
+  const resolvedCandidate = path.resolve(candidatePath);
+  return (
+    resolvedCandidate === resolvedParent ||
+    resolvedCandidate.startsWith(`${resolvedParent}${path.sep}`)
+  );
+}
+
+function resolveTaskRef(
+  notesDir: string,
+  taskId: string,
+): { relativePath: string; filePath: string; lineIndex: number } | null {
+  const colonIdx = taskId.lastIndexOf(":");
+  if (colonIdx < 0) {
+    return null;
+  }
+
+  const relativePath = taskId.slice(0, colonIdx);
+  const lineIndex = Number.parseInt(taskId.slice(colonIdx + 1), 10);
+  if (!Number.isInteger(lineIndex) || lineIndex < 0) {
+    return null;
+  }
+
+  const filePath = path.resolve(notesDir, relativePath);
+  if (!isPathInside(notesDir, filePath)) {
+    return null;
+  }
+
+  return {
+    relativePath,
+    filePath,
+    lineIndex,
+  };
+}
+
+function buildTaskMarkdownLine(done: boolean, text: string): string {
+  return `- [${done ? "x" : " "}] ${text}`;
+}
+
+function shiftDate(baseDate: string, days: number): string {
+  const d = new Date(`${baseDate}T00:00:00`);
+  d.setDate(d.getDate() + days);
+  return formatDateString(d);
+}
+
 export function collectTasksFromNotes(notesDir: string, momentsSubfolder = "moments"): DashTask[] {
   const tasks: DashTask[] = [];
   const momentsAbsPath = path.resolve(notesDir, momentsSubfolder);
 
   function walk(dir: string): void {
-    if (!fs.existsSync(dir)) return;
+    if (!fs.existsSync(dir)) {
+      return;
+    }
+
     let entries: fs.Dirent[];
     try {
       entries = fs.readdirSync(dir, { withFileTypes: true });
     } catch {
       return;
     }
+
     for (const entry of entries) {
       const fullPath = path.join(dir, entry.name);
       if (entry.isDirectory()) {
-        if (path.resolve(fullPath) === momentsAbsPath) continue;
-        walk(fullPath);
-      } else if (entry.isFile() && entry.name.endsWith(".md")) {
-        const date = dateFromFilePath(fullPath);
-        let content: string;
-        try {
-          content = fs.readFileSync(fullPath, "utf8");
-        } catch {
+        if (path.resolve(fullPath) === momentsAbsPath) {
           continue;
         }
-        const lines = content.split("\n");
-        const relPath = path.relative(notesDir, fullPath);
-        for (let i = 0; i < lines.length; i++) {
-          const m = TASK_RE.exec(lines[i]);
-          if (!m) continue;
-          const done = m[1].toLowerCase() === "x";
-          const text = m[2].trim();
-          const tags = [...new Set(text.match(TAG_RE) ?? [])];
-          const dueDateMatch = DUE_DATE_RE.exec(text);
-          tasks.push({
-            id: `${relPath}:${i}`,
-            filePath: fullPath,
-            lineIndex: i,
-            text,
-            done,
-            date,
-            dueDate: dueDateMatch ? dueDateMatch[1] : null,
-            tags,
-          });
+        walk(fullPath);
+        continue;
+      }
+
+      if (!entry.isFile() || !entry.name.endsWith(".md")) {
+        continue;
+      }
+
+      const date = dateFromFilePath(fullPath);
+      let content: string;
+      try {
+        content = fs.readFileSync(fullPath, "utf8");
+      } catch {
+        continue;
+      }
+
+      const lines = content.split("\n");
+      const relPath = path.relative(notesDir, fullPath);
+      for (let i = 0; i < lines.length; i++) {
+        const match = TASK_RE.exec(lines[i]);
+        if (!match) {
+          continue;
         }
+
+        const text = match[2].trim();
+        const tags = [...new Set(text.match(TAG_RE) ?? [])];
+        const dueDateMatch = DUE_DATE_RE.exec(text);
+        tasks.push({
+          id: `${relPath}:${i}`,
+          filePath: fullPath,
+          lineIndex: i,
+          text,
+          done: match[1].toLowerCase() === "x",
+          date,
+          dueDate: dueDateMatch ? dueDateMatch[1] : null,
+          tags,
+        });
       }
     }
   }
@@ -103,14 +275,173 @@ export function collectTasksFromNotes(notesDir: string, momentsSubfolder = "mome
 
 function last7Days(): WeekDay[] {
   const days: WeekDay[] = [];
-  const dayLabels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const labels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
   for (let i = 6; i >= 0; i--) {
     const d = new Date();
     d.setDate(d.getDate() - i);
-    const dateStr = `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
-    days.push({ date: dateStr, label: dayLabels[d.getDay()], open: 0, done: 0 });
+    days.push({
+      date: formatDateString(d),
+      label: labels[d.getDay()],
+      open: 0,
+      done: 0,
+    });
   }
+
   return days;
+}
+
+export function classifyDashboardTask(
+  task: DashTask,
+  today: string,
+  horizonDate: string,
+): DashboardTaskSection {
+  if (task.done) {
+    return "done";
+  }
+
+  const effectiveDate = task.dueDate ?? task.date;
+  if (!effectiveDate) {
+    return "backlog";
+  }
+
+  if (effectiveDate < today) {
+    return "overdue";
+  }
+
+  if (effectiveDate === today) {
+    return "today";
+  }
+
+  if (effectiveDate <= horizonDate) {
+    return "upcoming";
+  }
+
+  return "scheduled";
+}
+
+function compareDashboardTasks(a: DashboardTaskView, b: DashboardTaskView): number {
+  const sectionDiff = SECTION_ORDER[a.section] - SECTION_ORDER[b.section];
+  if (sectionDiff !== 0) {
+    return sectionDiff;
+  }
+
+  if (a.done !== b.done) {
+    return a.done ? 1 : -1;
+  }
+
+  const aDate = a.effectiveDate ?? "";
+  const bDate = b.effectiveDate ?? "";
+  if (aDate && bDate && aDate !== bDate) {
+    return a.section === "done" ? bDate.localeCompare(aDate) : aDate.localeCompare(bDate);
+  }
+
+  if (aDate && !bDate) {
+    return -1;
+  }
+
+  if (!aDate && bDate) {
+    return 1;
+  }
+
+  const pathDiff = a.relativePath.localeCompare(b.relativePath);
+  if (pathDiff !== 0) {
+    return pathDiff;
+  }
+
+  return a.text.localeCompare(b.text);
+}
+
+function buildDashboardTaskViews(tasks: DashTask[], today: string): DashboardTaskView[] {
+  const horizonDate = shiftDate(today, 7);
+  return tasks
+    .map((task) => {
+      const relativePath = getRelativePathFromTaskId(task.id, task.filePath);
+      const effectiveDate = task.dueDate ?? task.date;
+      return {
+        ...task,
+        relativePath,
+        effectiveDate,
+        section: classifyDashboardTask(task, today, horizonDate),
+      };
+    })
+    .sort(compareDashboardTasks);
+}
+
+function buildSectionCounts(tasks: DashboardTaskView[]): Record<DashboardTaskSection, number> {
+  const counts: Record<DashboardTaskSection, number> = {
+    overdue: 0,
+    today: 0,
+    upcoming: 0,
+    scheduled: 0,
+    backlog: 0,
+    done: 0,
+  };
+
+  for (const task of tasks) {
+    counts[task.section]++;
+  }
+
+  return counts;
+}
+
+function buildCategoryCounts(tasks: DashboardTaskView[]): Record<string, number> {
+  const categories = ["work", "personal", "health", "learning", "admin", "other"];
+  const counts: Record<string, number> = {};
+  for (const category of categories) {
+    counts[category] = 0;
+  }
+
+  for (const task of tasks) {
+    if (task.done) {
+      continue;
+    }
+
+    let matched = false;
+    for (const tag of task.tags) {
+      const normalized = tag.replace("#", "").toLowerCase();
+      if (normalized in counts && normalized !== "other") {
+        counts[normalized]++;
+        matched = true;
+        break;
+      }
+    }
+    if (!matched) {
+      counts.other++;
+    }
+  }
+
+  return counts;
+}
+
+function buildSummary(
+  tasks: DashboardTaskView[],
+  sectionCounts: Record<DashboardTaskSection, number>,
+): DashboardSummary {
+  const totalDone = sectionCounts.done;
+  const totalOpen = tasks.length - totalDone;
+  const completionRate = tasks.length > 0 ? Math.round((totalDone / tasks.length) * 100) : 0;
+
+  return {
+    totalOpen,
+    focusCount: tasks.filter((task) => !task.done && FOCUS_SECTIONS.has(task.section)).length,
+    overdueCount: sectionCounts.overdue,
+    totalDone,
+    completionRate,
+  };
+}
+
+function buildPlannerTasks(tasks: DashTask[], today: string): DashTask[] {
+  const horizonDate = shiftDate(today, 7);
+  const focusTasks = tasks.filter((task) => {
+    if (task.done) {
+      return false;
+    }
+
+    const section = classifyDashboardTask(task, today, horizonDate);
+    return section === "overdue" || section === "today" || section === "upcoming" || section === "backlog";
+  });
+
+  return focusTasks.length > 0 ? focusTasks : tasks.filter((task) => !task.done);
 }
 
 // ---------------------------------------------------------------------------
@@ -179,7 +510,6 @@ export class DashboardPanel {
 
     this._panel.webview.options = { enableScripts: true };
     this._panel.onDidDispose(() => this.dispose(), null, this._disposables);
-
     this._panel.webview.onDidReceiveMessage(
       (message: unknown) => this._handleMessage(message as Record<string, unknown>),
       null,
@@ -191,9 +521,11 @@ export class DashboardPanel {
 
   private dispose(): void {
     DashboardPanel._instance = undefined;
-    this._panel.dispose();
     this._cancelToken?.cancel();
-    for (const d of this._disposables) d.dispose();
+    this._panel.dispose();
+    for (const disposable of this._disposables) {
+      disposable.dispose();
+    }
     this._disposables = [];
   }
 
@@ -214,280 +546,327 @@ export class DashboardPanel {
     const week = last7Days();
 
     for (const task of tasks) {
-      const day = week.find((d) => d.date === task.date);
-      if (day) {
-        if (task.done) day.done++;
-        else day.open++;
+      const day = week.find((weekday) => weekday.date === task.date);
+      if (!day) {
+        continue;
+      }
+
+      if (task.done) {
+        day.done++;
+      } else {
+        day.open++;
       }
     }
 
-    const openTasks = tasks.filter((t) => !t.done);
+    const taskViews = buildDashboardTaskViews(tasks, today);
+    const sectionCounts = buildSectionCounts(taskViews);
+    const catCount = buildCategoryCounts(taskViews);
+    const summary = buildSummary(taskViews, sectionCounts);
 
-    // Compute the cutoff date string (today + 7 days, YYYY-MM-DD)
-    const cutoffDate = new Date();
-    cutoffDate.setDate(cutoffDate.getDate() + 7);
-    const cutoffStr = `${cutoffDate.getFullYear()}-${pad2(cutoffDate.getMonth() + 1)}-${pad2(cutoffDate.getDate())}`;
-
-    const upcomingTasks = tasks
-      .filter((t) => {
-        if (t.date === today || t.date === null) return true;
-        if (t.dueDate && t.dueDate <= cutoffStr) return true;
-        return false;
-      })
-      .sort((a, b) => {
-        // Open tasks come before done tasks
-        if (a.done !== b.done) return a.done ? 1 : -1;
-        if (!a.done) {
-          // Both open: tasks with due dates first (ascending), then undated alphabetically
-          const aDue = a.dueDate ?? null;
-          const bDue = b.dueDate ?? null;
-          if (aDue && bDue) return aDue.localeCompare(bDue);
-          if (aDue) return -1;
-          if (bDue) return 1;
-          return a.text.localeCompare(b.text);
-        }
-        // Both done: alphabetical
-        return a.text.localeCompare(b.text);
-      });
-
-    const CATEGORIES = ["work", "personal", "health", "learning", "admin"];
-    const catCount: Record<string, number> = {};
-    for (const cat of [...CATEGORIES, "other"]) catCount[cat] = 0;
-    for (const t of openTasks) {
-      let matched = false;
-      for (const tag of t.tags) {
-        const c = tag.replace("#", "").toLowerCase();
-        if (CATEGORIES.includes(c)) {
-          catCount[c]++;
-          matched = true;
-          break;
-        }
-      }
-      if (!matched) catCount["other"]++;
-    }
-
-    const totalDone = tasks.filter((t) => t.done).length;
-    const totalAll = tasks.length;
-    const completionRate = totalAll > 0 ? Math.round((totalDone / totalAll) * 100) : 0;
-
-    const data = {
+    this._panel.webview.html = this._getHtml({
       today,
-      upcomingTasks,
+      tasks: taskViews,
       week,
       catCount,
-      totalOpen: openTasks.length,
-      totalDone,
-      completionRate,
-    };
-
-    this._panel.webview.html = this._getHtml(data);
+      sectionCounts,
+      summary,
+    });
   }
 
   private _handleMessage(message: Record<string, unknown>): void {
     switch (message.command) {
       case "refresh":
         this._update();
-        break;
+        return;
 
       case "toggleTask": {
-        const { taskId, done } = message as { command: string; taskId: string; done: boolean };
+        const { taskId, done } = message as { taskId: string; done: boolean };
         this._toggleTask(taskId, done);
-        break;
+        return;
       }
 
       case "openFile": {
-        const { filePath, lineIndex } = message as {
-          command: string;
-          filePath: string;
-          lineIndex: number;
-        };
+        const { filePath, lineIndex } = message as { filePath: string; lineIndex: number };
         void this._openFile(filePath, lineIndex);
-        break;
+        return;
       }
 
-      case "planDay": {
-        void this._runPlanDay();
-        break;
-      }
-
-      case "aiExtract": {
-        void this._runAiExtract();
-        break;
+      case "createTask": {
+        const { text, dueDate, targetDate } = message as {
+          text: string;
+          dueDate?: string | null;
+          targetDate?: string | null;
+        };
+        void this._createTask(text, normalizeOptionalDate(targetDate), normalizeOptionalDate(dueDate));
+        return;
       }
 
       case "addExtractedTask": {
-        const { text, dueDate } = message as {
-          command: string;
+        const { text, dueDate, targetDate } = message as {
+          text: string;
+          dueDate?: string | null;
+          targetDate?: string | null;
+        };
+        void this._createTask(text, normalizeOptionalDate(targetDate), normalizeOptionalDate(dueDate));
+        return;
+      }
+
+      case "updateTask": {
+        const { taskId, text, dueDate } = message as {
+          taskId: string;
           text: string;
           dueDate?: string | null;
         };
-        void this._addExtractedTask(text, dueDate);
-        break;
+        this._updateTask(taskId, text, normalizeOptionalDate(dueDate));
+        return;
+      }
+
+      case "deleteTask": {
+        const { taskId } = message as { taskId: string };
+        this._deleteTask(taskId);
+        return;
+      }
+
+      case "planDay": {
+        const { date } = message as { date?: string | null };
+        void this._runPlanDay(normalizeOptionalDate(date));
+        return;
+      }
+
+      case "aiExtract": {
+        const { sourceDate } = message as { sourceDate?: string | null };
+        void this._runAiExtract(normalizeOptionalDate(sourceDate));
+        return;
       }
     }
   }
 
   private _toggleTask(taskId: string, done: boolean): void {
     const notesDir = this._getNotesDir();
-    if (!notesDir) return;
-
-    // taskId format: "relPath:lineIndex"
-    const colonIdx = taskId.lastIndexOf(":");
-    if (colonIdx < 0) return;
-    const relPath = taskId.slice(0, colonIdx);
-    const lineIndex = parseInt(taskId.slice(colonIdx + 1), 10);
-    if (isNaN(lineIndex)) return;
-
-    // Validate path to prevent traversal
-    const absPath = path.resolve(notesDir, relPath);
-    if (
-      !absPath.startsWith(path.resolve(notesDir) + path.sep) &&
-      absPath !== path.resolve(notesDir)
-    )
+    if (!notesDir) {
       return;
+    }
 
-    if (!fs.existsSync(absPath)) return;
+    const ref = resolveTaskRef(notesDir, taskId);
+    if (!ref || !fs.existsSync(ref.filePath)) {
+      return;
+    }
 
-    const lines = fs.readFileSync(absPath, "utf8").split("\n");
-    const line = lines[lineIndex];
-    if (!line) return;
+    const lines = fs.readFileSync(ref.filePath, "utf8").split("\n");
+    const line = lines[ref.lineIndex];
+    if (!line) {
+      return;
+    }
 
-    lines[lineIndex] = done
-      ? line.replace(/^- \[ \]/, "- [x]")
-      : line.replace(/^- \[[xX]\]/, "- [ ]");
+    const match = TASK_RE.exec(line);
+    if (!match) {
+      return;
+    }
 
-    fs.writeFileSync(absPath, lines.join("\n"), "utf8");
+    lines[ref.lineIndex] = buildTaskMarkdownLine(done, match[2].trim());
+    fs.writeFileSync(ref.filePath, lines.join("\n"), "utf8");
+    this._update();
+  }
+
+  private _updateTask(taskId: string, text: string, dueDate: string | null): void {
+    const notesDir = this._getNotesDir();
+    if (!notesDir) {
+      return;
+    }
+
+    const normalizedText = upsertDashboardDueDate(text, dueDate);
+    if (!normalizedText) {
+      void vscode.window.showErrorMessage("Task text cannot be empty.");
+      return;
+    }
+
+    const ref = resolveTaskRef(notesDir, taskId);
+    if (!ref || !fs.existsSync(ref.filePath)) {
+      return;
+    }
+
+    const lines = fs.readFileSync(ref.filePath, "utf8").split("\n");
+    const line = lines[ref.lineIndex];
+    if (!line) {
+      return;
+    }
+
+    const match = TASK_RE.exec(line);
+    if (!match) {
+      return;
+    }
+
+    lines[ref.lineIndex] = buildTaskMarkdownLine(match[1].toLowerCase() === "x", normalizedText);
+    fs.writeFileSync(ref.filePath, lines.join("\n"), "utf8");
+    this._update();
+  }
+
+  private _deleteTask(taskId: string): void {
+    const notesDir = this._getNotesDir();
+    if (!notesDir) {
+      return;
+    }
+
+    const ref = resolveTaskRef(notesDir, taskId);
+    if (!ref || !fs.existsSync(ref.filePath)) {
+      return;
+    }
+
+    const lines = fs.readFileSync(ref.filePath, "utf8").split("\n");
+    const line = lines[ref.lineIndex];
+    if (!line || !TASK_RE.exec(line)) {
+      return;
+    }
+
+    lines.splice(ref.lineIndex, 1);
+    fs.writeFileSync(ref.filePath, lines.join("\n"), "utf8");
+    this._update();
+  }
+
+  private async _createTask(
+    text: string,
+    targetDate: string | null,
+    dueDate: string | null,
+  ): Promise<void> {
+    const notesDir = this._getNotesDir();
+    if (!notesDir) {
+      return;
+    }
+
+    const normalizedText = upsertDashboardDueDate(text, dueDate);
+    if (!normalizedText) {
+      void vscode.window.showErrorMessage("Task text cannot be empty.");
+      return;
+    }
+
+    const taskFile = ensureDashboardTaskFile(notesDir, targetDate);
+    const existing = fs.readFileSync(taskFile, "utf8");
+    const prefix = existing.endsWith("\n") ? "" : "\n";
+    fs.writeFileSync(
+      taskFile,
+      `${existing}${prefix}${buildTaskMarkdownLine(false, normalizedText)}\n`,
+      "utf8",
+    );
+
     this._update();
   }
 
   private async _openFile(filePath: string, lineIndex: number): Promise<void> {
-    if (!fs.existsSync(filePath)) return;
+    if (!fs.existsSync(filePath)) {
+      return;
+    }
+
     const doc = await vscode.workspace.openTextDocument(filePath);
     const editor = await vscode.window.showTextDocument(doc, { preview: true });
-    const pos = new vscode.Position(lineIndex, 0);
-    editor.selection = new vscode.Selection(pos, pos);
-    editor.revealRange(new vscode.Range(pos, pos));
+    const position = new vscode.Position(lineIndex, 0);
+    editor.selection = new vscode.Selection(position, position);
+    editor.revealRange(new vscode.Range(position, position));
   }
 
-  private async _runPlanDay(): Promise<void> {
+  private async _runPlanDay(date?: string | null): Promise<void> {
     this._cancelToken?.cancel();
     this._cancelToken = new vscode.CancellationTokenSource();
     const token = this._cancelToken.token;
+    const planDate = date ?? todayDateString();
 
     DashboardPanel._statusListener?.(true);
-    this._panel.webview.postMessage({
+    void this._panel.webview.postMessage({
       type: "aiStatus",
       status: "processing",
-      message: "AIがタスクを優先順位付け中...",
+      message: `${planDate} のフォーカスタスクを整理しています...`,
     });
 
     try {
       const notesDir = this._getNotesDir();
-      if (!notesDir) return;
+      if (!notesDir) {
+        return;
+      }
 
       const momentsSubfolder =
         vscode.workspace.getConfiguration("notes").get<string>("momentsSubfolder") || "moments";
       const tasks = collectTasksFromNotes(notesDir, momentsSubfolder);
-      const today = todayDateString();
-      const todayOpen = tasks.filter((t) => !t.done && (t.date === today || t.date === null));
+      const plannerTasks = buildPlannerTasks(tasks, planDate);
 
-      const result = await planDay(today, todayOpen, token);
+      const result = await planDay(planDate, plannerTasks, token);
       if (!result) {
-        this._panel.webview.postMessage({
+        void this._panel.webview.postMessage({
           type: "aiStatus",
           status: "error",
           message: "AI が利用できません。GitHub Copilot が有効か確認してください。",
         });
         return;
       }
-      this._panel.webview.postMessage({ type: "planDayResult", plan: result });
+
+      void this._panel.webview.postMessage({ type: "planDayResult", plan: result });
     } finally {
       DashboardPanel._statusListener?.(false);
     }
   }
 
-  private async _runAiExtract(): Promise<void> {
+  private async _runAiExtract(sourceDate?: string | null): Promise<void> {
     this._cancelToken?.cancel();
     this._cancelToken = new vscode.CancellationTokenSource();
     const token = this._cancelToken.token;
+    const targetDate = sourceDate ?? todayDateString();
 
     DashboardPanel._statusListener?.(true);
-    this._panel.webview.postMessage({
+    void this._panel.webview.postMessage({
       type: "aiStatus",
       status: "processing",
-      message: "今日の Moments を AI が分析中...",
+      message: `${targetDate} の Moments を分析しています...`,
     });
 
     try {
       const notesDir = this._getNotesDir();
-      if (!notesDir) return;
+      if (!notesDir) {
+        return;
+      }
 
       const momentsSubfolder =
         vscode.workspace.getConfiguration("notes").get<string>("momentsSubfolder") || "moments";
-      const today = todayDateString();
-      const momentsFile = path.join(notesDir, momentsSubfolder, `${today}.md`);
+      const momentsFile = path.join(notesDir, momentsSubfolder, `${targetDate}.md`);
 
       if (!fs.existsSync(momentsFile)) {
-        this._panel.webview.postMessage({
+        void this._panel.webview.postMessage({
           type: "aiStatus",
           status: "error",
-          message: "今日の Moments ファイルが見つかりません。",
+          message: `${targetDate} の Moments ファイルが見つかりません。`,
         });
         return;
       }
 
       const content = fs.readFileSync(momentsFile, "utf8");
-      // Strip front matter
       const body = content.replace(/^---[\s\S]*?---\s*/m, "").trim();
-      // Strip timestamp prefixes to get clean text
       const cleanText = body
         .split("\n")
-        .filter((l) => l.startsWith("- "))
-        .map((l) => l.replace(/^- (\d{2}:\d{2} )?/, "").trim())
+        .filter((line) => line.startsWith("- "))
+        .map((line) => line.replace(/^- (\d{2}:\d{2} )?/, "").trim())
+        .filter(Boolean)
         .join("\n");
 
       if (!cleanText) {
-        this._panel.webview.postMessage({
+        void this._panel.webview.postMessage({
           type: "aiStatus",
           status: "error",
-          message: "今日の Moments にテキストが見つかりません。",
+          message: `${targetDate} の Moments に抽出対象のテキストがありません。`,
         });
         return;
       }
 
       const extracted = await extractTasksFromMoments(cleanText, token);
       if (extracted.length === 0) {
-        this._panel.webview.postMessage({
+        void this._panel.webview.postMessage({
           type: "aiStatus",
           status: "done",
           message: "実行可能なタスクは見つかりませんでした。",
         });
         return;
       }
-      this._panel.webview.postMessage({ type: "extractResult", tasks: extracted });
+
+      void this._panel.webview.postMessage({ type: "extractResult", tasks: extracted });
     } finally {
       DashboardPanel._statusListener?.(false);
     }
-  }
-
-  private async _addExtractedTask(text: string, dueDate?: string | null): Promise<void> {
-    const notesDir = this._getNotesDir();
-    if (!notesDir) return;
-
-    const today = todayDateString();
-    const taskDir = path.join(notesDir, "tasks");
-    fs.mkdirSync(taskDir, { recursive: true });
-    const taskFile = path.join(taskDir, `${today}.md`);
-    if (!fs.existsSync(taskFile)) {
-      fs.writeFileSync(taskFile, `---\ntype: tasks\ndate: ${today}\n---\n\n`, "utf8");
-    }
-    const existing = fs.readFileSync(taskFile, "utf8");
-    const sep = existing.endsWith("\n") ? "" : "\n";
-    const dueSuffix = dueDate ? ` @${dueDate}` : "";
-    fs.writeFileSync(taskFile, `${existing}${sep}- [ ] ${text}${dueSuffix}\n`, "utf8");
-
-    vscode.window.showInformationMessage(`タスクを追加しました: ${text}`);
-    this._update();
   }
 
   // ---------------------------------------------------------------------------
@@ -495,463 +874,1631 @@ export class DashboardPanel {
   // ---------------------------------------------------------------------------
 
   private _getLoadingHtml(message: string): string {
-    return `<!DOCTYPE html><html><body style="padding:20px;font-family:var(--vscode-font-family);color:var(--vscode-foreground)"><p>${message}</p></body></html>`;
+    return `<!DOCTYPE html><html><body style="padding:20px;font-family:var(--vscode-font-family);color:var(--vscode-foreground)"><p>${escHtml(
+      message,
+    )}</p></body></html>`;
   }
 
-  private _getHtml(data: {
-    today: string;
-    upcomingTasks: DashTask[];
-    week: WeekDay[];
-    catCount: Record<string, number>;
-    totalOpen: number;
-    totalDone: number;
-    completionRate: number;
-  }): string {
+  private _getHtml(data: DashboardData): string {
     const nonce = crypto.randomBytes(16).toString("hex");
-
-    const weekMax = Math.max(...data.week.map((d) => d.open + d.done), 1);
-
-    const upcomingTasksHtml =
-      data.upcomingTasks.length === 0
-        ? `<p class="empty">upcoming タスクはありません 🎉</p>`
-        : data.upcomingTasks
-            .map((t) => {
-              const doneClass = t.done ? " done" : "";
-              const safeTxt = escHtml(t.text);
-              const safeId = escAttr(t.id);
-              const safePath = escAttr(t.filePath);
-
-              // Tag badges: show first matching category tag only
-              const CATS = ["work", "personal", "health", "learning", "admin"];
-              const firstTag = t.tags.find((tag) =>
-                CATS.includes(tag.replace("#", "").toLowerCase()),
-              );
-              const tagBadge = firstTag
-                ? `<span class="badge badge-tag">${escHtml(firstTag)}</span>`
-                : "";
-
-              // Today badge
-              const todayBadge =
-                t.date === data.today
-                  ? `<span class="badge badge-today">Today</span>`
-                  : "";
-
-              // Due date badge
-              let dueBadge = "";
-              if (t.dueDate) {
-                const isOverdue = t.dueDate < data.today;
-                const badgeClass = isOverdue ? "badge badge-overdue" : "badge badge-due";
-                // Format YYYY-MM-DD → MMM DD
-                const [, mm, dd] = t.dueDate.split("-");
-                const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
-                const monthName = months[parseInt(mm, 10) - 1] ?? mm;
-                dueBadge = `<span class="${badgeClass}">📅 ${monthName} ${dd}</span>`;
-              }
-
-              const meta = [tagBadge, todayBadge, dueBadge].filter(Boolean).join("");
-              const metaRow = meta ? `<div class="task-meta">${meta}</div>` : "";
-
-              return `<div class="task-item${doneClass}">
-            <input type="checkbox" class="task-check" ${t.done ? "checked" : ""} data-task-id="${safeId}">
-            <div class="task-body">
-              <div class="task-text" data-file="${safePath}" data-line="${t.lineIndex}">${safeTxt}</div>
-              ${metaRow}
-            </div>
-          </div>`;
-            })
-            .join("");
+    const weekMax = Math.max(...data.week.map((day) => day.open + day.done), 1);
+    const payload = toScriptData(data);
 
     const weekBarsHtml = data.week
-      .map((d) => {
-        const total = d.open + d.done;
-        const doneH = total > 0 ? Math.round((d.done / weekMax) * 100) : 0;
-        const openH = total > 0 ? Math.round((d.open / weekMax) * 100) : 0;
-        const isToday = d.date === data.today;
-        // Format date as M/D (no leading zero)
-        const [, mm, dd] = d.date.split("-");
-        const dateLabel = `${parseInt(mm, 10)}/${parseInt(dd, 10)}`;
-        return `<div class="week-day${isToday ? " today" : ""}">
-        <div class="week-bar-area">
-          <div class="bar-done" style="height:${doneH}%"></div>
-          <div class="bar-open" style="height:${openH}%"></div>
-        </div>
-        <div class="week-day-label">
-          <span class="week-day-name">${escHtml(d.label)}</span>
-          <span class="week-day-date">${escHtml(dateLabel)}</span>
-        </div>
-      </div>`;
+      .map((day) => {
+        const total = day.open + day.done;
+        const openHeight = total > 0 ? Math.round((day.open / weekMax) * 100) : 0;
+        const doneHeight = total > 0 ? Math.round((day.done / weekMax) * 100) : 0;
+        const isToday = day.date === data.today;
+        const [, month, dateOfMonth] = day.date.split("-");
+        const label = `${Number.parseInt(month, 10)}/${Number.parseInt(dateOfMonth, 10)}`;
+        const title = `${day.date} · open ${day.open} · done ${day.done}`;
+        return `<div class="week-day${isToday ? " is-today" : ""}" title="${escAttr(title)}">
+  <div class="week-day-bars">
+    <div class="week-bar week-bar-done" style="height:${doneHeight}%"></div>
+    <div class="week-bar week-bar-open" style="height:${openHeight}%"></div>
+  </div>
+  <div class="week-day-label">
+    <span>${escHtml(day.label)}</span>
+    <strong>${escHtml(label)}</strong>
+  </div>
+</div>`;
       })
       .join("");
 
-    const CATS = ["work", "personal", "health", "learning", "admin", "other"];
-    const CAT_ICONS: Record<string, string> = {
-      work: "💼",
-      personal: "🏠",
-      health: "🏃",
-      learning: "📚",
-      admin: "🗂",
-      other: "📌",
+    const categoryOrder = ["work", "personal", "health", "learning", "admin", "other"];
+    const categoryLabels: Record<string, string> = {
+      work: "Work",
+      personal: "Personal",
+      health: "Health",
+      learning: "Learning",
+      admin: "Admin",
+      other: "Other",
     };
-    const catMax = Math.max(...CATS.map((c) => data.catCount[c] ?? 0), 1);
-    const catHtml = CATS.map((c) => {
-      const n = data.catCount[c] ?? 0;
-      const w = Math.round((n / catMax) * 100);
-      return `<div class="cat-row">
-        <div class="cat-label">${CAT_ICONS[c]} ${c}</div>
-        <div class="cat-bar-wrap"><div class="cat-bar" style="width:${w}%"></div></div>
-        <div class="cat-count">${n}</div>
-      </div>`;
-    }).join("");
+    const categoryIcons: Record<string, string> = {
+      work: "W",
+      personal: "P",
+      health: "H",
+      learning: "L",
+      admin: "A",
+      other: "O",
+    };
+    const categoryMax = Math.max(...categoryOrder.map((key) => data.catCount[key] ?? 0), 1);
+    const categoryHtml = categoryOrder
+      .map((key) => {
+        const count = data.catCount[key] ?? 0;
+        const width = Math.max(count === 0 ? 0 : Math.round((count / categoryMax) * 100), count > 0 ? 12 : 0);
+        return `<div class="category-row">
+  <div class="category-label"><span class="category-icon">${escHtml(categoryIcons[key])}</span>${escHtml(
+          categoryLabels[key],
+        )}</div>
+  <div class="category-track"><div class="category-fill" style="width:${width}%"></div></div>
+  <div class="category-count">${count}</div>
+</div>`;
+      })
+      .join("");
 
     return `<!DOCTYPE html>
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'nonce-${nonce}' 'unsafe-inline'; script-src 'nonce-${nonce}';">
+<title>AI Task Dashboard</title>
 <style nonce="${nonce}">
-  :root { --radius: 10px; --gap: 10px; }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: var(--vscode-editor-background, #111827);
+    --surface: var(--vscode-editorWidget-background, #161b22);
+    --surface-muted: color-mix(in srgb, var(--vscode-editorWidget-background, #161b22) 92%, var(--vscode-textLink-foreground, #4f8cff) 8%);
+    --border: var(--vscode-panel-border, #2d3748);
+    --text: var(--vscode-foreground, #dbe2ea);
+    --muted: var(--vscode-descriptionForeground, #8b98a5);
+    --accent: var(--vscode-textLink-foreground, #4f8cff);
+    --success: var(--vscode-testing-iconPassed, #2ea043);
+    --warning: var(--vscode-editorWarning-foreground, #d97706);
+    --danger: var(--vscode-errorForeground, #dc2626);
+    --radius: 12px;
+    --radius-sm: 8px;
+    --gap: 16px;
+  }
+
+  * { box-sizing: border-box; }
+
   body {
+    margin: 0;
+    padding: 20px;
+    background: var(--bg);
+    color: var(--text);
     font-family: var(--vscode-font-family);
     font-size: var(--vscode-font-size);
-    color: var(--vscode-foreground);
-    background: var(--vscode-editor-background);
-    padding: var(--gap);
+    line-height: 1.5;
   }
 
-  /* ── Header ── */
-  .header { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
-  .header-title {
-    font-size: 16px; font-weight: 700; flex: 1;
-    background: linear-gradient(135deg, var(--vscode-textLink-foreground, #89b4fa), var(--vscode-badge-foreground, #cba6f7));
-    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
-    letter-spacing: -0.3px;
+  button,
+  input,
+  textarea {
+    font: inherit;
   }
-  .header-date {
-    font-size: 10px; color: var(--vscode-descriptionForeground);
-    background: var(--vscode-editorWidget-background, var(--vscode-sideBar-background));
-    border: 1px solid var(--vscode-panel-border, #313244);
-    padding: 2px 8px; border-radius: 20px;
-  }
-  .btn {
-    padding: 4px 10px; font-size: 11px; border-radius: 6px; cursor: pointer;
-    background: var(--vscode-editorWidget-background, var(--vscode-sideBar-background));
-    color: var(--vscode-descriptionForeground);
-    border: 1px solid var(--vscode-panel-border, #313244);
-    transition: border-color 0.15s;
-  }
-  .btn:hover { border-color: var(--vscode-textLink-foreground); color: var(--vscode-textLink-foreground); }
-  .btn-primary {
-    background: linear-gradient(135deg, var(--vscode-textLink-foreground, #89b4fa), var(--vscode-badge-foreground, #cba6f7));
-    color: var(--vscode-editor-background, #1e1e2e);
-    border: none; font-weight: 600;
-  }
-  .btn-primary:hover { opacity: 0.85; color: var(--vscode-editor-background, #1e1e2e); border-color: transparent; }
 
-  /* ── KPI Stats Row ── */
-  .stats-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--gap); margin-bottom: var(--gap); }
-  .stat-card {
-    border-radius: var(--radius); padding: 12px 14px;
-    display: flex; align-items: center; gap: 10px;
-    border: 1px solid transparent;
-    background: var(--vscode-editorWidget-background, var(--vscode-sideBar-background));
+  .page {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap);
   }
-  .stat-card.open  { background: color-mix(in srgb, var(--vscode-textLink-foreground, #89b4fa) 12%, var(--vscode-editor-background, #1e1e2e)); border-color: color-mix(in srgb, var(--vscode-textLink-foreground, #89b4fa) 30%, transparent); }
-  .stat-card.done  { background: color-mix(in srgb, var(--vscode-testing-iconPassed, #a6e3a1) 12%, var(--vscode-editor-background, #1e1e2e)); border-color: color-mix(in srgb, var(--vscode-testing-iconPassed, #a6e3a1) 30%, transparent); }
-  .stat-card.rate  { background: color-mix(in srgb, var(--vscode-badge-foreground, #cba6f7) 12%, var(--vscode-editor-background, #1e1e2e)); border-color: color-mix(in srgb, var(--vscode-badge-foreground, #cba6f7) 30%, transparent); }
-  .stat-icon { font-size: 20px; flex-shrink: 0; }
-  .stat-value { font-size: 22px; font-weight: 700; line-height: 1; margin-bottom: 2px; }
-  .stat-card.open .stat-value { color: var(--vscode-textLink-foreground, #89b4fa); }
-  .stat-card.done .stat-value { color: var(--vscode-testing-iconPassed, #a6e3a1); }
-  .stat-card.rate .stat-value { color: var(--vscode-badge-foreground, #cba6f7); }
-  .stat-label { font-size: 9px; color: var(--vscode-descriptionForeground); text-transform: uppercase; letter-spacing: 0.5px; }
 
-  /* ── Grid ── */
-  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--gap); margin-bottom: var(--gap); }
-  @media (max-width: 480px) { .grid { grid-template-columns: 1fr; } .stats-row { grid-template-columns: 1fr; } }
+  .hero {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--gap);
+    padding: 18px 20px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface-muted);
+  }
 
-  /* ── Card ── */
+  .hero-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+  }
+
+  .eyebrow {
+    color: var(--accent);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .hero-title {
+    margin: 0;
+    font-size: 24px;
+    font-weight: 700;
+    text-wrap: balance;
+  }
+
+  .hero-subtitle {
+    margin: 0;
+    color: var(--muted);
+    max-width: 60ch;
+    text-wrap: pretty;
+  }
+
+  .hero-meta {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 8px;
+    align-items: center;
+  }
+
+  .pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 10px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--muted);
+    font-size: 12px;
+  }
+
+  .pill strong {
+    color: var(--text);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .summary-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+  }
+
+  .summary-card {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 16px;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    background: var(--surface);
+    min-width: 0;
+  }
+
+  .summary-card.is-accent {
+    border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+  }
+
+  .summary-card.is-warning {
+    border-color: color-mix(in srgb, var(--warning) 40%, var(--border));
+  }
+
+  .summary-label {
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  .summary-value {
+    font-size: 28px;
+    font-weight: 700;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .summary-note {
+    color: var(--muted);
+    font-size: 12px;
+  }
+
+  .layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.7fr) minmax(320px, 1fr);
+    gap: var(--gap);
+    align-items: start;
+  }
+
   .card {
-    background: var(--vscode-editorWidget-background, var(--vscode-sideBar-background));
-    border: 1px solid var(--vscode-panel-border, #313244);
-    border-radius: var(--radius); padding: 14px;
-  }
-  .card-title {
-    font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;
-    color: var(--vscode-descriptionForeground); margin-bottom: 10px;
-    display: flex; align-items: center; gap: 6px;
-  }
-  .card-title-badge {
-    background: var(--vscode-badge-background, #313244);
-    color: var(--vscode-textLink-foreground, #89b4fa);
-    font-size: 9px; padding: 1px 6px; border-radius: 10px;
-    margin-left: auto; letter-spacing: 0; text-transform: none; font-weight: 600;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+    padding: 18px;
   }
 
-  /* ── Upcoming Tasks ── */
-  .task-item { display: flex; align-items: flex-start; gap: 8px; padding: 5px 0; border-bottom: 1px solid var(--vscode-panel-border, #313244); }
-  .task-item:last-child { border-bottom: none; }
+  .card + .card {
+    margin-top: var(--gap);
+  }
+
+  .card-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+
+  .card-header h2,
+  .card-header h3 {
+    margin: 4px 0 0;
+    font-size: 18px;
+    line-height: 1.3;
+  }
+
+  .card-header p {
+    margin: 6px 0 0;
+    color: var(--muted);
+    font-size: 13px;
+  }
+
+  .card-header .eyebrow {
+    font-size: 10px;
+  }
+
+  .card-meta {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--muted);
+    font-size: 12px;
+    white-space: nowrap;
+  }
+
+  .task-toolbar {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+
+  .filter-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .filter-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+  }
+
+  .filter-chip:hover {
+    border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+    color: var(--text);
+  }
+
+  .filter-chip.is-active {
+    background: color-mix(in srgb, var(--accent) 14%, transparent);
+    border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+    color: var(--accent);
+  }
+
+  .filter-chip strong {
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .search-shell {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 0 12px;
+    min-height: 42px;
+    background: color-mix(in srgb, var(--surface) 90%, var(--bg));
+  }
+
+  .search-shell span {
+    color: var(--muted);
+    font-size: 12px;
+    white-space: nowrap;
+  }
+
+  .search-shell input {
+    border: none;
+    background: transparent;
+    color: var(--text);
+    width: 100%;
+    min-width: 0;
+    outline: none;
+    padding: 10px 0;
+  }
+
+  .task-list {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+
+  .task-section {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .task-section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .task-section-header h3 {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .task-section-header span {
+    color: var(--muted);
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .task-items {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .task-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 14px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: color-mix(in srgb, var(--surface) 92%, var(--bg));
+  }
+
+  .task-item.is-overdue {
+    border-color: color-mix(in srgb, var(--danger) 35%, var(--border));
+  }
+
+  .task-item.is-today {
+    border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
+  }
+
+  .task-item.is-done {
+    opacity: 0.76;
+  }
+
   .task-check {
-    width: 14px; height: 14px; border-radius: 4px; flex-shrink: 0; margin-top: 1px;
-    border: 1.5px solid var(--vscode-panel-border, #45475a);
-    appearance: none; -webkit-appearance: none; cursor: pointer;
-    background: transparent; position: relative;
-    accent-color: var(--vscode-textLink-foreground);
-    transition: border-color 0.15s;
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    margin-top: 2px;
+    flex-shrink: 0;
   }
-  .task-check:hover { border-color: var(--vscode-textLink-foreground); }
-  .task-check:checked {
-    background: color-mix(in srgb, var(--vscode-testing-iconPassed, #a6e3a1) 20%, transparent);
-    border-color: var(--vscode-testing-iconPassed, #a6e3a1);
+
+  .task-check input {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 18px;
+    height: 18px;
+    margin: 0;
+    border-radius: 5px;
+    border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--border));
+    background: transparent;
+    cursor: pointer;
   }
-  .task-check:checked::after {
-    content: '✓'; font-size: 9px; color: var(--vscode-testing-iconPassed, #a6e3a1);
-    position: absolute; top: -1px; left: 1px;
+
+  .task-check input:checked {
+    background: color-mix(in srgb, var(--success) 16%, transparent);
+    border-color: color-mix(in srgb, var(--success) 55%, var(--border));
   }
-  .task-body { flex: 1; min-width: 0; }
-  .task-text { font-size: 12px; line-height: 1.4; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .task-text:hover { color: var(--vscode-textLink-foreground); }
-  .task-item.done .task-text { text-decoration: line-through; color: var(--vscode-disabledForeground, var(--vscode-descriptionForeground)); }
-  .task-meta { display: flex; gap: 4px; margin-top: 3px; flex-wrap: wrap; }
+
+  .task-check input:checked::after {
+    content: "";
+    position: absolute;
+    inset: 4px;
+    background: var(--success);
+    clip-path: polygon(14% 52%, 0 67%, 39% 100%, 100% 22%, 84% 8%, 39% 68%);
+  }
+
+  .task-body {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .task-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .task-title {
+    margin: 0;
+    border: none;
+    padding: 0;
+    background: transparent;
+    color: var(--text);
+    text-align: left;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    min-width: 0;
+  }
+
+  .task-title:hover {
+    color: var(--accent);
+  }
+
+  .task-item.is-done .task-title {
+    color: var(--muted);
+    text-decoration: line-through;
+  }
+
+  .task-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  .link-btn,
+  .text-btn,
+  .btn {
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text);
+    cursor: pointer;
+    padding: 8px 12px;
+  }
+
+  .btn {
+    border-radius: var(--radius-sm);
+    font-weight: 600;
+  }
+
+  .btn-primary {
+    background: color-mix(in srgb, var(--accent) 18%, transparent);
+    border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
+    color: var(--accent);
+  }
+
+  .btn-danger {
+    border-color: color-mix(in srgb, var(--danger) 55%, var(--border));
+    color: var(--danger);
+  }
+
+  .btn:disabled,
+  .text-btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+  }
+
+  .text-btn,
+  .link-btn {
+    padding: 5px 9px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .text-btn:hover,
+  .link-btn:hover,
+  .btn:hover {
+    border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+    color: var(--text);
+  }
+
+  .text-btn.is-danger:hover {
+    border-color: color-mix(in srgb, var(--danger) 45%, var(--border));
+    color: var(--danger);
+  }
+
+  .task-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
   .badge {
-    font-size: 9px; padding: 1px 6px; border-radius: 10px;
-    border: 1px solid transparent;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 8px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    font-size: 11px;
+    color: var(--muted);
+    background: color-mix(in srgb, var(--surface) 88%, var(--bg));
   }
-  .badge-tag   { background: color-mix(in srgb, var(--vscode-textLink-foreground, #89b4fa) 15%, transparent); color: var(--vscode-textLink-foreground, #89b4fa); border-color: color-mix(in srgb, var(--vscode-textLink-foreground, #89b4fa) 35%, transparent); }
-  .badge-today { background: color-mix(in srgb, var(--vscode-testing-iconPassed, #a6e3a1) 12%, transparent); color: var(--vscode-testing-iconPassed, #a6e3a1); border-color: color-mix(in srgb, var(--vscode-testing-iconPassed, #a6e3a1) 30%, transparent); }
-  .badge-due   { background: color-mix(in srgb, var(--vscode-editorWarning-foreground, #fab387) 12%, transparent); color: var(--vscode-editorWarning-foreground, #fab387); border-color: color-mix(in srgb, var(--vscode-editorWarning-foreground, #fab387) 30%, transparent); }
-  .badge-overdue { background: color-mix(in srgb, var(--vscode-errorForeground, #f38ba8) 12%, transparent); color: var(--vscode-errorForeground, #f38ba8); border-color: color-mix(in srgb, var(--vscode-errorForeground, #f38ba8) 30%, transparent); }
-  .empty { font-size: 12px; color: var(--vscode-descriptionForeground); padding: 8px 0; }
 
-  /* ── Weekly bar chart ── */
-  .week-bars { display: flex; gap: 5px; height: 90px; padding-bottom: 30px; position: relative; }
-  .week-day { flex: 1; display: flex; flex-direction: column; align-items: center; height: 100%; position: relative; }
-  .week-bar-area { flex: 1; width: 100%; display: flex; flex-direction: column; justify-content: flex-end; gap: 1px; }
-  .bar-done { background: var(--vscode-testing-iconPassed, #a6e3a1); border-radius: 3px 3px 0 0; min-height: 2px; opacity: 0.85; }
-  .bar-open { background: var(--vscode-textLink-foreground, #89b4fa); min-height: 2px; opacity: 0.55; }
-  .week-day-label { position: absolute; bottom: 0; text-align: center; width: 100%; line-height: 1.3; }
-  .week-day-name { font-size: 8px; color: var(--vscode-descriptionForeground); display: block; }
-  .week-day-date { font-size: 7px; color: var(--vscode-disabledForeground, var(--vscode-descriptionForeground)); display: block; opacity: 0.7; }
-  .week-day.today::before {
-    content: ''; position: absolute; top: 0; bottom: 30px; left: 0; right: 0;
-    background: color-mix(in srgb, var(--vscode-textLink-foreground, #89b4fa) 8%, transparent);
-    border-radius: 4px; pointer-events: none;
+  .badge.is-accent {
+    color: var(--accent);
+    border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+    background: color-mix(in srgb, var(--accent) 12%, transparent);
   }
-  .week-day.today .week-day-name { color: var(--vscode-textLink-foreground, #89b4fa); font-weight: 700; }
-  .week-day.today .week-day-date { color: var(--vscode-textLink-foreground, #89b4fa); opacity: 0.7; }
-  .week-legend { display: flex; gap: 10px; justify-content: flex-end; margin-top: 6px; }
-  .legend-item { display: flex; align-items: center; gap: 4px; font-size: 9px; color: var(--vscode-descriptionForeground); }
-  .legend-dot { width: 8px; height: 8px; border-radius: 2px; }
 
-  /* ── Categories ── */
-  .cat-row { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; }
-  .cat-row:last-child { margin-bottom: 0; }
-  .cat-label { font-size: 11px; width: 90px; flex-shrink: 0; color: var(--vscode-foreground); }
-  .cat-bar-wrap { flex: 1; height: 6px; background: var(--vscode-panel-border, #313244); border-radius: 3px; overflow: hidden; }
-  .cat-bar { height: 100%; border-radius: 3px; background: linear-gradient(90deg, var(--vscode-textLink-foreground, #89b4fa), var(--vscode-badge-foreground, #cba6f7)); }
-  .cat-count { font-size: 10px; color: var(--vscode-descriptionForeground); width: 20px; text-align: right; flex-shrink: 0; }
-
-  /* ── AI Actions ── */
-  .ai-card {
-    background: linear-gradient(135deg, var(--vscode-editorWidget-background, #1e1e2e), #1e1a2e);
-    border-color: color-mix(in srgb, var(--vscode-badge-foreground, #cba6f7) 20%, transparent);
+  .badge.is-success {
+    color: var(--success);
+    border-color: color-mix(in srgb, var(--success) 40%, var(--border));
+    background: color-mix(in srgb, var(--success) 12%, transparent);
   }
-  .ai-card .card-title { color: color-mix(in srgb, var(--vscode-badge-foreground, #cba6f7) 80%, var(--vscode-descriptionForeground)); }
-  .ai-row { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
-  #ai-status { font-size: 11px; color: var(--vscode-descriptionForeground); margin-top: 4px; min-height: 16px; font-style: italic; }
-  #ai-status.error { color: var(--vscode-errorForeground); font-style: normal; }
 
-  /* ── Plan / Extract results (unchanged from original) ── */
-  .plan-result { margin-top: 8px; }
-  .plan-summary { font-size: 12px; font-style: italic; margin-bottom: 8px; color: var(--vscode-descriptionForeground); display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-  .plan-hours { font-size: 11px; background: var(--vscode-badge-background); color: var(--vscode-badge-foreground); border-radius: 10px; padding: 1px 7px; font-style: normal; }
-  .plan-item { padding: 6px 0; border-bottom: 1px solid var(--vscode-panel-border, #0001); font-size: 12px; }
-  .plan-item-header { display: flex; gap: 8px; align-items: baseline; }
-  .plan-priority { font-size: 11px; flex-shrink: 0; }
-  .plan-task { flex: 1; }
-  .plan-dur { color: var(--vscode-descriptionForeground); font-size: 11px; flex-shrink: 0; }
-  .plan-reason { font-size: 11px; color: var(--vscode-descriptionForeground); margin-top: 2px; padding-left: 20px; }
-  .extract-task { display: flex; align-items: flex-start; gap: 6px; padding: 4px 0; font-size: 12px; }
-  .extract-info { flex: 1; }
-  .extract-meta { font-size: 10px; color: var(--vscode-descriptionForeground); }
-  .due-badge { font-size: 10px; background: var(--vscode-badge-background); color: var(--vscode-badge-foreground); border-radius: 3px; padding: 0 4px; margin-left: 4px; vertical-align: middle; }
-  .due-overdue { background: var(--vscode-inputValidation-errorBackground, #5a1d1d); color: var(--vscode-inputValidation-errorForeground, #f48771); }
+  .badge.is-warning {
+    color: var(--warning);
+    border-color: color-mix(in srgb, var(--warning) 40%, var(--border));
+    background: color-mix(in srgb, var(--warning) 12%, transparent);
+  }
+
+  .badge.is-danger {
+    color: var(--danger);
+    border-color: color-mix(in srgb, var(--danger) 40%, var(--border));
+    background: color-mix(in srgb, var(--danger) 12%, transparent);
+  }
+
+  .task-edit {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .field,
+  .field-compact {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+  }
+
+  .field span,
+  .field-compact span {
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  .field input,
+  .field textarea,
+  .field-compact input {
+    width: 100%;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: color-mix(in srgb, var(--surface) 88%, var(--bg));
+    color: var(--text);
+    padding: 10px 12px;
+    outline: none;
+  }
+
+  .field textarea {
+    resize: vertical;
+    min-height: 92px;
+  }
+
+  .field input:focus,
+  .field textarea:focus,
+  .field-compact input:focus {
+    border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
+  }
+
+  .field-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .inline-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .helper {
+    color: var(--muted);
+    font-size: 12px;
+    text-wrap: pretty;
+  }
+
+  .mono {
+    font-variant-numeric: tabular-nums;
+  }
+
+  .empty-state {
+    border: 1px dashed var(--border);
+    border-radius: var(--radius-sm);
+    padding: 18px;
+    color: var(--muted);
+    text-align: center;
+  }
+
+  .side-column {
+    min-width: 0;
+  }
+
+  .analytics-grid {
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap);
+  }
+
+  .week-chart {
+    display: flex;
+    gap: 10px;
+    align-items: stretch;
+    min-height: 150px;
+  }
+
+  .week-day {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    gap: 8px;
+  }
+
+  .week-day-bars {
+    height: 108px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    gap: 3px;
+    padding: 6px;
+    border-radius: var(--radius-sm);
+    background: color-mix(in srgb, var(--surface) 88%, var(--bg));
+    border: 1px solid var(--border);
+  }
+
+  .week-day.is-today .week-day-bars {
+    border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+    background: color-mix(in srgb, var(--accent) 10%, transparent);
+  }
+
+  .week-bar {
+    width: 100%;
+    border-radius: 999px;
+    min-height: 6px;
+  }
+
+  .week-bar-open {
+    background: color-mix(in srgb, var(--accent) 55%, transparent);
+  }
+
+  .week-bar-done {
+    background: color-mix(in srgb, var(--success) 60%, transparent);
+  }
+
+  .week-day-label {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    color: var(--muted);
+    font-size: 11px;
+  }
+
+  .week-day-label strong {
+    color: var(--text);
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .chart-legend {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 12px;
+    color: var(--muted);
+    font-size: 12px;
+  }
+
+  .legend-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 999px;
+    display: inline-block;
+    margin-right: 6px;
+    vertical-align: middle;
+  }
+
+  .category-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .category-row {
+    display: grid;
+    grid-template-columns: minmax(96px, auto) minmax(0, 1fr) auto;
+    gap: 10px;
+    align-items: center;
+  }
+
+  .category-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+  }
+
+  .category-icon {
+    width: 22px;
+    height: 22px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--border));
+    color: var(--accent);
+    font-size: 11px;
+    font-weight: 700;
+  }
+
+  .category-track {
+    height: 8px;
+    border-radius: 999px;
+    overflow: hidden;
+    background: color-mix(in srgb, var(--surface) 84%, var(--bg));
+    border: 1px solid color-mix(in srgb, var(--border) 85%, transparent);
+  }
+
+  .category-fill {
+    height: 100%;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--accent) 70%, transparent);
+  }
+
+  .category-count {
+    color: var(--muted);
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .status-line {
+    min-height: 20px;
+    color: var(--muted);
+    font-size: 12px;
+    margin-top: 10px;
+  }
+
+  .status-line.is-error {
+    color: var(--danger);
+  }
+
+  .ai-result {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 12px;
+  }
+
+  .plan-shell {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .plan-summary {
+    padding: 10px 12px;
+    border-radius: var(--radius-sm);
+    background: color-mix(in srgb, var(--accent) 10%, transparent);
+    border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--border));
+    color: var(--text);
+    font-size: 13px;
+  }
+
+  .plan-hours {
+    color: var(--muted);
+    font-size: 12px;
+    margin-top: 4px;
+  }
+
+  .plan-item,
+  .extract-item {
+    padding: 12px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: color-mix(in srgb, var(--surface) 88%, var(--bg));
+  }
+
+  .plan-item-head,
+  .extract-head {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    align-items: flex-start;
+  }
+
+  .plan-item-title,
+  .extract-title {
+    font-weight: 600;
+    font-size: 13px;
+  }
+
+  .plan-meta,
+  .extract-meta {
+    color: var(--muted);
+    font-size: 12px;
+  }
+
+  .plan-reason {
+    color: var(--muted);
+    font-size: 12px;
+    margin-top: 6px;
+  }
+
+  @media (max-width: 1000px) {
+    .layout {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media (max-width: 720px) {
+    body {
+      padding: 14px;
+    }
+
+    .hero {
+      flex-direction: column;
+    }
+
+    .hero-meta {
+      justify-content: flex-start;
+    }
+
+    .summary-grid,
+    .field-grid {
+      grid-template-columns: 1fr;
+    }
+
+    .task-head,
+    .plan-item-head,
+    .extract-head {
+      flex-direction: column;
+    }
+
+    .task-actions {
+      justify-content: flex-start;
+    }
+  }
 </style>
 </head>
 <body>
-<div class="header">
-  <div class="header-title">📋 AI Task Dashboard</div>
-  <div class="header-date">${escHtml(data.today)}</div>
-  <button class="btn" id="btn-refresh">↻ Refresh</button>
-</div>
-
-<div class="stats-row">
-  <div class="stat-card open">
-    <div class="stat-icon">📌</div>
-    <div>
-      <div class="stat-value">${data.totalOpen}</div>
-      <div class="stat-label">Open tasks</div>
-    </div>
-  </div>
-  <div class="stat-card done">
-    <div class="stat-icon">✅</div>
-    <div>
-      <div class="stat-value">${data.totalDone}</div>
-      <div class="stat-label">Done</div>
-    </div>
-  </div>
-  <div class="stat-card rate">
-    <div class="stat-icon">🎯</div>
-    <div>
-      <div class="stat-value">${data.completionRate}%</div>
-      <div class="stat-label">Completion rate</div>
-    </div>
-  </div>
-</div>
-
-<div class="grid">
-  <div class="card" id="upcoming-tasks-card">
-    <div class="card-title">
-      Upcoming Tasks
-      <span class="card-title-badge">${data.upcomingTasks.filter((t: DashTask) => !t.done).length} open</span>
-    </div>
-    ${upcomingTasksHtml}
-  </div>
-  <div class="card">
-    <div class="card-title">Weekly Overview</div>
-    <div class="week-bars">${weekBarsHtml}</div>
-    <div class="week-legend">
-      <div class="legend-item"><div class="legend-dot" style="background:var(--vscode-testing-iconPassed,#a6e3a1)"></div>Done</div>
-      <div class="legend-item"><div class="legend-dot" style="background:var(--vscode-textLink-foreground,#89b4fa);opacity:.6"></div>Open</div>
-    </div>
-  </div>
-</div>
-
-<div class="card" style="margin-bottom:var(--gap)">
-  <div class="card-title">Categories <span style="color:var(--vscode-foreground);text-transform:none;font-weight:400;letter-spacing:0;opacity:.6">(open tasks)</span></div>
-  ${catHtml}
-</div>
-
-<div class="card ai-card" id="ai-card">
-  <div class="card-title">✨ AI Actions</div>
-  <div class="ai-row">
-    <button class="btn btn-primary" id="btn-plan-day">✨ Plan My Day</button>
-    <button class="btn" id="btn-ai-extract">🤖 AI Extract from Moments</button>
-  </div>
-  <div id="ai-status"></div>
-  <div id="ai-result"></div>
-</div>
-
-<script nonce="${nonce}">
-const vscode = acquireVsCodeApi();
-
-function refresh() { vscode.postMessage({ command: 'refresh' }); }
-function toggleTask(el, taskId) { vscode.postMessage({ command: 'toggleTask', taskId, done: el.checked }); }
-function openFile(filePath, lineIndex) { vscode.postMessage({ command: 'openFile', filePath, lineIndex }); }
-function planDay() {
-  setStatus('processing', 'AIがプランを生成中...');
-  document.getElementById('ai-result').innerHTML = '';
-  vscode.postMessage({ command: 'planDay' });
-}
-function aiExtract() {
-  setStatus('processing', '今日のMomentsをAIが分析中...');
-  document.getElementById('ai-result').innerHTML = '';
-  vscode.postMessage({ command: 'aiExtract' });
-}
-function setStatus(type, msg) {
-  const el = document.getElementById('ai-status');
-  el.className = type === 'error' ? 'error' : '';
-  el.textContent = msg;
-}
-
-document.getElementById('btn-refresh')?.addEventListener('click', refresh);
-document.getElementById('btn-plan-day')?.addEventListener('click', planDay);
-document.getElementById('btn-ai-extract')?.addEventListener('click', aiExtract);
-
-document.getElementById('upcoming-tasks-card')?.addEventListener('change', function(e) {
-  const target = e.target;
-  if (target && target.type === 'checkbox') {
-    const taskId = target.dataset.taskId;
-    if (taskId) toggleTask(target, taskId);
-  }
-});
-document.getElementById('upcoming-tasks-card')?.addEventListener('click', function(e) {
-  const span = e.target.closest('.task-text');
-  if (span) {
-    openFile(span.dataset.file || '', parseInt(span.dataset.line || '0', 10));
-  }
-});
-
-document.getElementById('ai-result')?.addEventListener('click', function(e) {
-  const btn = e.target.closest('.add-task-btn');
-  if (btn) {
-    const idx = parseInt(btn.dataset.idx || '0', 10);
-    const el = document.getElementById('ai-result');
-    const tasks = el._tasks;
-    if (!tasks || !tasks[idx]) return;
-    vscode.postMessage({ command: 'addExtractedTask', text: tasks[idx].text, dueDate: tasks[idx].dueDate ?? null });
-    btn.disabled = true;
-    btn.textContent = '✓';
-  }
-});
-
-window.addEventListener('message', (evt) => {
-  const msg = evt.data;
-  if (msg.type === 'aiStatus') {
-    setStatus(msg.status, msg.message ?? '');
-  } else if (msg.type === 'planDayResult') {
-    setStatus('done', '');
-    showPlanResult(msg.plan);
-  } else if (msg.type === 'extractResult') {
-    setStatus('done', '');
-    showExtractResult(msg.tasks);
-  }
-});
-
-function esc(s) {
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-
-function showPlanResult(plan) {
-  const el = document.getElementById('ai-result');
-  const priorityIcon = { high: '\uD83D\uDD34', medium: '\uD83D\uDFE1', low: '\uD83D\uDD35' };
-  const priorityLabel = { high: '\u9ad8', medium: '\u4e2d', low: '\u4f4e' };
-  const items = (plan.items || []).map(function(i) {
-    const icon = priorityIcon[i.priority] || '\u25CF';
-    const label = priorityLabel[i.priority] || i.priority;
-    return '<div class="plan-item">' +
-      '<div class="plan-item-header">' +
-      '<span class="plan-priority plan-priority-' + esc(i.priority) + '">' + icon + ' ' + label + '</span>' +
-      '<span class="plan-task">' + esc(i.text) + '</span>' +
-      '<span class="plan-dur">' + i.timeEstimateMin + 'min</span>' +
-      '</div>' +
-      '<div class="plan-reason">' + esc(i.reason) + '</div>' +
-      '</div>';
-  }).join('');
-  const hours = plan.estimatedHours
-    ? '<span class="plan-hours">\u5408\u8a08 ' + plan.estimatedHours + 'h\u7a0b\u5ea6</span>'
-    : '';
-  el.innerHTML = '<div class="plan-result">' +
-    '<div class="plan-summary">' + esc(plan.summary) + hours + '</div>' +
-    items +
-    '</div>';
-}
-
-function showExtractResult(tasks) {
-  const el = document.getElementById('ai-result');
-  const items = tasks.map((t, idx) =>
-    \`<div class="extract-task">
-      <div class="extract-info">
-        <div>\${esc(t.text)}\${t.dueDate ? ' <span class="due-badge">' + esc(t.dueDate) + '</span>' : ''}</div>
-        <div class="extract-meta">\${esc(t.category)} · \${esc(t.priority)} · ~\${t.timeEstimateMin}min</div>
+  <div class="page">
+    <section class="hero">
+      <div class="hero-copy">
+        <div class="eyebrow">Trustworthy & Calm</div>
+        <h1 class="hero-title">AI Task Cockpit</h1>
+        <p class="hero-subtitle">タスクの作成、編集、優先順位付け、AI抽出を1つの画面で扱えるようにしました。日付指定が空なら inbox、日付を入れればその日のタスクファイルへ保存します。</p>
       </div>
-      <button class="btn add-task-btn" style="font-size:11px" data-idx="\${idx}">+ Add</button>
-    </div>\`
-  ).join('');
-  el._tasks = tasks;
-  el.innerHTML = \`<div style="margin-top:8px"><div style="font-size:11px;color:var(--vscode-descriptionForeground);margin-bottom:4px">Momentsから \${tasks.length} 件のタスクを抽出:</div>\${items}</div>\`;
-}
-</script>
+      <div class="hero-meta">
+        <div class="pill"><strong class="mono">${escHtml(data.today)}</strong><span>Today</span></div>
+        <div class="pill"><strong>${data.tasks.length}</strong><span>Total tasks</span></div>
+        <button class="btn" id="btn-refresh" type="button">Refresh</button>
+      </div>
+    </section>
+
+    <section class="summary-grid">
+      <article class="summary-card is-accent">
+        <div class="summary-label">Open</div>
+        <div class="summary-value">${data.summary.totalOpen}</div>
+        <div class="summary-note">未完了タスク全体</div>
+      </article>
+      <article class="summary-card is-accent">
+        <div class="summary-label">Focus Window</div>
+        <div class="summary-value">${data.summary.focusCount}</div>
+        <div class="summary-note">7日以内に見るべきタスク</div>
+      </article>
+      <article class="summary-card is-warning">
+        <div class="summary-label">Overdue</div>
+        <div class="summary-value">${data.summary.overdueCount}</div>
+        <div class="summary-note">期限超過または過去日付の未完了</div>
+      </article>
+      <article class="summary-card">
+        <div class="summary-label">Completion</div>
+        <div class="summary-value">${data.summary.completionRate}%</div>
+        <div class="summary-note">${data.summary.totalDone} 件が完了済み</div>
+      </article>
+    </section>
+
+    <div class="layout">
+      <section class="card">
+        <div class="card-header">
+          <div>
+            <div class="eyebrow">Task Workspace</div>
+            <h2>Daily operations</h2>
+            <p>検索、絞り込み、インライン編集、削除、元ファイルへのジャンプまでここで完結します。</p>
+          </div>
+          <div class="card-meta"><span class="mono">${data.summary.totalOpen}</span><span>open now</span></div>
+        </div>
+
+        <div class="task-toolbar">
+          <div class="filter-row" id="filter-row"></div>
+          <label class="search-shell" aria-label="Search tasks">
+            <span>Search</span>
+            <input id="task-search" type="search" placeholder="text, tag, file path, date" />
+          </label>
+        </div>
+
+        <div class="task-list" id="task-list"></div>
+      </section>
+
+      <aside class="side-column">
+        <section class="card">
+          <div class="card-header">
+            <div>
+              <div class="eyebrow">Composer</div>
+              <h3>Create anywhere</h3>
+              <p>当日固定ではなく、inbox でも未来日でも直接作れます。</p>
+            </div>
+          </div>
+          <div class="field">
+            <span>Task</span>
+            <textarea id="new-task-text" placeholder="例: 見積もりを送る #work"></textarea>
+          </div>
+          <div class="field-grid" style="margin-top:12px">
+            <label class="field-compact">
+              <span>Save In Date File</span>
+              <input id="new-task-target-date" type="date" />
+            </label>
+            <label class="field-compact">
+              <span>Due</span>
+              <input id="new-task-due-date" type="date" />
+            </label>
+          </div>
+          <p class="helper" id="composer-target-preview" style="margin-top:10px">保存先: tasks/inbox.md</p>
+          <div class="inline-actions" style="margin-top:14px">
+            <button class="btn btn-primary" id="btn-create-task" type="button">Add Task</button>
+            <button class="btn" id="btn-clear-task" type="button">Clear</button>
+          </div>
+        </section>
+
+        <div class="analytics-grid">
+          <section class="card">
+            <div class="card-header">
+              <div>
+                <div class="eyebrow">Weekly Volume</div>
+                <h3>7-day task flow</h3>
+              </div>
+            </div>
+            <div class="week-chart">${weekBarsHtml}</div>
+            <div class="chart-legend">
+              <span><span class="legend-dot" style="background:color-mix(in srgb, var(--success) 60%, transparent)"></span>Done</span>
+              <span><span class="legend-dot" style="background:color-mix(in srgb, var(--accent) 55%, transparent)"></span>Open</span>
+            </div>
+          </section>
+
+          <section class="card">
+            <div class="card-header">
+              <div>
+                <div class="eyebrow">Open Mix</div>
+                <h3>Category balance</h3>
+              </div>
+            </div>
+            <div class="category-list">${categoryHtml}</div>
+          </section>
+
+          <section class="card">
+            <div class="card-header">
+              <div>
+                <div class="eyebrow">AI Assist</div>
+                <h3>Plan and extract</h3>
+                <p>Plan My Day は近い期限と backlog を使い、AI Extract は任意の日付の Moments を対象にできます。</p>
+              </div>
+            </div>
+            <label class="field-compact">
+              <span>Moments Source Date</span>
+              <input id="ai-source-date" type="date" value="${escAttr(data.today)}" />
+            </label>
+            <div class="inline-actions" style="margin-top:14px">
+              <button class="btn btn-primary" id="btn-plan-day" type="button">Plan My Day</button>
+              <button class="btn" id="btn-ai-extract" type="button">Extract Tasks</button>
+            </div>
+            <div class="status-line" id="ai-status"></div>
+            <div class="ai-result" id="ai-result"></div>
+          </section>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <script nonce="${nonce}">
+    const vscode = acquireVsCodeApi();
+    const dashboardData = ${payload};
+    const savedState = vscode.getState() || {};
+    const state = {
+      filter: savedState.filter || "focus",
+      search: savedState.search || "",
+      targetDate: savedState.targetDate || "",
+      composerText: savedState.composerText || "",
+      composerDueDate: savedState.composerDueDate || "",
+      aiSourceDate: savedState.aiSourceDate || dashboardData.today,
+      editingId: savedState.editingId || null,
+      aiMode: savedState.aiMode || null,
+      plan: savedState.plan || null,
+      extractedTasks: Array.isArray(savedState.extractedTasks) ? savedState.extractedTasks : [],
+      addedExtractedKeys: Array.isArray(savedState.addedExtractedKeys) ? savedState.addedExtractedKeys : [],
+      aiStatus: savedState.aiStatus || "",
+      aiStatusType: savedState.aiStatusType || "idle",
+    };
+
+    const sectionTitles = {
+      overdue: "Overdue",
+      today: "Today",
+      upcoming: "Upcoming",
+      scheduled: "Scheduled",
+      backlog: "Backlog",
+      done: "Done",
+    };
+    const sectionDescriptions = {
+      overdue: "過去日付または期限超過",
+      today: "今日着手するタスク",
+      upcoming: "7日以内に近づくタスク",
+      scheduled: "先の予定に置いているタスク",
+      backlog: "inbox や日付なしの棚卸し待ち",
+      done: "完了済み",
+    };
+    const sectionOrder = ["overdue", "today", "upcoming", "scheduled", "backlog", "done"];
+
+    const filterDefinitions = [
+      { id: "focus", label: "Focus", count: dashboardData.sectionCounts.overdue + dashboardData.sectionCounts.today + dashboardData.sectionCounts.upcoming },
+      { id: "all", label: "All", count: dashboardData.tasks.length },
+      { id: "overdue", label: "Overdue", count: dashboardData.sectionCounts.overdue },
+      { id: "today", label: "Today", count: dashboardData.sectionCounts.today },
+      { id: "upcoming", label: "Upcoming", count: dashboardData.sectionCounts.upcoming },
+      { id: "scheduled", label: "Scheduled", count: dashboardData.sectionCounts.scheduled },
+      { id: "backlog", label: "Backlog", count: dashboardData.sectionCounts.backlog },
+      { id: "done", label: "Done", count: dashboardData.sectionCounts.done },
+    ];
+
+    const taskSearchInput = document.getElementById("task-search");
+    const filterRow = document.getElementById("filter-row");
+    const taskList = document.getElementById("task-list");
+    const newTaskText = document.getElementById("new-task-text");
+    const newTaskTargetDate = document.getElementById("new-task-target-date");
+    const newTaskDueDate = document.getElementById("new-task-due-date");
+    const composerTargetPreview = document.getElementById("composer-target-preview");
+    const aiSourceDateInput = document.getElementById("ai-source-date");
+    const aiStatus = document.getElementById("ai-status");
+    const aiResult = document.getElementById("ai-result");
+
+    function persistState() {
+      vscode.setState({
+        filter: state.filter,
+        search: state.search,
+        targetDate: state.targetDate,
+        composerText: state.composerText,
+        composerDueDate: state.composerDueDate,
+        aiSourceDate: state.aiSourceDate,
+        editingId: state.editingId,
+        aiMode: state.aiMode,
+        plan: state.plan,
+        extractedTasks: state.extractedTasks,
+        addedExtractedKeys: state.addedExtractedKeys,
+        aiStatus: state.aiStatus,
+        aiStatusType: state.aiStatusType,
+      });
+    }
+
+    function esc(value) {
+      return String(value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    function formatDateLabel(date) {
+      if (!date) {
+        return "No date";
+      }
+
+      const parts = date.split("-");
+      if (parts.length !== 3) {
+        return date;
+      }
+
+      return Number.parseInt(parts[1], 10) + "/" + Number.parseInt(parts[2], 10);
+    }
+
+    function extractedTaskKey(task) {
+      return task.text + "::" + (task.dueDate || "");
+    }
+
+    function getSaveTargetLabel() {
+      return state.targetDate ? "tasks/" + state.targetDate + ".md" : "tasks/inbox.md";
+    }
+
+    function updateComposerPreview() {
+      composerTargetPreview.textContent = "保存先: " + getSaveTargetLabel();
+    }
+
+    function matchesFilter(task) {
+      if (state.filter === "all") {
+        return true;
+      }
+
+      if (state.filter === "focus") {
+        return task.section === "overdue" || task.section === "today" || task.section === "upcoming";
+      }
+
+      return task.section === state.filter;
+    }
+
+    function matchesSearch(task) {
+      if (!state.search) {
+        return true;
+      }
+
+      const query = state.search.toLowerCase();
+      const haystack = [
+        task.text,
+        task.relativePath,
+        task.date || "",
+        task.dueDate || "",
+        ...(task.tags || []),
+      ]
+        .join(" ")
+        .toLowerCase();
+
+      return haystack.includes(query);
+    }
+
+    function getVisibleTasks() {
+      return dashboardData.tasks.filter(function (task) {
+        return matchesFilter(task) && matchesSearch(task);
+      });
+    }
+
+    function renderFilters() {
+      filterRow.innerHTML = filterDefinitions
+        .map(function (filter) {
+          const activeClass = filter.id === state.filter ? " is-active" : "";
+          return '<button type="button" class="filter-chip' + activeClass + '" data-filter="' + esc(filter.id) + '">' +
+            '<span>' + esc(filter.label) + '</span>' +
+            '<strong>' + filter.count + '</strong>' +
+          "</button>";
+        })
+        .join("");
+    }
+
+    function renderTaskMeta(task) {
+      const badges = [];
+      badges.push('<span class="badge">' + esc(task.relativePath) + "</span>");
+      if (task.date) {
+        badges.push('<span class="badge">' + esc(formatDateLabel(task.date)) + "</span>");
+      }
+      if (task.dueDate) {
+        const dueClass = task.section === "overdue" ? " is-danger" : task.section === "today" ? " is-warning" : " is-accent";
+        badges.push('<span class="badge' + dueClass + '">Due ' + esc(formatDateLabel(task.dueDate)) + "</span>");
+      }
+      for (const tag of task.tags || []) {
+        badges.push('<span class="badge is-accent">' + esc(tag) + "</span>");
+      }
+      return badges.join("");
+    }
+
+    function renderTaskItem(task) {
+      const itemClasses = [
+        "task-item",
+        task.done ? "is-done" : "",
+        task.section === "overdue" ? "is-overdue" : "",
+        task.section === "today" ? "is-today" : "",
+      ]
+        .filter(Boolean)
+        .join(" ");
+
+      if (state.editingId === task.id) {
+        return '<article class="' + itemClasses + '" data-task-id="' + esc(task.id) + '">' +
+          '<label class="task-check"><input type="checkbox" data-action="toggle" data-task-id="' + esc(task.id) + '"' + (task.done ? " checked" : "") + "></label>" +
+          '<div class="task-body">' +
+            '<div class="task-edit">' +
+              '<label class="field">' +
+                "<span>Task</span>" +
+                '<textarea data-role="edit-text">' + esc(task.text) + "</textarea>" +
+              "</label>" +
+              '<div class="field-grid">' +
+                '<label class="field-compact">' +
+                  "<span>Due</span>" +
+                  '<input type="date" data-role="edit-due" value="' + esc(task.dueDate || "") + '">' +
+                "</label>" +
+                '<div class="field-compact">' +
+                  "<span>Source</span>" +
+                  '<input type="text" value="' + esc(task.relativePath) + '" disabled>' +
+                "</div>" +
+              "</div>" +
+              '<div class="inline-actions">' +
+                '<button type="button" class="btn btn-primary" data-action="save-edit" data-task-id="' + esc(task.id) + '">Save</button>' +
+                '<button type="button" class="btn" data-action="cancel-edit">Cancel</button>' +
+                '<button type="button" class="btn" data-action="open" data-file="' + esc(task.filePath) + '" data-line="' + task.lineIndex + '">Open File</button>' +
+              "</div>" +
+            "</div>" +
+          "</div>" +
+        "</article>";
+      }
+
+      return '<article class="' + itemClasses + '" data-task-id="' + esc(task.id) + '">' +
+        '<label class="task-check"><input type="checkbox" data-action="toggle" data-task-id="' + esc(task.id) + '"' + (task.done ? " checked" : "") + "></label>" +
+        '<div class="task-body">' +
+          '<div class="task-head">' +
+            '<button type="button" class="task-title" data-action="open" data-file="' + esc(task.filePath) + '" data-line="' + task.lineIndex + '">' + esc(task.text) + "</button>" +
+            '<div class="task-actions">' +
+              '<button type="button" class="text-btn" data-action="edit" data-task-id="' + esc(task.id) + '">Edit</button>' +
+              '<button type="button" class="text-btn" data-action="open" data-file="' + esc(task.filePath) + '" data-line="' + task.lineIndex + '">Open</button>' +
+              '<button type="button" class="text-btn is-danger" data-action="delete" data-task-id="' + esc(task.id) + '">Delete</button>' +
+            "</div>" +
+          "</div>" +
+          '<div class="task-meta">' + renderTaskMeta(task) + "</div>" +
+        "</div>" +
+      "</article>";
+    }
+
+    function renderTasks() {
+      const visibleTasks = getVisibleTasks();
+      if (visibleTasks.length === 0) {
+        taskList.innerHTML = '<div class="empty-state">該当するタスクはありません。検索条件を変えるか、右側の Composer から追加してください。</div>';
+        return;
+      }
+
+      const groups = {};
+      for (const section of sectionOrder) {
+        groups[section] = [];
+      }
+
+      for (const task of visibleTasks) {
+        groups[task.section].push(task);
+      }
+
+      const html = sectionOrder
+        .filter(function (section) {
+          return groups[section].length > 0;
+        })
+        .map(function (section) {
+          const items = groups[section].map(renderTaskItem).join("");
+          return '<section class="task-section">' +
+            '<div class="task-section-header">' +
+              "<h3>" + esc(sectionTitles[section]) + "</h3>" +
+              "<span>" + groups[section].length + " · " + esc(sectionDescriptions[section]) + "</span>" +
+            "</div>" +
+            '<div class="task-items">' + items + "</div>" +
+          "</section>";
+        })
+        .join("");
+
+      taskList.innerHTML = html;
+    }
+
+    function setAiStatus(type, message) {
+      state.aiStatusType = type;
+      state.aiStatus = message || "";
+      persistState();
+
+      aiStatus.className = "status-line" + (type === "error" ? " is-error" : "");
+      aiStatus.textContent = state.aiStatus;
+    }
+
+    function renderPlanResult() {
+      if (!state.plan) {
+        aiResult.innerHTML = "";
+        return;
+      }
+
+      const priorityLabels = { high: "High", medium: "Medium", low: "Low" };
+      const items = (state.plan.items || [])
+        .map(function (item) {
+          return '<div class="plan-item">' +
+            '<div class="plan-item-head">' +
+              '<div>' +
+                '<div class="plan-item-title">' + esc(item.text) + "</div>" +
+                '<div class="plan-meta">' + esc(priorityLabels[item.priority] || item.priority) + " · " + esc(String(item.timeEstimateMin)) + " min</div>" +
+              "</div>" +
+            "</div>" +
+            '<div class="plan-reason">' + esc(item.reason) + "</div>" +
+          "</div>";
+        })
+        .join("");
+
+      aiResult.innerHTML = '<div class="plan-shell">' +
+        '<div class="plan-summary">' +
+          esc(state.plan.summary || "") +
+          '<div class="plan-hours">Estimated ' + esc(String(state.plan.estimatedHours || 0)) + "h</div>" +
+        "</div>" +
+        items +
+      "</div>";
+    }
+
+    function renderExtractResult() {
+      const tasks = state.extractedTasks || [];
+      if (tasks.length === 0) {
+        aiResult.innerHTML = "";
+        return;
+      }
+
+      const items = tasks
+        .map(function (task, index) {
+          const key = extractedTaskKey(task);
+          const isAdded = state.addedExtractedKeys.includes(key);
+          const dueBadge = task.dueDate
+            ? '<span class="badge is-accent">Due ' + esc(formatDateLabel(task.dueDate)) + "</span>"
+            : "";
+          return '<div class="extract-item">' +
+            '<div class="extract-head">' +
+              '<div>' +
+                '<div class="extract-title">' + esc(task.text) + "</div>" +
+                '<div class="extract-meta">' + esc(task.category) + " · " + esc(task.priority) + " · ~" + esc(String(task.timeEstimateMin)) + " min</div>" +
+              "</div>" +
+              '<div class="inline-actions">' +
+                dueBadge +
+                '<button type="button" class="btn btn-primary"' + (isAdded ? " disabled" : "") + ' data-action="add-extracted" data-index="' + index + '">' + (isAdded ? "Added" : "Add") + "</button>" +
+              "</div>" +
+            "</div>" +
+          "</div>";
+        })
+        .join("");
+
+      aiResult.innerHTML = '<div class="helper">抽出したタスクは Composer の保存先を使って追加します。現在の保存先: ' + esc(getSaveTargetLabel()) + "</div>" + items;
+    }
+
+    function renderAiResult() {
+      if (state.aiMode === "plan") {
+        renderPlanResult();
+        return;
+      }
+
+      if (state.aiMode === "extract") {
+        renderExtractResult();
+        return;
+      }
+
+      aiResult.innerHTML = "";
+    }
+
+    function syncStaticInputs() {
+      taskSearchInput.value = state.search;
+      newTaskText.value = state.composerText;
+      newTaskTargetDate.value = state.targetDate;
+      newTaskDueDate.value = state.composerDueDate;
+      aiSourceDateInput.value = state.aiSourceDate;
+      updateComposerPreview();
+      setAiStatus(state.aiStatusType, state.aiStatus);
+    }
+
+    function rerender() {
+      persistState();
+      renderFilters();
+      renderTasks();
+      renderAiResult();
+      updateComposerPreview();
+    }
+
+    document.getElementById("btn-refresh").addEventListener("click", function () {
+      vscode.postMessage({ command: "refresh" });
+    });
+
+    document.getElementById("btn-clear-task").addEventListener("click", function () {
+      state.composerText = "";
+      state.composerDueDate = "";
+      newTaskText.value = "";
+      newTaskDueDate.value = "";
+      rerender();
+    });
+
+    document.getElementById("btn-create-task").addEventListener("click", function () {
+      const text = newTaskText.value.trim();
+      if (!text) {
+        setAiStatus("error", "Task text is required.");
+        return;
+      }
+
+      state.composerText = "";
+      persistState();
+      vscode.postMessage({
+        command: "createTask",
+        text,
+        targetDate: state.targetDate || null,
+        dueDate: state.composerDueDate || null,
+      });
+    });
+
+    document.getElementById("btn-plan-day").addEventListener("click", function () {
+      state.aiMode = "plan";
+      state.plan = null;
+      state.extractedTasks = [];
+      state.addedExtractedKeys = [];
+      setAiStatus("processing", "フォーカスタスクを整理しています...");
+      renderAiResult();
+      vscode.postMessage({ command: "planDay", date: dashboardData.today });
+    });
+
+    document.getElementById("btn-ai-extract").addEventListener("click", function () {
+      state.aiMode = "extract";
+      state.plan = null;
+      state.extractedTasks = [];
+      state.addedExtractedKeys = [];
+      setAiStatus("processing", state.aiSourceDate + " の Moments を分析しています...");
+      renderAiResult();
+      vscode.postMessage({ command: "aiExtract", sourceDate: state.aiSourceDate });
+    });
+
+    taskSearchInput.addEventListener("input", function (event) {
+      state.search = event.target.value;
+      rerender();
+    });
+
+    newTaskText.addEventListener("input", function (event) {
+      state.composerText = event.target.value;
+      persistState();
+    });
+
+    newTaskTargetDate.addEventListener("input", function (event) {
+      state.targetDate = event.target.value;
+      rerender();
+    });
+
+    newTaskDueDate.addEventListener("input", function (event) {
+      state.composerDueDate = event.target.value;
+      persistState();
+    });
+
+    aiSourceDateInput.addEventListener("input", function (event) {
+      state.aiSourceDate = event.target.value || dashboardData.today;
+      persistState();
+    });
+
+    filterRow.addEventListener("click", function (event) {
+      const button = event.target.closest("[data-filter]");
+      if (!button) {
+        return;
+      }
+
+      state.filter = button.dataset.filter;
+      rerender();
+    });
+
+    taskList.addEventListener("click", function (event) {
+      const actionEl = event.target.closest("[data-action]");
+      if (!actionEl) {
+        return;
+      }
+
+      const action = actionEl.dataset.action;
+      if (action === "edit") {
+        state.editingId = actionEl.dataset.taskId || null;
+        rerender();
+        return;
+      }
+
+      if (action === "cancel-edit") {
+        state.editingId = null;
+        rerender();
+        return;
+      }
+
+      if (action === "save-edit") {
+        const taskEl = actionEl.closest("[data-task-id]");
+        if (!taskEl) {
+          return;
+        }
+
+        const textInput = taskEl.querySelector("[data-role='edit-text']");
+        const dueInput = taskEl.querySelector("[data-role='edit-due']");
+        const nextText = textInput ? textInput.value : "";
+        const nextDue = dueInput ? dueInput.value : "";
+        state.editingId = null;
+        persistState();
+        vscode.postMessage({
+          command: "updateTask",
+          taskId: actionEl.dataset.taskId,
+          text: nextText,
+          dueDate: nextDue || null,
+        });
+        return;
+      }
+
+      if (action === "delete") {
+        const taskId = actionEl.dataset.taskId;
+        if (!taskId) {
+          return;
+        }
+
+        if (!window.confirm("このタスクを削除しますか?")) {
+          return;
+        }
+
+        vscode.postMessage({ command: "deleteTask", taskId });
+        return;
+      }
+
+      if (action === "open") {
+        vscode.postMessage({
+          command: "openFile",
+          filePath: actionEl.dataset.file || "",
+          lineIndex: Number.parseInt(actionEl.dataset.line || "0", 10),
+        });
+        return;
+      }
+
+      if (action === "add-extracted") {
+        const index = Number.parseInt(actionEl.dataset.index || "-1", 10);
+        if (Number.isNaN(index) || !state.extractedTasks[index]) {
+          return;
+        }
+
+        const task = state.extractedTasks[index];
+        const key = extractedTaskKey(task);
+        if (!state.addedExtractedKeys.includes(key)) {
+          state.addedExtractedKeys = state.addedExtractedKeys.concat([key]);
+          persistState();
+        }
+
+        vscode.postMessage({
+          command: "addExtractedTask",
+          text: task.text,
+          dueDate: task.dueDate || null,
+          targetDate: state.targetDate || null,
+        });
+        renderAiResult();
+      }
+    });
+
+    taskList.addEventListener("change", function (event) {
+      const checkbox = event.target.closest("[data-action='toggle']");
+      if (!checkbox) {
+        return;
+      }
+
+      vscode.postMessage({
+        command: "toggleTask",
+        taskId: checkbox.dataset.taskId,
+        done: checkbox.checked,
+      });
+    });
+
+    window.addEventListener("message", function (event) {
+      const message = event.data;
+      if (message.type === "aiStatus") {
+        setAiStatus(message.status, message.message || "");
+        renderAiResult();
+        return;
+      }
+
+      if (message.type === "planDayResult") {
+        state.aiMode = "plan";
+        state.plan = message.plan;
+        state.extractedTasks = [];
+        state.addedExtractedKeys = [];
+        setAiStatus("done", "");
+        renderAiResult();
+        return;
+      }
+
+      if (message.type === "extractResult") {
+        state.aiMode = "extract";
+        state.plan = null;
+        state.extractedTasks = message.tasks || [];
+        state.addedExtractedKeys = [];
+        setAiStatus("done", "");
+        renderAiResult();
+      }
+    });
+
+    syncStaticInputs();
+    rerender();
+  </script>
 </body>
 </html>`;
   }
@@ -968,4 +2515,11 @@ function escAttr(s: string): string {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
+}
+
+function toScriptData(value: unknown): string {
+  return JSON.stringify(value)
+    .replace(/</g, "\\u003c")
+    .replace(/>/g, "\\u003e")
+    .replace(/&/g, "\\u0026");
 }
