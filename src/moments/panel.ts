@@ -1069,7 +1069,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     let html = escapeHtml(text);
     html = html.replace(new RegExp(momentTagPattern, 'gu'), (tag) => '<button class="tag" type="button" data-tag="' + tag + '">' + tag + '</button>');
     // Highlight @YYYY-MM-DD due dates
-    html = html.replace(/@(\d{4}-\d{2}-\d{2})/g, '<span class="due-date-inline">@$1</span>');
+    html = html.replace(/@(\\d{4}-\\d{2}-\\d{2})/g, '<span class="due-date-inline">@$1</span>');
     // Auto-link URLs
     html = html.replace(/(https?:\\/\\/[^\\s<]+)/g, '<a href="$1" style="color:var(--vscode-textLink-foreground)">$1</a>');
     return html;

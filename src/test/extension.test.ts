@@ -452,6 +452,15 @@ suite("Extension Test Suite", () => {
     );
   });
 
+  test("Moments webview preserves the inline due date highlight regex", () => {
+    const html = renderMomentsWebviewHtml();
+
+    assert.ok(
+      html.includes("html = html.replace(/@(\\d{4}-\\d{2}-\\d{2})/g"),
+      "expected the webview script to preserve the due date regex escapes",
+    );
+  });
+
   test("pinned Moments resolve against the latest feed entries", () => {
     const resolved = resolvePinnedEntries(
       [
