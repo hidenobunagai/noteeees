@@ -6,6 +6,11 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.2.4] - 2026-03-28
+
+### Changed
+- **Upcoming load chart**: The dashboard's weekly analytics card now shows the next 7 days of scheduled task load instead of the previous 7 days, using each task's due date when present so forward planning is more actionable.
+
 ## [0.2.3] - 2026-03-27
 
 ### Fixed
