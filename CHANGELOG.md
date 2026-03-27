@@ -6,6 +6,21 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-03-27
+
+### Added
+- **AI Task Composer**: Create new tasks directly from the dashboard into `tasks/inbox.md` or any `tasks/YYYY-MM-DD.md` file, so task capture is no longer limited to the current day.
+- **Dashboard task triage**: Tasks are now grouped into Overdue, Today, Upcoming, Scheduled, Backlog, and Done sections with search and one-tap filters for faster review.
+- **Dashboard editing workflow**: Existing tasks can now be edited inline, including text and due date updates, then opened at the source line when deeper editing is needed.
+
+### Changed
+- **AI Task Dashboard rebuilt**: The dashboard is now a full task cockpit instead of a passive summary panel, with clearer hierarchy, compact analytics, and dedicated creation / AI assist areas.
+- **Plan My Day**: Planning now prioritizes overdue, current, upcoming, and backlog work instead of only tasks tied to today's note.
+- **AI Extract**: You can now choose which day's Moments file to analyze and add extracted tasks into the current dashboard save target.
+
+### Fixed
+- **Task management bottlenecks**: Resolved the practical blockers where tasks could only be added for the current day, could not be edited from the dashboard, and were hard to scan in larger lists.
+
 ## [0.1.21] - 2026-03-27
 
 ### Fixed
@@ -397,7 +412,3 @@ A quick-capture timeline panel inspired by stream-of-consciousness note-taking t
 ## [0.0.12] - 2026-02-01
 
 - Renamed UI elements to "Noteeees" for consistency.
-
-## [Unreleased]
-
-- Initial release

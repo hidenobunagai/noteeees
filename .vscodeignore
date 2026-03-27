@@ -31,6 +31,8 @@ docs/
 CHANGELOG.md
 vsc-extension-quickstart.md
 webview_test.html
+excalidraw.log
+.gitignore
 *.vsix
 .DS_Store
 
