@@ -297,6 +297,8 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   body {
+    --moments-inline-padding: 10px;
+    --moments-control-radius: 6px;
     font-family: var(--vscode-font-family);
     font-size: var(--vscode-font-size);
     color: var(--vscode-foreground);
@@ -312,7 +314,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     display: flex;
     flex-direction: column;
     align-items: stretch;
-    padding: 6px 8px 4px;
+    padding: 6px var(--moments-inline-padding) 4px;
     background: var(--vscode-sideBarSectionHeader-background, var(--vscode-editor-background));
     border-bottom: 1px solid var(--vscode-sideBarSectionHeader-border, var(--vscode-panel-border));
     flex-shrink: 0;
@@ -329,6 +331,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
   .topbar-row-search {
     align-items: stretch;
     gap: 6px;
+    width: 100%;
   }
 
   .topbar-row-actions {
@@ -336,7 +339,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     justify-content: center;
     background: var(--vscode-editorWidget-background);
     border: 1px solid var(--vscode-widget-border, transparent);
-    border-radius: 4px;
+    border-radius: var(--moments-control-radius);
     padding: 2px;
     gap: 2px;
   }
@@ -398,7 +401,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     display: flex;
     flex-direction: column;
     gap: 6px;
-    padding: 6px 10px 8px;
+    padding: 6px var(--moments-inline-padding) 8px;
   }
 
   .day-section-header {
@@ -440,7 +443,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     padding: 10px 12px 8px;
     background: var(--vscode-editor-background);
     border: 1px solid var(--vscode-panel-border);
-    border-radius: 6px;
+    border-radius: var(--moments-control-radius);
     transition: background 0.1s, border-color 0.1s;
     word-break: break-word;
   }
@@ -657,7 +660,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
   /* ---- Input area ---- */
   .input-area {
     flex-shrink: 0;
-    padding: 8px 10px 10px;
+    padding: 8px var(--moments-inline-padding) 10px;
     border-bottom: 1px solid var(--vscode-panel-border);
     background: var(--vscode-sideBar-background, var(--vscode-editor-background));
   }
@@ -665,9 +668,10 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
   .input-container {
     display: flex;
     flex-direction: column;
+    width: 100%;
     background: var(--vscode-input-background);
     border: 1px solid var(--vscode-input-border, transparent);
-    border-radius: 6px;
+    border-radius: var(--moments-control-radius);
     transition: border-color 0.2s ease, outline 0.2s ease;
   }
 
@@ -755,7 +759,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     background: var(--vscode-input-background);
     color: var(--vscode-input-foreground);
     border: 1px solid var(--vscode-input-border, transparent);
-    border-radius: 4px;
+    border-radius: var(--moments-control-radius);
     padding: 4px 26px 4px 8px;
     font-family: var(--vscode-font-family);
     font-size: 12px;
@@ -849,7 +853,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     display: none;
     align-items: center;
     gap: 8px;
-    padding: 8px 10px;
+    padding: 8px var(--moments-inline-padding);
     border-top: 1px solid var(--vscode-focusBorder, var(--vscode-panel-border));
     background: var(--vscode-editorWidget-background, var(--vscode-sideBar-background));
   }
@@ -894,7 +898,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     display: flex;
     flex-direction: column;
     gap: 6px;
-    padding: 6px 10px 8px;
+    padding: 6px var(--moments-inline-padding) 8px;
     border-bottom: 2px solid var(--vscode-textLink-foreground);
   }
 
