@@ -6,6 +6,11 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-03-29
+
+### Fixed
+- **Task Dashboard layout**: Added proper spacing between the "Moments Source Date" field and the "Extract Tasks" button for better visual separation.
+
 ## [0.3.0] - 2026-03-28
 
 ### Changed
