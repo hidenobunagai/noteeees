@@ -2013,11 +2013,11 @@ export class DashboardPanel {
                 <p>任意の日付の Moments から、まだタスク化していない候補だけを抽出します。追加先は Composer の保存先を使います。</p>
               </div>
             </div>
-            <label class="field-compact">
+            <label class="field-compact" style="margin-top:8px">
               <span>Moments Source Date</span>
               <input id="ai-source-date" type="date" value="${escAttr(data.today)}" />
             </label>
-            <div class="inline-actions" style="margin-top:14px">
+            <div class="inline-actions" style="margin-top:16px">
               <button class="btn btn-primary" id="btn-ai-extract" type="button">Extract Tasks</button>
             </div>
             <div class="status-line" id="ai-status"></div>
