@@ -2,7 +2,15 @@ import * as crypto from "crypto";
 import * as fs from "fs";
 import * as path from "path";
 import * as vscode from "vscode";
-import { extractTasksFromMoments, type ExtractedTask } from "./aiTaskProcessor.js";
+import {
+  extractTasksFromMoments,
+  extractTasksFromNotes,
+  aggregateNoteContents,
+  type ExtractedTask,
+  type NoteContent,
+  type ExtractedTaskWithSource,
+  type McpClient,
+} from "./aiTaskProcessor.js";
 
 // ---------------------------------------------------------------------------
 // Task types used by the extension side (no bun:sqlite dependency)
@@ -811,6 +819,12 @@ export class DashboardPanel {
         void this._runAiExtract(normalizeOptionalDate(sourceDate));
         return;
       }
+
+      case "extractFromNotes": {
+        const { fromDate, toDate } = message as { fromDate: string; toDate: string };
+        void this._extractFromNotes(fromDate, toDate);
+        return;
+      }
     }
   }
 
@@ -1012,6 +1026,108 @@ export class DashboardPanel {
     } finally {
       DashboardPanel._statusListener?.(false);
     }
+  }
+
+  private async _extractFromNotes(fromDate: string, toDate: string): Promise<void> {
+    this._cancelToken?.cancel();
+    this._cancelToken = new vscode.CancellationTokenSource();
+    const token = this._cancelToken.token;
+
+    DashboardPanel._statusListener?.(true);
+    void this._panel.webview.postMessage({
+      type: "notesAiStatus",
+      status: "processing",
+      message: `${fromDate} ～ ${toDate} のノートを分析しています...`,
+    });
+
+    try {
+      const notesDir = this._getNotesDir();
+      if (!notesDir) {
+        return;
+      }
+
+      // Collect notes by date using direct file reading (fallback method)
+      const noteContents = await this._collectNotesByDate(fromDate, toDate);
+
+      if (noteContents.length === 0) {
+        void this._panel.webview.postMessage({
+          type: "notesAiStatus",
+          status: "error",
+          message: `${fromDate} ～ ${toDate} の期間に該当するノートが見つかりません。`,
+        });
+        return;
+      }
+
+      const momentsSubfolder =
+        vscode.workspace.getConfiguration("notes").get<string>("momentsSubfolder") || "moments";
+      const extracted = await extractTasksFromNotes(noteContents, token);
+      const existingTasks = collectTasksFromNotes(notesDir, momentsSubfolder);
+      const filtered = filterExtractedTasksForDisplay(
+        extracted,
+        existingTasks,
+        this._loadDismissedExtractedTasks(notesDir),
+      );
+
+      if (filtered.visibleTasks.length === 0) {
+        void this._panel.webview.postMessage({
+          type: "notesAiStatus",
+          status: "done",
+          message: buildExtractedTaskStatusMessage(filtered),
+        });
+        return;
+      }
+
+      void this._panel.webview.postMessage({
+        type: "notesAiStatus",
+        status: "done",
+        message: `${noteContents.length}件のノートから${filtered.visibleTasks.length}件のタスク候補を抽出しました。`,
+      });
+      void this._panel.webview.postMessage({ type: "notesExtractResult", tasks: filtered.visibleTasks });
+    } finally {
+      DashboardPanel._statusListener?.(false);
+    }
+  }
+
+  private async _collectNotesByDate(fromDate: string, toDate: string): Promise<NoteContent[]> {
+    const notesDir = this._getNotesDir();
+    if (!notesDir) return [];
+
+    const results: NoteContent[] = [];
+
+    const collectFiles = (dir: string) => {
+      const entries = fs.readdirSync(dir, { withFileTypes: true });
+      for (const entry of entries) {
+        const fullPath = path.join(dir, entry.name);
+        if (entry.isDirectory()) {
+          // Skip moments directory to avoid duplicate extraction
+          if (entry.name !== "moments") {
+            collectFiles(fullPath);
+          }
+        } else if (entry.name.endsWith(".md")) {
+          // Extract date from filename
+          const dateMatch = entry.name.match(/(\d{4}-\d{2}-\d{2})/);
+          if (dateMatch) {
+            const fileDate = dateMatch[1];
+            if (fileDate >= fromDate && fileDate <= toDate) {
+              try {
+                const content = fs.readFileSync(fullPath, "utf8");
+                results.push({
+                  filename: path.relative(notesDir, fullPath),
+                  title: entry.name.replace(/\.md$/, ""),
+                  content,
+                  createdAt: fileDate,
+                });
+              } catch (e) {
+                // Skip files that can't be read
+              }
+            }
+          }
+        }
+      }
+    };
+
+    collectFiles(notesDir);
+    return results.sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
   }
 
   // ---------------------------------------------------------------------------
@@ -1653,6 +1769,16 @@ export class DashboardPanel {
     gap: 8px;
   }
 
+  .inline-fields {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .inline-fields .field-compact {
+    flex: 1;
+    min-width: 120px;
+  }
+
   .helper {
     color: var(--muted);
     font-size: 12px;
@@ -2023,6 +2149,31 @@ export class DashboardPanel {
             <div class="status-line" id="ai-status"></div>
             <div class="ai-result" id="ai-result"></div>
           </section>
+
+          <section class="card" style="margin-top:16px">
+            <div class="card-header">
+              <div>
+                <div class="eyebrow">Notes Intake</div>
+                <h3>Extract from Notes</h3>
+                <p>指定した期間内に作成されたノートから、タスク候補を抽出します。</p>
+              </div>
+            </div>
+            <div class="inline-fields" style="margin-top:12px">
+              <label class="field-compact">
+                <span>From</span>
+                <input id="notes-from-date" type="date" value="${escAttr(data.today)}" />
+              </label>
+              <label class="field-compact">
+                <span>To</span>
+                <input id="notes-to-date" type="date" value="${escAttr(data.today)}" />
+              </label>
+            </div>
+            <div class="inline-actions" style="margin-top:16px">
+              <button class="btn btn-primary" id="btn-extract-notes" type="button">Extract from Notes</button>
+            </div>
+            <div class="status-line" id="notes-extract-status"></div>
+            <div class="ai-result" id="notes-extract-result"></div>
+          </section>
         </div>
       </aside>
     </div>
@@ -2044,6 +2195,12 @@ export class DashboardPanel {
       addedExtractedKeys: Array.isArray(savedState.addedExtractedKeys) ? savedState.addedExtractedKeys : [],
       aiStatus: savedState.aiStatus || "",
       aiStatusType: savedState.aiStatusType || "idle",
+      notesFromDate: savedState.notesFromDate || dashboardData.today,
+      notesToDate: savedState.notesToDate || dashboardData.today,
+      notesExtractedTasks: Array.isArray(savedState.notesExtractedTasks) ? savedState.notesExtractedTasks : [],
+      notesAddedExtractedKeys: Array.isArray(savedState.notesAddedExtractedKeys) ? savedState.notesAddedExtractedKeys : [],
+      notesAiStatus: savedState.notesAiStatus || "",
+      notesAiStatusType: savedState.notesAiStatusType || "idle",
     };
 
     const sectionTitles = {
@@ -2318,6 +2475,16 @@ export class DashboardPanel {
       aiStatus.textContent = state.aiStatus;
     }
 
+    function setNotesAiStatus(type, message) {
+      state.notesAiStatusType = type;
+      state.notesAiStatus = message || "";
+      persistState();
+
+      const notesStatus = document.getElementById("notes-extract-status");
+      notesStatus.className = "status-line" + (type === "error" ? " is-error" : "");
+      notesStatus.textContent = state.notesAiStatus;
+    }
+
     function renderExtractResult() {
       const existingTaskKeys = getExistingTaskKeys();
       const visibleItems = (state.extractedTasks || [])
@@ -2360,6 +2527,50 @@ export class DashboardPanel {
       renderExtractResult();
     }
 
+    function renderNotesExtractResult() {
+      const notesResult = document.getElementById("notes-extract-result");
+      if (!state.notesExtractedTasks || state.notesExtractedTasks.length === 0) {
+        notesResult.innerHTML = "";
+        return;
+      }
+
+      const existingTaskKeys = getExistingTaskKeys();
+      const visibleItems = (state.notesExtractedTasks || [])
+        .map(function (task, index) {
+          const key = extractedTaskKey(task);
+          const isDuplicate = existingTaskKeys.has(key);
+          const isAdded = state.notesAddedExtractedKeys.includes(key);
+          const dueBadge = task.dueDate
+            ? '<span class="badge is-accent">Due ' + esc(formatDateLabel(task.dueDate)) + "</span>"
+            : "";
+          const sourceBadge = '<span class="badge">' + esc(task.sourceNote || "unknown") + "</span>";
+          return '<div class="extract-item">' +
+            '<div class="extract-head">' +
+              '<div>' +
+                '<div class="extract-title">' + esc(task.text) + "</div>" +
+                '<div class="extract-meta">' + esc(task.category) + " · " + esc(task.priority) + " · ~" + esc(String(task.timeEstimateMin)) + " min</div>" +
+              "</div>" +
+              '<div class="inline-actions">' +
+                dueBadge +
+                sourceBadge +
+              "</div>" +
+            "</div>" +
+            '<div class="extract-actions">' +
+              '<button type="button" class="btn btn-primary"' + (isAdded || isDuplicate ? " disabled" : "") + ' data-action="add-notes-extracted" data-index="' + index + '">' + (isAdded ? "Added" : isDuplicate ? "Exists" : "Add") + "</button>" +
+              '<button type="button" class="btn" data-action="dismiss-notes-extracted" data-index="' + index + '">Hide for now</button>' +
+            "</div>" +
+          "</div>";
+        })
+        .join("");
+
+      if (!visibleItems) {
+        notesResult.innerHTML = "";
+        return;
+      }
+
+      notesResult.innerHTML = '<div class="helper">抽出したタスクは Composer の保存先を使って追加します。既存タスクと重複する候補は自動で隠します。現在の保存先: ' + esc(getSaveTargetLabel()) + "</div>" + visibleItems;
+    }
+
     function syncStaticInputs() {
       taskSearchInput.value = state.search;
       newTaskText.value = state.composerText;
@@ -2375,6 +2586,7 @@ export class DashboardPanel {
       renderFilters();
       renderTasks();
       renderAiResult();
+      renderNotesExtractResult();
       updateComposerPreview();
     }
 
@@ -2413,6 +2625,28 @@ export class DashboardPanel {
       setAiStatus("processing", state.aiSourceDate + " の Moments を分析しています...");
       renderAiResult();
       vscode.postMessage({ command: "aiExtract", sourceDate: state.aiSourceDate });
+    });
+
+    document.getElementById("btn-extract-notes").addEventListener("click", function () {
+      state.notesExtractedTasks = [];
+      state.notesAddedExtractedKeys = [];
+      setNotesAiStatus("processing", state.notesFromDate + " ～ " + state.notesToDate + " のノートを分析しています...");
+      renderNotesExtractResult();
+      vscode.postMessage({
+        command: "extractFromNotes",
+        fromDate: state.notesFromDate,
+        toDate: state.notesToDate,
+      });
+    });
+
+    document.getElementById("notes-from-date").addEventListener("input", function (event) {
+      state.notesFromDate = event.target.value || dashboardData.today;
+      persistState();
+    });
+
+    document.getElementById("notes-to-date").addEventListener("input", function (event) {
+      state.notesToDate = event.target.value || dashboardData.today;
+      persistState();
     });
 
     taskSearchInput.addEventListener("input", function (event) {
@@ -2478,6 +2712,46 @@ export class DashboardPanel {
         text: task.text,
       });
       renderAiResult();
+    }
+
+    function handleAddNotesExtractedAction(actionEl) {
+      const index = Number.parseInt(actionEl.dataset.index || "-1", 10);
+      if (Number.isNaN(index) || !state.notesExtractedTasks[index]) {
+        return;
+      }
+
+      const task = state.notesExtractedTasks[index];
+      const key = extractedTaskKey(task);
+      if (!state.notesAddedExtractedKeys.includes(key)) {
+        state.notesAddedExtractedKeys = state.notesAddedExtractedKeys.concat([key]);
+        persistState();
+      }
+
+      vscode.postMessage({
+        command: "addExtractedTask",
+        text: task.text,
+        dueDate: task.dueDate || null,
+        targetDate: state.targetDate || null,
+      });
+      renderNotesExtractResult();
+    }
+
+    function handleDismissNotesExtractedAction(actionEl) {
+      const index = Number.parseInt(actionEl.dataset.index || "-1", 10);
+      if (Number.isNaN(index) || !state.notesExtractedTasks[index]) {
+        return;
+      }
+
+      const task = state.notesExtractedTasks[index];
+      state.notesExtractedTasks = state.notesExtractedTasks.filter(function (_task, taskIndex) {
+        return taskIndex !== index;
+      });
+      persistState();
+      vscode.postMessage({
+        command: "dismissExtractedTask",
+        text: task.text,
+      });
+      renderNotesExtractResult();
     }
 
     filterRow.addEventListener("click", function (event) {
@@ -2560,6 +2834,16 @@ export class DashboardPanel {
 
       if (action === "dismiss-extracted") {
         handleDismissExtractedAction(actionEl);
+        return;
+      }
+
+      if (action === "add-notes-extracted") {
+        handleAddNotesExtractedAction(actionEl);
+        return;
+      }
+
+      if (action === "dismiss-notes-extracted") {
+        handleDismissNotesExtractedAction(actionEl);
       }
     });
 
@@ -2575,6 +2859,21 @@ export class DashboardPanel {
       }
 
       handleAddExtractedAction(actionEl);
+    });
+
+    const notesResult = document.getElementById("notes-extract-result");
+    notesResult.addEventListener("click", function (event) {
+      const actionEl = event.target.closest("[data-action='add-notes-extracted'], [data-action='dismiss-notes-extracted']");
+      if (!actionEl) {
+        return;
+      }
+
+      if (actionEl.dataset.action === "dismiss-notes-extracted") {
+        handleDismissNotesExtractedAction(actionEl);
+        return;
+      }
+
+      handleAddNotesExtractedAction(actionEl);
     });
 
     taskList.addEventListener("change", function (event) {
@@ -2602,6 +2901,19 @@ export class DashboardPanel {
         state.extractedTasks = message.tasks || [];
         state.addedExtractedKeys = [];
         renderAiResult();
+        return;
+      }
+
+      if (message.type === "notesAiStatus") {
+        setNotesAiStatus(message.status, message.message || "");
+        renderNotesExtractResult();
+        return;
+      }
+
+      if (message.type === "notesExtractResult") {
+        state.notesExtractedTasks = message.tasks || [];
+        state.notesAddedExtractedKeys = [];
+        renderNotesExtractResult();
       }
     });
 
