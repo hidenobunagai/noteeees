@@ -6,6 +6,8 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-03-29
+
 ### Added
 - **Extract from Notes**: New AI feature to extract tasks from regular notes (not just Moments) with date range filtering. The Task Dashboard now includes a "Notes Intake" section alongside "Moments Intake" for extracting actionable items from your note archives.
 - Cross-source deduplication: Tasks extracted from notes are automatically checked against existing tasks to prevent duplicates, using the same filtering logic as Moments extraction.
