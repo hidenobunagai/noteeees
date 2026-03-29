@@ -10,6 +10,19 @@ export interface ExtractedTask {
   dueDate?: string | null;
 }
 
+export interface NoteContent {
+  filename: string;
+  title: string;
+  content: string;
+  createdAt: string | null;
+}
+
+export interface McpClient {
+  callTool(name: string, args: Record<string, unknown>): Promise<{
+    content: Array<{ type: string; text: string }>;
+  }>;
+}
+
 function stripJsonFences(text: string): string {
   return text
     .replace(/^```(?:json)?\s*/i, "")
@@ -26,7 +39,7 @@ async function getModel(): Promise<vscode.LanguageModelChat | null> {
   }
 }
 
-export async function extractTasksFromMoments(
+export async function extractTasksFromText(
   text: string,
   token: vscode.CancellationToken,
 ): Promise<ExtractedTask[]> {
@@ -69,4 +82,73 @@ ${text}`;
   } catch {
     return [];
   }
+}
+
+// Backward compatibility alias
+export const extractTasksFromMoments = extractTasksFromText;
+
+export async function aggregateNoteContents(
+  mcpClient: McpClient,
+  fromDate: string,
+  toDate: string,
+  token: vscode.CancellationToken,
+): Promise<NoteContent[]> {
+  const result = await mcpClient.callTool("get_notes_by_date", {
+    from: fromDate,
+    to: toDate,
+    limit: 100,
+  });
+
+  const notes = JSON.parse(result.content[0].text) as Array<{
+    filename: string;
+    title: string;
+    tags: string[];
+    createdAt: string | null;
+  }>;
+
+  const contents: NoteContent[] = [];
+  for (const note of notes) {
+    if (token.isCancellationRequested) break;
+
+    try {
+      const contentResult = await mcpClient.callTool("get_note_content", {
+        filename: note.filename,
+      });
+      contents.push({
+        filename: note.filename,
+        title: note.title,
+        content: JSON.parse(contentResult.content[0].text) as string,
+        createdAt: note.createdAt,
+      });
+    } catch (e) {
+      console.warn(`Failed to fetch content for ${note.filename}:`, e);
+    }
+  }
+
+  return contents;
+}
+
+export interface ExtractedTaskWithSource extends ExtractedTask {
+  sourceNote: string;
+}
+
+export async function extractTasksFromNotes(
+  noteContents: NoteContent[],
+  token: vscode.CancellationToken,
+): Promise<ExtractedTaskWithSource[]> {
+  const allTasks: ExtractedTaskWithSource[] = [];
+
+  for (const note of noteContents) {
+    if (token.isCancellationRequested) break;
+
+    const tasks = await extractTasksFromText(note.content, token);
+    for (const task of tasks) {
+      allTasks.push({
+        ...task,
+        sourceNote: note.filename,
+      });
+    }
+  }
+
+  return allTasks;
 }
