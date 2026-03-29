@@ -4,7 +4,7 @@
 
 ### Pre-release Checklist
 - [ ] All tests passing (`bun test`)
-- [ ] TypeScript compiles without errors (`npm run check-types`)
+- [ ] TypeScript compiles without errors (`bun run check-types`)
 - [ ] CHANGELOG.md updated with new version
 - [ ] Version bumped in package.json
 
@@ -18,7 +18,7 @@
 
 2. **Build and test**
    ```bash
-   npm run compile
+   bun run compile
    bun run test:mcp
    ```
 
@@ -63,7 +63,7 @@
 ### Testing
 ```bash
 # Extension tests
-npm test
+bun test
 
 # MCP tests
 cd notes-mcp && bun test
@@ -71,9 +71,9 @@ cd notes-mcp && bun test
 
 ### Build Commands
 ```bash
-npm run compile        # Full build with type check
-npm run package        # Production build for publishing
-npm run watch          # Development build with watcher
+bun run compile        # Full build with type check
+bun run package        # Production build for publishing
+bun run watch          # Development build with watcher
 ```
 
 ## Project-Specific Conventions
