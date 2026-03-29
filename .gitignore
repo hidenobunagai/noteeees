@@ -8,3 +8,4 @@ node_modules
 excalidraw.log
 .opencode/
 .cline/
+.vscode/settings.json
