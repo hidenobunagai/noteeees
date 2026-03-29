@@ -15,7 +15,7 @@ Powered by **GitHub Copilot** (no separate API key required).
 - **Composer**: Add new tasks to `tasks/inbox.md` or any future/past `tasks/YYYY-MM-DD.md` file instead of being limited to today's file
 - **Weekly Overview**: Bar chart of open vs done tasks scheduled across the next 7 days
 - **Categories**: Task counts broken down by `#work`, `#personal`, `#health`, `#learning`, `#admin`
-- **AI Extract**: Let Copilot scan any day's Moments file for hidden action items, then add the extracted tasks into your chosen destination file
+- **AI Extract**: Let Copilot scan any day's Moments file or notes within a date range for hidden action items, then add the extracted tasks into your chosen destination file
 - **Status bar indicator**: Shows `Tasks` in the status bar; updates to a spinner while AI is processing
 - **Auto-refresh**: The dashboard refreshes automatically whenever a `.md` file changes in your notes directory
 
