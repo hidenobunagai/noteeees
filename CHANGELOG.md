@@ -6,6 +6,11 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.4.2] - 2026-03-30
+
+### Fixed
+- **Task Dashboard spacing**: Added `margin-bottom: 12px` to `.field-compact` and `margin-bottom: 16px` to `.inline-fields` CSS classes to ensure proper spacing between input fields and buttons.
+
 ## [0.4.1] - 2026-03-30
 
 ### Fixed
