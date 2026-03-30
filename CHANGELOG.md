@@ -6,6 +6,11 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.4.3] - 2026-03-30
+
+### Fixed
+- **Task Dashboard spacing**: Adjusted `.inline-fields` margin-bottom to 8px for consistent spacing between "Extract Tasks" and "Extract from Notes" buttons.
+
 ## [0.4.2] - 2026-03-30
 
 ### Fixed

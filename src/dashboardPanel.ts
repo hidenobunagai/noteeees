@@ -1774,7 +1774,7 @@ export class DashboardPanel {
     display: flex;
     gap: 12px;
     flex-wrap: wrap;
-    margin-bottom: 16px;
+    margin-bottom: 8px;
   }
   .inline-fields .field-compact {
     flex: 1;
