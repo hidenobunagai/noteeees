@@ -6,6 +6,11 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-03-30
+
+### Fixed
+- **Task Dashboard spacing**: Increased margin-top for "Extract Tasks" and "Extract from Notes" buttons from 16px to 24px for better visual separation from input fields.
+
 ## [0.4.0] - 2026-03-29
 
 ### Added

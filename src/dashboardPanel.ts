@@ -2143,7 +2143,7 @@ export class DashboardPanel {
               <span>Moments Source Date</span>
               <input id="ai-source-date" type="date" value="${escAttr(data.today)}" />
             </label>
-            <div class="inline-actions" style="margin-top:16px">
+            <div class="inline-actions" style="margin-top:24px">
               <button class="btn btn-primary" id="btn-ai-extract" type="button">Extract Tasks</button>
             </div>
             <div class="status-line" id="ai-status"></div>
@@ -2168,7 +2168,7 @@ export class DashboardPanel {
                 <input id="notes-to-date" type="date" value="${escAttr(data.today)}" />
               </label>
             </div>
-            <div class="inline-actions" style="margin-top:16px">
+            <div class="inline-actions" style="margin-top:24px">
               <button class="btn btn-primary" id="btn-extract-notes" type="button">Extract from Notes</button>
             </div>
             <div class="status-line" id="notes-extract-status"></div>
