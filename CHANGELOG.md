@@ -6,12 +6,12 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
-## [0.4.3] - 2026-03-30
+## [0.4.4] - 2026-03-30
 
 ### Fixed
-- **Task Dashboard spacing**: Adjusted `.inline-fields` margin-bottom to 8px for consistent spacing between "Extract Tasks" and "Extract from Notes" buttons.
+- **Task Dashboard spacing**: Added `margin-top` to `.analytics-grid` for proper spacing above "Next 7 days" card. Unified `.inline-fields` margin-bottom to 12px for consistent button spacing.
 
-## [0.4.2] - 2026-03-30
+## [0.4.3] - 2026-03-30
 
 ### Fixed
 - **Task Dashboard spacing**: Added `margin-bottom: 12px` to `.field-compact` and `margin-bottom: 16px` to `.inline-fields` CSS classes to ensure proper spacing between input fields and buttons.

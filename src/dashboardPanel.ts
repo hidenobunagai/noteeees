@@ -1774,7 +1774,7 @@ export class DashboardPanel {
     display: flex;
     gap: 12px;
     flex-wrap: wrap;
-    margin-bottom: 8px;
+    margin-bottom: 12px;
   }
   .inline-fields .field-compact {
     flex: 1;
@@ -1807,6 +1807,7 @@ export class DashboardPanel {
     display: flex;
     flex-direction: column;
     gap: var(--gap);
+    margin-top: var(--gap);
   }
 
   .week-chart {
