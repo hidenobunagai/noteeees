@@ -6,6 +6,11 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.4.8] - 2026-04-01
+
+### Changed
+- **Task Dashboard UI**: Merged the "Extract from Moments" and "Extract from Notes" cards into the main Composer section. The unified interface is cleaner and makes it easier to add new tasks or pull candidates via AI without jumping between separate cards.
+
 ## [0.4.7] - 2026-04-01
 
 ### Fixed

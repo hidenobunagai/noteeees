@@ -2128,77 +2128,65 @@ export class DashboardPanel {
           <div class="card-header">
             <div>
               <div class="eyebrow">Composer</div>
-              <h3>Create anywhere</h3>
-              <p>当日固定ではなく、inbox でも未来日でも直接作れます。</p>
+              <h3>Create & Extract</h3>
+              <p>手動追加や、Moments/Notes からの AI 抽出を一箇所で行えます。</p>
             </div>
           </div>
           <div class="composer-body">
+            <!-- Manual Task Input -->
             <div class="field">
               <span>Task</span>
               <textarea id="new-task-text" placeholder="例: 見積もりを送る #work"></textarea>
             </div>
-            <div class="field-grid">
+            
+            <div class="field-grid" style="margin-bottom: 12px;">
               <label class="field-compact">
                 <span>Save In Date File</span>
                 <input id="new-task-target-date" type="date" />
               </label>
               <label class="field-compact">
-                <span>Due</span>
+                <span>Due Date</span>
                 <input id="new-task-due-date" type="date" />
               </label>
             </div>
             <p class="helper" id="composer-target-preview">保存先: tasks/inbox.md</p>
+            
             <div class="inline-actions">
               <button class="btn btn-primary" id="btn-create-task" type="button">Add Task</button>
               <button class="btn" id="btn-clear-task" type="button">Clear</button>
             </div>
+
+            <!-- AI Extraction Section -->
+            <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--border);">
+              <h4 style="margin: 0 0 16px; font-size: 14px; font-weight: 600; color: var(--text);">AI Extract</h4>
+              
+              <!-- Moments Extract -->
+              <div style="margin-bottom: 20px;">
+                <span style="font-size: 12px; font-weight: 600; color: var(--muted); display: block; margin-bottom: 8px;">From Moments</span>
+                <div class="inline-fields" style="align-items: center; gap: 8px;">
+                  <input id="ai-source-date" type="date" value="${escAttr(data.today)}" style="padding: 6px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: color-mix(in srgb, var(--surface) 88%, var(--bg)); color: var(--text); outline: none;" />
+                  <button class="btn" id="btn-ai-extract" type="button" style="padding: 6px 12px;">Extract</button>
+                </div>
+                <div class="status-line" id="ai-status" style="margin-top: 4px;"></div>
+                <div class="ai-result" id="ai-result" style="margin-top: 8px;"></div>
+              </div>
+
+              <!-- Notes Extract -->
+              <div>
+                <span style="font-size: 12px; font-weight: 600; color: var(--muted); display: block; margin-bottom: 8px;">From Notes</span>
+                <div class="inline-fields" style="align-items: center; gap: 8px;">
+                  <input id="notes-from-date" type="date" value="${escAttr(data.today)}" style="padding: 6px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: color-mix(in srgb, var(--surface) 88%, var(--bg)); color: var(--text); outline: none;" />
+                  <span style="color: var(--muted);">-</span>
+                  <input id="notes-to-date" type="date" value="${escAttr(data.today)}" style="padding: 6px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: color-mix(in srgb, var(--surface) 88%, var(--bg)); color: var(--text); outline: none;" />
+                  <button class="btn" id="btn-extract-notes" type="button" style="padding: 6px 12px;">Extract</button>
+                </div>
+                <div class="status-line" id="notes-extract-status" style="margin-top: 4px;"></div>
+                <div class="ai-result" id="notes-extract-result" style="margin-top: 8px;"></div>
+              </div>
+
+            </div>
           </div>
         </section>
-
-        <section class="card">
-          <div class="card-header">
-            <div>
-              <div class="eyebrow">Moments Intake</div>
-                <h3>Extract from Moments</h3>
-                <p>任意の日付の Moments から、まだタスク化していない候補だけを抽出します。追加先は Composer の保存先を使います。</p>
-              </div>
-            </div>
-            <label class="field-compact" style="margin-top:8px">
-              <span>Moments Source Date</span>
-              <input id="ai-source-date" type="date" value="${escAttr(data.today)}" />
-            </label>
-            <div class="inline-actions" style="margin-top:24px">
-              <button class="btn btn-primary" id="btn-ai-extract" type="button">Extract Tasks</button>
-            </div>
-            <div class="status-line" id="ai-status"></div>
-            <div class="ai-result" id="ai-result"></div>
-          </section>
-
-          <section class="card">
-            <div class="card-header">
-              <div>
-                <div class="eyebrow">Notes Intake</div>
-                <h3>Extract from Notes</h3>
-                <p>指定した期間内に作成されたノートから、タスク候補を抽出します。</p>
-              </div>
-            </div>
-            <div class="inline-fields" style="margin-top:12px">
-              <label class="field-compact">
-                <span>From</span>
-                <input id="notes-from-date" type="date" value="${escAttr(data.today)}" />
-              </label>
-              <label class="field-compact">
-                <span>To</span>
-                <input id="notes-to-date" type="date" value="${escAttr(data.today)}" />
-              </label>
-            </div>
-            <div class="inline-actions" style="margin-top:24px">
-              <button class="btn btn-primary" id="btn-extract-notes" type="button">Extract from Notes</button>
-            </div>
-            <div class="status-line" id="notes-extract-status"></div>
-            <div class="ai-result" id="notes-extract-result"></div>
-          </section>
-        </div>
       </aside>
     </div>
   </div>
