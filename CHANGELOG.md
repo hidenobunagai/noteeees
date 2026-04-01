@@ -6,6 +6,13 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.4.5] - 2026-04-01
+
+### Fixed
+- **Task Dashboard card spacing**: Removed duplicate spacing caused by `.card + .card` margin-top conflicting with flex `gap` in `.analytics-grid`. Removed extra `margin-top` inline style from "Notes Intake" card for consistent 16px spacing throughout.
+- **Composer card spacing**: Introduced `.composer-body` flex wrapper with uniform `gap: 12px`, eliminating inconsistent spacing from mixed `margin-bottom` and inline `margin-top` styles.
+- **Task add bug**: After clicking "Add Task", the textarea is now immediately cleared. The filter automatically switches to `backlog` (date-less tasks) or `all` (dated tasks) so the newly created task is always visible instead of being hidden by the default Attention filter.
+
 ## [0.4.4] - 2026-03-30
 
 ### Fixed
