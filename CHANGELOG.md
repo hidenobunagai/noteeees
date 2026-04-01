@@ -6,6 +6,11 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.4.10] - 2026-04-02
+
+### Fixed
+- **Task Dashboard UI**: Fixed spacing and alignment issues for date input fields and "Extract" buttons in the "From Moments" and "From Notes" sections within the Composer card. The input boxes and buttons no longer touch each other, and layout components behave as expected without flexbox spacing squish issues.
+
 ## [0.4.9] - 2026-04-01
 
 ### Fixed

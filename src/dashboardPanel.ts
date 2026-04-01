@@ -2169,8 +2169,8 @@ export class DashboardPanel {
               <!-- Moments Extract -->
               <div style="margin-bottom: 24px;">
                 <span style="font-size: 12px; font-weight: 600; color: var(--muted); display: block; margin-bottom: 8px;">From Moments</span>
-                <div style="display: flex; gap: 8px;">
-                  <input id="ai-source-date" type="date" value="${escAttr(data.today)}" style="flex: 1; padding: 6px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: color-mix(in srgb, var(--surface) 88%, var(--bg)); color: var(--text); outline: none; font-family: inherit; font-size: 13px;" />
+                <div style="display: flex; align-items: center;">
+                  <input id="ai-source-date" type="date" value="${escAttr(data.today)}" style="flex: 1; padding: 6px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: color-mix(in srgb, var(--surface) 88%, var(--bg)); color: var(--text); outline: none; font-family: inherit; font-size: 13px; margin-right: 10px;" />
                   <button class="btn" id="btn-ai-extract" type="button" style="padding: 6px 14px; white-space: nowrap;">Extract</button>
                 </div>
                 <div class="status-line" id="ai-status" style="margin-top: 4px;"></div>
@@ -2180,13 +2180,13 @@ export class DashboardPanel {
               <!-- Notes Extract -->
               <div>
                 <span style="font-size: 12px; font-weight: 600; color: var(--muted); display: block; margin-bottom: 8px;">From Notes</span>
-                <div style="display: flex; flex-direction: column; gap: 10px;">
-                  <div style="display: flex; align-items: center; gap: 8px;">
-                    <input id="notes-from-date" type="date" value="${escAttr(data.today)}" style="flex: 1; width: 0; padding: 6px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: color-mix(in srgb, var(--surface) 88%, var(--bg)); color: var(--text); outline: none; font-family: inherit; font-size: 13px;" />
-                    <span style="color: var(--muted);">-</span>
+                <div style="display: flex; flex-direction: column;">
+                  <div style="display: flex; align-items: center;">
+                    <input id="notes-from-date" type="date" value="${escAttr(data.today)}" style="flex: 1; width: 0; padding: 6px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: color-mix(in srgb, var(--surface) 88%, var(--bg)); color: var(--text); outline: none; font-family: inherit; font-size: 13px; margin-right: 8px;" />
+                    <span style="color: var(--muted); margin-right: 8px;">-</span>
                     <input id="notes-to-date" type="date" value="${escAttr(data.today)}" style="flex: 1; width: 0; padding: 6px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: color-mix(in srgb, var(--surface) 88%, var(--bg)); color: var(--text); outline: none; font-family: inherit; font-size: 13px;" />
                   </div>
-                  <button class="btn" id="btn-extract-notes" type="button" style="width: 100%; padding: 6px 14px;">Extract</button>
+                  <button class="btn" id="btn-extract-notes" type="button" style="width: 100%; padding: 6px 14px; margin-top: 10px;">Extract</button>
                 </div>
                 <div class="status-line" id="notes-extract-status" style="margin-top: 4px;"></div>
                 <div class="ai-result" id="notes-extract-result" style="margin-top: 8px;"></div>
