@@ -1820,10 +1820,11 @@ export class DashboardPanel {
   }
 
   .analytics-grid {
-    display: flex;
-    flex-direction: column;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 340px;
     gap: var(--gap);
     margin-top: var(--gap);
+    margin-bottom: var(--gap);
   }
 
   .week-chart {
@@ -2001,7 +2002,8 @@ export class DashboardPanel {
   }
 
   @media (max-width: 1000px) {
-    .layout {
+    .layout,
+    .analytics-grid {
       grid-template-columns: 1fr;
     }
   }
@@ -2073,6 +2075,32 @@ export class DashboardPanel {
       </article>
     </section>
 
+    <div class="analytics-grid">
+      <section class="card">
+        <div class="card-header">
+          <div>
+            <div class="eyebrow">Upcoming Load</div>
+            <h3>Next 7 days</h3>
+          </div>
+        </div>
+        <div class="week-chart">${weekBarsHtml}</div>
+        <div class="chart-legend">
+          <span><span class="legend-dot" style="background:color-mix(in srgb, var(--success) 60%, transparent)"></span>Done</span>
+          <span><span class="legend-dot" style="background:color-mix(in srgb, var(--accent) 55%, transparent)"></span>Open</span>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="card-header">
+          <div>
+            <div class="eyebrow">Open Mix</div>
+            <h3>Category balance</h3>
+          </div>
+        </div>
+        <div class="category-list">${categoryHtml}</div>
+      </section>
+    </div>
+
     <div class="layout">
       <section class="card">
         <div class="card-header">
@@ -2127,35 +2155,10 @@ export class DashboardPanel {
           </div>
         </section>
 
-        <div class="analytics-grid">
-          <section class="card">
-            <div class="card-header">
-              <div>
-                <div class="eyebrow">Upcoming Load</div>
-                <h3>Next 7 days</h3>
-              </div>
-            </div>
-            <div class="week-chart">${weekBarsHtml}</div>
-            <div class="chart-legend">
-              <span><span class="legend-dot" style="background:color-mix(in srgb, var(--success) 60%, transparent)"></span>Done</span>
-              <span><span class="legend-dot" style="background:color-mix(in srgb, var(--accent) 55%, transparent)"></span>Open</span>
-            </div>
-          </section>
-
-          <section class="card">
-            <div class="card-header">
-              <div>
-                <div class="eyebrow">Open Mix</div>
-                <h3>Category balance</h3>
-              </div>
-            </div>
-            <div class="category-list">${categoryHtml}</div>
-          </section>
-
-          <section class="card">
-            <div class="card-header">
-              <div>
-                <div class="eyebrow">Moments Intake</div>
+        <section class="card">
+          <div class="card-header">
+            <div>
+              <div class="eyebrow">Moments Intake</div>
                 <h3>Extract from Moments</h3>
                 <p>任意の日付の Moments から、まだタスク化していない候補だけを抽出します。追加先は Composer の保存先を使います。</p>
               </div>

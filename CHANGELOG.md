@@ -6,6 +6,11 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.4.7] - 2026-04-01
+
+### Fixed
+- **Task Dashboard layout**: Extracted the Analytics section (Next 7 days & Category balance) out of the right side-column. It now spans horizontally below the top summary metrics to balance the page weight. The layout is significantly cleaner and more structured, preventing all cards from stacking awkwardly in a single column when the main task workspace is short.
+
 ## [0.4.6] - 2026-04-01
 
 ### Fixed
