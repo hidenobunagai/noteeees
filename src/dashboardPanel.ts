@@ -1986,9 +1986,15 @@ export class DashboardPanel {
 
   .extract-head {
     display: flex;
-    justify-content: space-between;
-    gap: 10px;
-    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .extract-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 12px;
   }
 
   .extract-title {
@@ -2161,11 +2167,11 @@ export class DashboardPanel {
               <h4 style="margin: 0 0 16px; font-size: 14px; font-weight: 600; color: var(--text);">AI Extract</h4>
               
               <!-- Moments Extract -->
-              <div style="margin-bottom: 20px;">
+              <div style="margin-bottom: 24px;">
                 <span style="font-size: 12px; font-weight: 600; color: var(--muted); display: block; margin-bottom: 8px;">From Moments</span>
-                <div class="inline-fields" style="align-items: center; gap: 8px;">
-                  <input id="ai-source-date" type="date" value="${escAttr(data.today)}" style="padding: 6px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: color-mix(in srgb, var(--surface) 88%, var(--bg)); color: var(--text); outline: none;" />
-                  <button class="btn" id="btn-ai-extract" type="button" style="padding: 6px 12px;">Extract</button>
+                <div style="display: flex; gap: 8px;">
+                  <input id="ai-source-date" type="date" value="${escAttr(data.today)}" style="flex: 1; padding: 6px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: color-mix(in srgb, var(--surface) 88%, var(--bg)); color: var(--text); outline: none; font-family: inherit; font-size: 13px;" />
+                  <button class="btn" id="btn-ai-extract" type="button" style="padding: 6px 14px; white-space: nowrap;">Extract</button>
                 </div>
                 <div class="status-line" id="ai-status" style="margin-top: 4px;"></div>
                 <div class="ai-result" id="ai-result" style="margin-top: 8px;"></div>
@@ -2174,11 +2180,13 @@ export class DashboardPanel {
               <!-- Notes Extract -->
               <div>
                 <span style="font-size: 12px; font-weight: 600; color: var(--muted); display: block; margin-bottom: 8px;">From Notes</span>
-                <div class="inline-fields" style="align-items: center; gap: 8px;">
-                  <input id="notes-from-date" type="date" value="${escAttr(data.today)}" style="padding: 6px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: color-mix(in srgb, var(--surface) 88%, var(--bg)); color: var(--text); outline: none;" />
-                  <span style="color: var(--muted);">-</span>
-                  <input id="notes-to-date" type="date" value="${escAttr(data.today)}" style="padding: 6px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: color-mix(in srgb, var(--surface) 88%, var(--bg)); color: var(--text); outline: none;" />
-                  <button class="btn" id="btn-extract-notes" type="button" style="padding: 6px 12px;">Extract</button>
+                <div style="display: flex; flex-direction: column; gap: 10px;">
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <input id="notes-from-date" type="date" value="${escAttr(data.today)}" style="flex: 1; width: 0; padding: 6px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: color-mix(in srgb, var(--surface) 88%, var(--bg)); color: var(--text); outline: none; font-family: inherit; font-size: 13px;" />
+                    <span style="color: var(--muted);">-</span>
+                    <input id="notes-to-date" type="date" value="${escAttr(data.today)}" style="flex: 1; width: 0; padding: 6px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: color-mix(in srgb, var(--surface) 88%, var(--bg)); color: var(--text); outline: none; font-family: inherit; font-size: 13px;" />
+                  </div>
+                  <button class="btn" id="btn-extract-notes" type="button" style="width: 100%; padding: 6px 14px;">Extract</button>
                 </div>
                 <div class="status-line" id="notes-extract-status" style="margin-top: 4px;"></div>
                 <div class="ai-result" id="notes-extract-result" style="margin-top: 8px;"></div>
@@ -2512,15 +2520,13 @@ export class DashboardPanel {
             : "";
           return '<div class="extract-item">' +
             '<div class="extract-head">' +
-              '<div>' +
-                '<div class="extract-title">' + esc(task.text) + "</div>" +
-                '<div class="extract-meta">' + esc(task.category) + " · " + esc(task.priority) + " · ~" + esc(String(task.timeEstimateMin)) + " min</div>" +
-              "</div>" +
-              '<div class="inline-actions">' +
-                dueBadge +
-                '<button type="button" class="btn btn-primary"' + (isAdded ? " disabled" : "") + ' data-action="add-extracted" data-index="' + index + '">' + (isAdded ? "Added" : "Add") + "</button>" +
-                '<button type="button" class="btn" data-action="dismiss-extracted" data-index="' + index + '">Hide for now</button>' +
-              "</div>" +
+              '<div class="extract-title">' + esc(task.text) + "</div>" +
+              '<div class="extract-meta">' + esc(task.category) + " · " + esc(task.priority) + " · ~" + esc(String(task.timeEstimateMin)) + " min</div>" +
+              (dueBadge ? '<div style="margin-top: 4px;">' + dueBadge + '</div>' : '') +
+            "</div>" +
+            '<div class="extract-actions">' +
+              '<button type="button" class="btn" data-action="dismiss-extracted" data-index="' + index + '">Hide</button>' +
+              '<button type="button" class="btn btn-primary"' + (isAdded ? " disabled" : "") + ' data-action="add-extracted" data-index="' + index + '">' + (isAdded ? "Added" : "Add Task") + "</button>" +
             "</div>" +
           "</div>";
         })
@@ -2532,7 +2538,7 @@ export class DashboardPanel {
         return;
       }
 
-      aiResult.innerHTML = '<div class="helper">抽出したタスクは Composer の保存先を使って追加します。既存タスクと重複する候補は自動で隠します。現在の保存先: ' + esc(getSaveTargetLabel()) + "</div>" + visibleItems;
+      aiResult.innerHTML = '<div class="helper" style="margin-bottom: 12px;">抽出結果は上部の保存先に追加されます。</div>' + visibleItems;
     }
 
     function renderAiResult() {
@@ -2558,18 +2564,13 @@ export class DashboardPanel {
           const sourceBadge = '<span class="badge">' + esc(task.sourceNote || "unknown") + "</span>";
           return '<div class="extract-item">' +
             '<div class="extract-head">' +
-              '<div>' +
-                '<div class="extract-title">' + esc(task.text) + "</div>" +
-                '<div class="extract-meta">' + esc(task.category) + " · " + esc(task.priority) + " · ~" + esc(String(task.timeEstimateMin)) + " min</div>" +
-              "</div>" +
-              '<div class="inline-actions">' +
-                dueBadge +
-                sourceBadge +
-              "</div>" +
+              '<div class="extract-title">' + esc(task.text) + "</div>" +
+              '<div class="extract-meta">' + esc(task.category) + " · " + esc(task.priority) + " · ~" + esc(String(task.timeEstimateMin)) + " min</div>" +
+              '<div style="margin-top: 4px; display: flex; gap: 6px; flex-wrap: wrap;">' + sourceBadge + dueBadge + '</div>' +
             "</div>" +
             '<div class="extract-actions">' +
-              '<button type="button" class="btn btn-primary"' + (isAdded || isDuplicate ? " disabled" : "") + ' data-action="add-notes-extracted" data-index="' + index + '">' + (isAdded ? "Added" : isDuplicate ? "Exists" : "Add") + "</button>" +
-              '<button type="button" class="btn" data-action="dismiss-notes-extracted" data-index="' + index + '">Hide for now</button>' +
+              '<button type="button" class="btn" data-action="dismiss-notes-extracted" data-index="' + index + '">Hide</button>' +
+              '<button type="button" class="btn btn-primary"' + (isAdded || isDuplicate ? " disabled" : "") + ' data-action="add-notes-extracted" data-index="' + index + '">' + (isAdded ? "Added" : isDuplicate ? "Exists" : "Add Task") + "</button>" +
             "</div>" +
           "</div>";
         })
@@ -2580,7 +2581,7 @@ export class DashboardPanel {
         return;
       }
 
-      notesResult.innerHTML = '<div class="helper">抽出したタスクは Composer の保存先を使って追加します。既存タスクと重複する候補は自動で隠します。現在の保存先: ' + esc(getSaveTargetLabel()) + "</div>" + visibleItems;
+      notesResult.innerHTML = '<div class="helper" style="margin-bottom: 12px;">抽出結果は上部の保存先に追加されます。</div>' + visibleItems;
     }
 
     function syncStaticInputs() {

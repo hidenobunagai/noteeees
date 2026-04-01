@@ -6,6 +6,11 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.4.9] - 2026-04-01
+
+### Fixed
+- **Task Dashboard UI**: Fixed layout issues in the AI Extracted Tasks results. Titles, metadata, and badges are now stacked vertically, and action buttons cleanly align to the bottom right. Input fields in the "From Notes" section now scale correctly without horizontal squishing or unwanted wrapping.
+
 ## [0.4.8] - 2026-04-01
 
 ### Changed
