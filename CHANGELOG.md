@@ -6,6 +6,11 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.4.6] - 2026-04-01
+
+### Fixed
+- **Task Dashboard layout**: Fixed "Next 7 days" card spacing and alignment. The right sidebar width is now correctly constrained, and the graph layout expands naturally without artificial gaps. Unused spacing variables for zero-value tasks in charts were also refined for a cleaner look.
+
 ## [0.4.5] - 2026-04-01
 
 ### Fixed

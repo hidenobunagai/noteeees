@@ -1156,8 +1156,8 @@ export class DashboardPanel {
         const title = `${day.date} · open ${day.open} · done ${day.done}`;
         return `<div class="week-day${isToday ? " is-today" : ""}" title="${escAttr(title)}">
   <div class="week-day-bars">
-    <div class="week-bar week-bar-done" style="height:${doneHeight}%"></div>
-    <div class="week-bar week-bar-open" style="height:${openHeight}%"></div>
+    ${day.open > 0 ? `<div class="week-bar week-bar-open" style="height:${openHeight}%"></div>` : ""}
+    ${day.done > 0 ? `<div class="week-bar week-bar-done" style="height:${doneHeight}%"></div>` : ""}
   </div>
   <div class="week-day-label">
     <span>${escHtml(day.label)}</span>
@@ -1359,7 +1359,7 @@ export class DashboardPanel {
 
   .layout {
     display: grid;
-    grid-template-columns: minmax(0, 1.7fr) minmax(320px, 1fr);
+    grid-template-columns: minmax(0, 1fr) 340px;
     gap: var(--gap);
     align-items: start;
   }
@@ -1830,7 +1830,7 @@ export class DashboardPanel {
     display: flex;
     gap: 10px;
     align-items: stretch;
-    min-height: 150px;
+    height: 150px;
   }
 
   .week-day {
@@ -1842,7 +1842,7 @@ export class DashboardPanel {
   }
 
   .week-day-bars {
-    height: 108px;
+    flex: 1;
     display: flex;
     flex-direction: column;
     justify-content: flex-end;
