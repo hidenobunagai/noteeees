@@ -1371,10 +1371,6 @@ export class DashboardPanel {
     padding: 18px;
   }
 
-  .card + .card {
-    margin-top: var(--gap);
-  }
-
   .card-header {
     display: flex;
     align-items: flex-start;
@@ -1717,6 +1713,26 @@ export class DashboardPanel {
     display: flex;
     flex-direction: column;
     gap: 10px;
+  }
+
+  .task-edit .field,
+  .task-edit .field-compact {
+    margin-bottom: 0;
+  }
+
+  .composer-body {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .composer-body .field,
+  .composer-body .field-compact {
+    margin-bottom: 0;
+  }
+
+  .composer-body .helper {
+    margin: 0;
   }
 
   .field,
@@ -2088,24 +2104,26 @@ export class DashboardPanel {
               <p>当日固定ではなく、inbox でも未来日でも直接作れます。</p>
             </div>
           </div>
-          <div class="field">
-            <span>Task</span>
-            <textarea id="new-task-text" placeholder="例: 見積もりを送る #work"></textarea>
-          </div>
-          <div class="field-grid" style="margin-top:12px">
-            <label class="field-compact">
-              <span>Save In Date File</span>
-              <input id="new-task-target-date" type="date" />
-            </label>
-            <label class="field-compact">
-              <span>Due</span>
-              <input id="new-task-due-date" type="date" />
-            </label>
-          </div>
-          <p class="helper" id="composer-target-preview" style="margin-top:10px">保存先: tasks/inbox.md</p>
-          <div class="inline-actions" style="margin-top:14px">
-            <button class="btn btn-primary" id="btn-create-task" type="button">Add Task</button>
-            <button class="btn" id="btn-clear-task" type="button">Clear</button>
+          <div class="composer-body">
+            <div class="field">
+              <span>Task</span>
+              <textarea id="new-task-text" placeholder="例: 見積もりを送る #work"></textarea>
+            </div>
+            <div class="field-grid">
+              <label class="field-compact">
+                <span>Save In Date File</span>
+                <input id="new-task-target-date" type="date" />
+              </label>
+              <label class="field-compact">
+                <span>Due</span>
+                <input id="new-task-due-date" type="date" />
+              </label>
+            </div>
+            <p class="helper" id="composer-target-preview">保存先: tasks/inbox.md</p>
+            <div class="inline-actions">
+              <button class="btn btn-primary" id="btn-create-task" type="button">Add Task</button>
+              <button class="btn" id="btn-clear-task" type="button">Clear</button>
+            </div>
           </div>
         </section>
 
@@ -2153,7 +2171,7 @@ export class DashboardPanel {
             <div class="ai-result" id="ai-result"></div>
           </section>
 
-          <section class="card" style="margin-top:16px">
+          <section class="card">
             <div class="card-header">
               <div>
                 <div class="eyebrow">Notes Intake</div>
@@ -2612,7 +2630,14 @@ export class DashboardPanel {
         return;
       }
 
+      newTaskText.value = "";
       state.composerText = "";
+      state.aiStatus = "";
+      state.aiStatusType = "idle";
+      if (state.filter !== "all") {
+        const hasDate = state.targetDate || state.composerDueDate;
+        state.filter = hasDate ? "all" : "backlog";
+      }
       persistState();
       vscode.postMessage({
         command: "createTask",
