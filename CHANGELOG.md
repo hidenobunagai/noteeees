@@ -6,6 +6,14 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.4.13] - 2026-04-02
+
+### Changed
+- **Extension packaging**: Trimmed the published VSIX by excluding `.opencode/`, `AGENTS.md`, and source maps from marketplace builds so installs stay cleaner and lighter.
+
+### Fixed
+- **Build quality**: Removed the remaining ESLint curly-brace warnings so the extension now packages with a clean lint pass.
+
 ## [0.4.12] - 2026-04-02
 
 ### Fixed
