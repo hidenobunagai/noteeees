@@ -40,8 +40,20 @@ export interface DismissedExtractedTask {
   dismissedAt: string;
 }
 
+export interface DashboardCandidateTask {
+  kind: "candidate";
+  text: string;
+  dueDate: string | null;
+  category: string;
+  priority: string;
+  timeEstimateMin: number;
+  source: "moments" | "notes";
+  sourceLabel: string;
+  existsAlready: boolean;
+}
+
 export interface ExtractedTaskFilterResult {
-  visibleTasks: ExtractedTask[];
+  visibleTasks: DashboardCandidateTask[];
   hiddenExisting: number;
   hiddenDismissed: number;
   hiddenDuplicates: number;
@@ -280,7 +292,7 @@ function pruneDismissedExtractedTasks(
 }
 
 export function filterExtractedTasksForDisplay(
-  extractedTasks: ExtractedTask[],
+  extractedTasks: Array<ExtractedTask | ExtractedTaskWithSource>,
   existingTasks: DashTask[],
   dismissedTasks: DismissedExtractedTask[],
   today = todayDateString(),
@@ -293,7 +305,7 @@ export function filterExtractedTasksForDisplay(
   );
   const seenKeys = new Set<string>();
 
-  const visibleTasks: ExtractedTask[] = [];
+  const visibleTasks: DashboardCandidateTask[] = [];
   let hiddenExisting = 0;
   let hiddenDismissed = 0;
   let hiddenDuplicates = 0;
@@ -311,17 +323,24 @@ export function filterExtractedTasksForDisplay(
     }
     seenKeys.add(key);
 
-    if (existingKeys.has(key)) {
-      hiddenExisting++;
-      continue;
-    }
-
     if (dismissedKeys.has(key)) {
       hiddenDismissed++;
       continue;
     }
 
-    visibleTasks.push(task);
+    const isNotesTask = "sourceNote" in task;
+    const source = isNotesTask ? "notes" : "moments";
+    visibleTasks.push({
+      kind: "candidate",
+      text: task.text,
+      dueDate: task.dueDate ?? null,
+      category: task.category,
+      priority: task.priority,
+      timeEstimateMin: task.timeEstimateMin,
+      source,
+      sourceLabel: isNotesTask ? task.sourceNote : "Moments",
+      existsAlready: existingKeys.has(key),
+    });
   }
 
   return {
@@ -2536,15 +2555,11 @@ ${buildDashboardExtractSectionHtml(data.today)}
     }
 
     function renderExtractResult() {
-      const existingTaskKeys = getExistingTaskKeys();
       const visibleItems = (state.extractedTasks || [])
         .map(function (task, index) {
-          if (existingTaskKeys.has(extractedTaskKey(task))) {
-            return "";
-          }
-
           const key = extractedTaskKey(task);
           const isAdded = state.addedExtractedKeys.includes(key);
+          const existsAlready = Boolean(task.existsAlready);
           const dueBadge = task.dueDate
             ? '<span class="badge is-accent">Due ' + esc(formatDateLabel(task.dueDate)) + "</span>"
             : "";
@@ -2556,7 +2571,7 @@ ${buildDashboardExtractSectionHtml(data.today)}
             "</div>" +
             '<div class="extract-actions">' +
               '<button type="button" class="btn" data-action="dismiss-extracted" data-index="' + index + '">Hide</button>' +
-              '<button type="button" class="btn btn-primary"' + (isAdded ? " disabled" : "") + ' data-action="add-extracted" data-index="' + index + '">' + (isAdded ? "Added" : "Add Task") + "</button>" +
+              '<button type="button" class="btn btn-primary"' + (isAdded || existsAlready ? " disabled" : "") + ' data-action="add-extracted" data-index="' + index + '">' + (isAdded ? "Added" : existsAlready ? "Already exists" : "Add Task") + "</button>" +
             "</div>" +
           "</div>";
         })
@@ -2582,16 +2597,15 @@ ${buildDashboardExtractSectionHtml(data.today)}
         return;
       }
 
-      const existingTaskKeys = getExistingTaskKeys();
       const visibleItems = (state.notesExtractedTasks || [])
         .map(function (task, index) {
           const key = extractedTaskKey(task);
-          const isDuplicate = existingTaskKeys.has(key);
+          const existsAlready = Boolean(task.existsAlready);
           const isAdded = state.notesAddedExtractedKeys.includes(key);
           const dueBadge = task.dueDate
             ? '<span class="badge is-accent">Due ' + esc(formatDateLabel(task.dueDate)) + "</span>"
             : "";
-          const sourceBadge = '<span class="badge">' + esc(task.sourceNote || "unknown") + "</span>";
+          const sourceBadge = '<span class="badge">' + esc(task.sourceLabel || "unknown") + "</span>";
           return '<div class="extract-item">' +
             '<div class="extract-head">' +
               '<div class="extract-title">' + esc(task.text) + "</div>" +
@@ -2600,7 +2614,7 @@ ${buildDashboardExtractSectionHtml(data.today)}
             "</div>" +
             '<div class="extract-actions">' +
               '<button type="button" class="btn" data-action="dismiss-notes-extracted" data-index="' + index + '">Hide</button>' +
-              '<button type="button" class="btn btn-primary"' + (isAdded || isDuplicate ? " disabled" : "") + ' data-action="add-notes-extracted" data-index="' + index + '">' + (isAdded ? "Added" : isDuplicate ? "Exists" : "Add Task") + "</button>" +
+              '<button type="button" class="btn btn-primary"' + (isAdded || existsAlready ? " disabled" : "") + ' data-action="add-notes-extracted" data-index="' + index + '">' + (isAdded ? "Added" : existsAlready ? "Already exists" : "Add Task") + "</button>" +
             "</div>" +
           "</div>";
         })
