@@ -2,6 +2,7 @@ import * as crypto from "crypto";
 import * as fs from "fs";
 import * as path from "path";
 import * as vscode from "vscode";
+import { buildDashboardExtractSectionHtml } from "./dashboardExtractLayout.js";
 import {
   extractTasksFromMoments,
   extractTasksFromNotes,
@@ -1786,6 +1787,48 @@ export class DashboardPanel {
     gap: 8px;
   }
 
+  .extract-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .extract-range-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .extract-submit-row {
+    display: flex;
+  }
+
+  .extract-submit-row .btn {
+    min-width: 116px;
+  }
+
+  .extract-date-input {
+    width: 100%;
+    min-width: 0;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: color-mix(in srgb, var(--surface) 88%, var(--bg));
+    color: var(--text);
+    padding: 6px 10px;
+    outline: none;
+    font-family: inherit;
+    font-size: 13px;
+  }
+
+  .extract-date-input:focus {
+    border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
+  }
+
+  .extract-range-separator {
+    color: var(--muted);
+    flex-shrink: 0;
+  }
+
   .inline-fields {
     display: flex;
     gap: 12px;
@@ -2032,6 +2075,15 @@ export class DashboardPanel {
       grid-template-columns: 1fr;
     }
 
+    .extract-range-row {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .extract-range-separator {
+      display: none;
+    }
+
     .task-head,
     .extract-head {
       flex-direction: column;
@@ -2166,31 +2218,7 @@ export class DashboardPanel {
             <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--border);">
               <h4 style="margin: 0 0 16px; font-size: 14px; font-weight: 600; color: var(--text);">AI Extract</h4>
               
-              <!-- Moments Extract -->
-              <div style="margin-bottom: 24px;">
-                <span style="font-size: 12px; font-weight: 600; color: var(--muted); display: block; margin-bottom: 8px;">From Moments</span>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                  <input id="ai-source-date" type="date" value="${escAttr(data.today)}" style="flex: 1; min-width: 0; padding: 6px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: color-mix(in srgb, var(--surface) 88%, var(--bg)); color: var(--text); outline: none; font-family: inherit; font-size: 13px;" />
-                  <button class="btn" id="btn-ai-extract" type="button" style="flex-shrink: 0; padding: 6px 14px; white-space: nowrap;">Extract</button>
-                </div>
-                <div class="status-line" id="ai-status" style="margin-top: 4px;"></div>
-                <div class="ai-result" id="ai-result" style="margin-top: 8px;"></div>
-              </div>
-
-              <!-- Notes Extract -->
-              <div>
-                <span style="font-size: 12px; font-weight: 600; color: var(--muted); display: block; margin-bottom: 8px;">From Notes</span>
-                <div style="display: flex; flex-direction: column; gap: 8px;">
-                  <div style="display: flex; align-items: center; gap: 8px;">
-                    <input id="notes-from-date" type="date" value="${escAttr(data.today)}" style="flex: 1; min-width: 0; padding: 6px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: color-mix(in srgb, var(--surface) 88%, var(--bg)); color: var(--text); outline: none; font-family: inherit; font-size: 13px;" />
-                    <span style="color: var(--muted); flex-shrink: 0;">-</span>
-                    <input id="notes-to-date" type="date" value="${escAttr(data.today)}" style="flex: 1; min-width: 0; padding: 6px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: color-mix(in srgb, var(--surface) 88%, var(--bg)); color: var(--text); outline: none; font-family: inherit; font-size: 13px;" />
-                  </div>
-                  <button class="btn" id="btn-extract-notes" type="button" style="width: 100%; flex-shrink: 0; padding: 6px 14px;">Extract</button>
-                </div>
-                <div class="status-line" id="notes-extract-status" style="margin-top: 4px;"></div>
-                <div class="ai-result" id="notes-extract-result" style="margin-top: 8px;"></div>
-              </div>
+${buildDashboardExtractSectionHtml(data.today)}
 
             </div>
           </div>

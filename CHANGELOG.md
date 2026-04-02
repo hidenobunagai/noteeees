@@ -6,6 +6,11 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.4.12] - 2026-04-02
+
+### Fixed
+- **Task Dashboard UI**: Reworked the AI Extract inputs so each `Extract` button now sits on its own row below the date field(s). This avoids the cramped side-by-side layout in the Composer sidebar and keeps clear spacing even in narrow panel widths.
+
 ## [0.4.11] - 2026-04-02
 
 ### Fixed
