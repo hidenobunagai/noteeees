@@ -2336,6 +2336,12 @@ ${buildDashboardExtractSectionHtml(data.today)}
         addedExtractedKeys: state.addedExtractedKeys,
         aiStatus: state.aiStatus,
         aiStatusType: state.aiStatusType,
+        notesFromDate: state.notesFromDate,
+        notesToDate: state.notesToDate,
+        notesExtractedTasks: state.notesExtractedTasks,
+        notesAddedExtractedKeys: state.notesAddedExtractedKeys,
+        notesAiStatus: state.notesAiStatus,
+        notesAiStatusType: state.notesAiStatusType,
       });
     }
 

@@ -6,6 +6,7 @@ import {
   canAddDashboardCandidate,
   buildUpcomingWeek,
   classifyDashboardTask,
+  DashboardPanel,
   filterExtractedTasksForDisplay,
   normalizeExtractedTaskIdentity,
   normalizeDashboardTaskText,
@@ -140,6 +141,61 @@ function renderMomentsWebviewHtml(): string {
   );
 
   return webview.html;
+}
+
+function renderDashboardWebviewHtml(): string {
+  const notesDir = fs.mkdtempSync(path.join(os.tmpdir(), "noteeees-dashboard-"));
+  const webview: Pick<
+    vscode.Webview,
+    "cspSource" | "html" | "options" | "asWebviewUri" | "onDidReceiveMessage" | "postMessage"
+  > = {
+    cspSource: "vscode-webview-resource://test",
+    html: "",
+    options: {},
+    asWebviewUri(uri: vscode.Uri): vscode.Uri {
+      return uri;
+    },
+    onDidReceiveMessage<T>(_listener: (e: T) => unknown): vscode.Disposable {
+      return new vscode.Disposable(() => undefined);
+    },
+    postMessage(): Thenable<boolean> {
+      return Promise.resolve(true);
+    },
+  };
+
+  const panel = {
+    webview,
+    onDidDispose(_listener: () => void): vscode.Disposable {
+      return new vscode.Disposable(() => undefined);
+    },
+    reveal(): void {
+      return;
+    },
+    dispose(): void {
+      return;
+    },
+  } satisfies Pick<vscode.WebviewPanel, "webview" | "onDidDispose" | "reveal" | "dispose">;
+
+  const DashboardPanelCtor = DashboardPanel as unknown as {
+    new (
+      panel: vscode.WebviewPanel,
+      getNotesDir: () => string | undefined,
+      extensionUri: vscode.Uri,
+      stateStore: vscode.Memento,
+    ): unknown;
+  };
+
+  try {
+    new DashboardPanelCtor(
+      panel as vscode.WebviewPanel,
+      () => notesDir,
+      vscode.Uri.file(notesDir),
+      createMementoStub(),
+    );
+    return webview.html;
+  } finally {
+    fs.rmSync(notesDir, { recursive: true, force: true });
+  }
 }
 
 suite("Extension Test Suite", () => {
@@ -460,6 +516,35 @@ suite("Extension Test Suite", () => {
     assert.ok(
       html.includes("html = html.replace(/@(\\d{4}-\\d{2}-\\d{2})/g"),
       "expected the webview script to preserve the due date regex escapes",
+    );
+  });
+
+  test("dashboard webview persists notes extraction state alongside moments state", () => {
+    const html = renderDashboardWebviewHtml();
+
+    assert.ok(
+      html.includes("notesFromDate: state.notesFromDate"),
+      "expected persisted state to include notesFromDate",
+    );
+    assert.ok(
+      html.includes("notesToDate: state.notesToDate"),
+      "expected persisted state to include notesToDate",
+    );
+    assert.ok(
+      html.includes("notesExtractedTasks: state.notesExtractedTasks"),
+      "expected persisted state to include notesExtractedTasks",
+    );
+    assert.ok(
+      html.includes("notesAddedExtractedKeys: state.notesAddedExtractedKeys"),
+      "expected persisted state to include notesAddedExtractedKeys",
+    );
+    assert.ok(
+      html.includes("notesAiStatus: state.notesAiStatus"),
+      "expected persisted state to include notesAiStatus",
+    );
+    assert.ok(
+      html.includes("notesAiStatusType: state.notesAiStatusType"),
+      "expected persisted state to include notesAiStatusType",
     );
   });
 
