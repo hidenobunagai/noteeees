@@ -880,6 +880,21 @@ suite("Extension Test Suite", () => {
         source: "moments",
         sourceLabel: "Moments",
         existsAlready: false,
+      }, new Set([normalizeExtractedTaskIdentity("Review budget @2026-03-31")])),
+      false,
+    );
+
+    assert.strictEqual(
+      canAddDashboardCandidate({
+        kind: "candidate",
+        text: "Review budget",
+        dueDate: null,
+        category: "work",
+        priority: "medium",
+        timeEstimateMin: 20,
+        source: "moments",
+        sourceLabel: "Moments",
+        existsAlready: false,
       }),
       true,
     );
@@ -917,6 +932,10 @@ suite("Extension Test Suite", () => {
     assert.strictEqual(result.visibleTasks[0].source, "notes");
     assert.strictEqual(result.visibleTasks[0].sourceLabel, "projects/retro.md");
     assert.strictEqual(result.visibleTasks[0].existsAlready, true);
+    assert.strictEqual(
+      canAddDashboardCandidate(result.visibleTasks[0], new Set([normalizeExtractedTaskIdentity("Plan retro")])) ,
+      false,
+    );
   });
 
   test("dashboard task file resolver supports inbox and dated files", () => {

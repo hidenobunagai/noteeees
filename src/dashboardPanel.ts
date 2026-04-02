@@ -59,7 +59,14 @@ export interface ExtractedTaskFilterResult {
   hiddenDuplicates: number;
 }
 
-export function canAddDashboardCandidate(task: DashboardCandidateTask): boolean {
+export function canAddDashboardCandidate(
+  task: DashboardCandidateTask,
+  existingTaskKeys?: ReadonlySet<string>,
+): boolean {
+  if (existingTaskKeys && existingTaskKeys.has(normalizeExtractedTaskIdentity(task.text))) {
+    return false;
+  }
+
   return !task.existsAlready;
 }
 
@@ -2559,11 +2566,12 @@ ${buildDashboardExtractSectionHtml(data.today)}
     }
 
     function renderExtractResult() {
+      const existingTaskKeys = getExistingTaskKeys();
       const visibleItems = (state.extractedTasks || [])
         .map(function (task, index) {
           const key = extractedTaskKey(task);
           const isAdded = state.addedExtractedKeys.includes(key);
-          const existsAlready = Boolean(task.existsAlready);
+          const existsAlready = existingTaskKeys.has(key);
           const dueBadge = task.dueDate
             ? '<span class="badge is-accent">Due ' + esc(formatDateLabel(task.dueDate)) + "</span>"
             : "";
@@ -2601,10 +2609,11 @@ ${buildDashboardExtractSectionHtml(data.today)}
         return;
       }
 
+      const existingTaskKeys = getExistingTaskKeys();
       const visibleItems = (state.notesExtractedTasks || [])
         .map(function (task, index) {
           const key = extractedTaskKey(task);
-          const existsAlready = Boolean(task.existsAlready);
+          const existsAlready = existingTaskKeys.has(key);
           const isAdded = state.notesAddedExtractedKeys.includes(key);
           const dueBadge = task.dueDate
             ? '<span class="badge is-accent">Due ' + esc(formatDateLabel(task.dueDate)) + "</span>"
@@ -2749,7 +2758,7 @@ ${buildDashboardExtractSectionHtml(data.today)}
       }
 
       const task = state.extractedTasks[index];
-      if (!canAddDashboardCandidate(task)) {
+      if (!canAddDashboardCandidate(task, getExistingTaskKeys())) {
         renderAiResult();
         return;
       }
@@ -2794,7 +2803,7 @@ ${buildDashboardExtractSectionHtml(data.today)}
       }
 
       const task = state.notesExtractedTasks[index];
-      if (!canAddDashboardCandidate(task)) {
+      if (!canAddDashboardCandidate(task, getExistingTaskKeys())) {
         renderNotesExtractResult();
         return;
       }
