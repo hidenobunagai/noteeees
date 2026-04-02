@@ -3,6 +3,7 @@ import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 import {
+  canAddDashboardCandidate,
   buildUpcomingWeek,
   classifyDashboardTask,
   filterExtractedTasksForDisplay,
@@ -850,6 +851,72 @@ suite("Extension Test Suite", () => {
     assert.strictEqual(result.hiddenExisting, 0);
     assert.strictEqual(result.hiddenDismissed, 1);
     assert.strictEqual(result.hiddenDuplicates, 1);
+  });
+
+  test("canAddDashboardCandidate rejects already-existing candidates", () => {
+    assert.strictEqual(
+      canAddDashboardCandidate({
+        kind: "candidate",
+        text: "Send report",
+        dueDate: null,
+        category: "work",
+        priority: "high",
+        timeEstimateMin: 30,
+        source: "moments",
+        sourceLabel: "Moments",
+        existsAlready: true,
+      }),
+      false,
+    );
+
+    assert.strictEqual(
+      canAddDashboardCandidate({
+        kind: "candidate",
+        text: "Review budget",
+        dueDate: null,
+        category: "work",
+        priority: "medium",
+        timeEstimateMin: 20,
+        source: "moments",
+        sourceLabel: "Moments",
+        existsAlready: false,
+      }),
+      true,
+    );
+  });
+
+  test("filterExtractedTasksForDisplay preserves notes candidate source metadata", () => {
+    const result = filterExtractedTasksForDisplay(
+      [
+        {
+          text: "Plan retro",
+          category: "work",
+          priority: "medium",
+          timeEstimateMin: 25,
+          dueDate: null,
+          sourceNote: "projects/retro.md",
+        },
+      ],
+      [
+        {
+          id: "tasks/inbox.md:4",
+          filePath: "/tmp/notes/tasks/inbox.md",
+          lineIndex: 4,
+          text: "Plan retro @2026-03-29",
+          done: false,
+          date: null,
+          dueDate: "2026-03-29",
+          tags: [],
+        },
+      ],
+      [],
+      "2026-03-27",
+    );
+
+    assert.strictEqual(result.visibleTasks.length, 1);
+    assert.strictEqual(result.visibleTasks[0].source, "notes");
+    assert.strictEqual(result.visibleTasks[0].sourceLabel, "projects/retro.md");
+    assert.strictEqual(result.visibleTasks[0].existsAlready, true);
   });
 
   test("dashboard task file resolver supports inbox and dated files", () => {

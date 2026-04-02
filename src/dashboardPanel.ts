@@ -59,6 +59,10 @@ export interface ExtractedTaskFilterResult {
   hiddenDuplicates: number;
 }
 
+export function canAddDashboardCandidate(task: DashboardCandidateTask): boolean {
+  return !task.existsAlready;
+}
+
 export type DashboardTaskSection =
   | "overdue"
   | "today"
@@ -2745,6 +2749,11 @@ ${buildDashboardExtractSectionHtml(data.today)}
       }
 
       const task = state.extractedTasks[index];
+      if (!canAddDashboardCandidate(task)) {
+        renderAiResult();
+        return;
+      }
+
       const key = extractedTaskKey(task);
       if (!state.addedExtractedKeys.includes(key)) {
         state.addedExtractedKeys = state.addedExtractedKeys.concat([key]);
@@ -2785,6 +2794,11 @@ ${buildDashboardExtractSectionHtml(data.today)}
       }
 
       const task = state.notesExtractedTasks[index];
+      if (!canAddDashboardCandidate(task)) {
+        renderNotesExtractResult();
+        return;
+      }
+
       const key = extractedTaskKey(task);
       if (!state.notesAddedExtractedKeys.includes(key)) {
         state.notesAddedExtractedKeys = state.notesAddedExtractedKeys.concat([key]);
