@@ -5,6 +5,7 @@ node_modules
 .vscode-test/
 *.vsix
 .superpowers/
+.worktrees/
 excalidraw.log
 .opencode/
 .cline/
