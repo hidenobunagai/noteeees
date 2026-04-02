@@ -6,6 +6,11 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.4.11] - 2026-04-02
+
+### Fixed
+- **Task Dashboard UI**: Fixed flexbox spacing issues where "Extract" buttons and calendar inputs touched each other without a margin. Used native `gap` and `flex-shrink: 0` to ensure buttons remain correctly sized without squishing in narrow panels.
+
 ## [0.4.10] - 2026-04-02
 
 ### Fixed
