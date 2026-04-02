@@ -108,7 +108,9 @@ export async function aggregateNoteContents(
 
   const contents: NoteContent[] = [];
   for (const note of notes) {
-    if (token.isCancellationRequested) break;
+    if (token.isCancellationRequested) {
+      break;
+    }
 
     try {
       const contentResult = await mcpClient.callTool("get_note_content", {
@@ -139,7 +141,9 @@ export async function extractTasksFromNotes(
   const allTasks: ExtractedTaskWithSource[] = [];
 
   for (const note of noteContents) {
-    if (token.isCancellationRequested) break;
+    if (token.isCancellationRequested) {
+      break;
+    }
 
     const tasks = await extractTasksFromText(note.content, token);
     for (const task of tasks) {

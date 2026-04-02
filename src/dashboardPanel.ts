@@ -1091,7 +1091,9 @@ export class DashboardPanel {
 
   private async _collectNotesByDate(fromDate: string, toDate: string): Promise<NoteContent[]> {
     const notesDir = this._getNotesDir();
-    if (!notesDir) return [];
+    if (!notesDir) {
+      return [];
+    }
 
     const results: NoteContent[] = [];
 
