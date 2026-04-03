@@ -119,6 +119,7 @@ function buildDashboardEmptyMessage(filter: DashboardListFilter): string {
     case "all":
       return `No tasks yet${DASHBOARD_EMPTY_MESSAGE_SEPARATOR}Use Quick Add or AI Extract to create your first task.`;
     case "attention":
+    case "focus":
       return `Nothing urgent right now${DASHBOARD_EMPTY_MESSAGE_SEPARATOR}Attention items from Overdue, Today, and Upcoming will appear here.`;
     case "candidate":
       return `No candidates yet${DASHBOARD_EMPTY_MESSAGE_SEPARATOR}Extraction results from Moments or Notes will appear here.`;
@@ -3070,6 +3071,7 @@ ${buildDashboardExtractSectionHtml(data.today)}
           case "all":
             return "No tasks yet||Use Quick Add or AI Extract to create your first task.";
           case "attention":
+          case "focus":
             return "Nothing urgent right now||Attention items from Overdue, Today, and Upcoming will appear here.";
           case "candidate":
             return "No candidates yet||Extraction results from Moments or Notes will appear here.";

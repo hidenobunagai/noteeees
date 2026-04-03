@@ -1279,6 +1279,12 @@ suite("Extension Test Suite", () => {
       "Nothing urgent right now||Attention items from Overdue, Today, and Upcoming will appear here.",
     );
 
+    const legacyFocusEmpty = buildDashboardListViewModel([], "focus", "");
+    assert.strictEqual(
+      legacyFocusEmpty.emptyMessage,
+      "Nothing urgent right now||Attention items from Overdue, Today, and Upcoming will appear here.",
+    );
+
     const noCandidates = buildDashboardListViewModel([], "candidate", "");
     assert.strictEqual(
       noCandidates.emptyMessage,
