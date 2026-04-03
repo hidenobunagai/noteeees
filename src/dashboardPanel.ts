@@ -1996,7 +1996,7 @@ export class DashboardPanel {
     white-space: nowrap;
   }
 
-  .task-row-title:hover {
+  .task-row-saved .task-row-title:hover {
     color: var(--accent);
   }
 

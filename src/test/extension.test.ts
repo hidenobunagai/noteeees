@@ -1199,12 +1199,11 @@ suite("Extension Test Suite", () => {
         html.includes('display: -webkit-box;'),
       "expected candidate row titles to stay readable with a compact two-line clamp",
     );
-    assert.ok(
-      html.includes('.task-row-candidate .task-row-title {') &&
-        html.includes('cursor: default;') &&
-        !html.includes('.task-row-candidate .task-row-title:hover {'),
-      "expected non-interactive candidate titles to avoid clickable affordance while saved-task titles stay open controls",
-    );
+    assert.ok(html.includes('.task-row-candidate .task-row-title {'), "expected candidate title rule");
+    assert.ok(html.includes('cursor: default;'), "expected non-clickable candidate cursor");
+    assert.ok(!html.includes('.task-row-candidate .task-row-title:hover {'), "expected no candidate-specific hover rule");
+    assert.ok(html.includes('.task-row-saved .task-row-title:hover {'), "expected saved-task hover rule to remain");
+    assert.ok(!/^\s*\.task-row-title:hover \{/m.test(html), "expected shared hover rule to be removed");
   });
 
   test("dashboard webview keeps dense metadata priority for saved and candidate rows", () => {
