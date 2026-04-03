@@ -3,11 +3,17 @@ import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 import {
+  buildDashboardCandidateViews,
+  buildDashboardListItems,
+  buildDashboardTaskViews,
+  countDashboardListItemsForFilter,
   canAddDashboardCandidate,
   buildUpcomingWeek,
   classifyDashboardTask,
   DashboardPanel,
+  type DashboardListItem,
   filterExtractedTasksForDisplay,
+  matchesDashboardListItemFilter,
   normalizeExtractedTaskIdentity,
   normalizeDashboardTaskText,
   resolveDashboardTaskFile,
@@ -1136,6 +1142,150 @@ suite("Extension Test Suite", () => {
       canAddDashboardCandidate(result.visibleTasks[0], new Set([normalizeExtractedTaskIdentity("Plan retro")])) ,
       false,
     );
+  });
+
+  test("candidate filter routes candidate and saved task rows correctly", () => {
+    const savedTasks = buildDashboardTaskViews(
+      [
+        {
+          id: "tasks/2026-03-26.md:1",
+          filePath: "/tmp/notes/tasks/2026-03-26.md",
+          lineIndex: 1,
+          text: "Overdue saved",
+          done: false,
+          date: "2026-03-26",
+          dueDate: "2026-03-26",
+          tags: ["#work"],
+        },
+        {
+          id: "tasks/2026-03-27.md:2",
+          filePath: "/tmp/notes/tasks/2026-03-27.md",
+          lineIndex: 2,
+          text: "Today saved",
+          done: false,
+          date: "2026-03-27",
+          dueDate: "2026-03-27",
+          tags: ["#admin"],
+        },
+        {
+          id: "tasks/inbox.md:3",
+          filePath: "/tmp/notes/tasks/inbox.md",
+          lineIndex: 3,
+          text: "Done saved",
+          done: true,
+          date: null,
+          dueDate: null,
+          tags: [],
+        },
+      ],
+      "2026-03-27",
+    );
+    const candidateViews = buildDashboardCandidateViews([
+      {
+        kind: "candidate",
+        text: "Candidate first",
+        dueDate: null,
+        category: "work",
+        priority: "medium",
+        timeEstimateMin: 15,
+        source: "moments",
+        sourceLabel: "Moments",
+        existsAlready: false,
+      },
+      {
+        kind: "candidate",
+        text: "Candidate second",
+        dueDate: "2026-03-29",
+        category: "admin",
+        priority: "low",
+        timeEstimateMin: 10,
+        source: "notes",
+        sourceLabel: "projects/plan.md",
+        existsAlready: false,
+      },
+    ]);
+    const listItems = buildDashboardListItems(savedTasks, candidateViews);
+    const visibleAll = listItems.filter((item: DashboardListItem) =>
+      matchesDashboardListItemFilter(item, "all"),
+    );
+    const visibleCandidates = listItems.filter((item: DashboardListItem) =>
+      matchesDashboardListItemFilter(item, "candidate"),
+    );
+    const visibleAttention = listItems.filter((item: DashboardListItem) =>
+      matchesDashboardListItemFilter(item, "attention"),
+    );
+
+    assert.deepStrictEqual(
+      visibleAll.map((item) => item.text),
+      ["Overdue saved", "Today saved", "Done saved", "Candidate first", "Candidate second"],
+    );
+    assert.deepStrictEqual(
+      visibleCandidates.map((item) => item.text),
+      ["Candidate first", "Candidate second"],
+    );
+
+    for (const filter of ["overdue", "today", "upcoming", "scheduled", "backlog", "done"] as const) {
+      assert.strictEqual(
+        listItems.some(
+          (item: DashboardListItem) =>
+            item.kind === "candidate" && matchesDashboardListItemFilter(item, filter),
+        ),
+        false,
+      );
+    }
+
+    assert.deepStrictEqual(
+      visibleAttention.map((item) => item.text),
+      ["Overdue saved", "Today saved"],
+    );
+  });
+
+  test("candidate filter counts candidate rows only", () => {
+    const savedTasks = buildDashboardTaskViews(
+      [
+        {
+          id: "tasks/2026-03-27.md:1",
+          filePath: "/tmp/notes/tasks/2026-03-27.md",
+          lineIndex: 1,
+          text: "Today saved",
+          done: false,
+          date: "2026-03-27",
+          dueDate: "2026-03-27",
+          tags: [],
+        },
+      ],
+      "2026-03-27",
+    );
+    const candidateViews = buildDashboardCandidateViews([
+      {
+        kind: "candidate",
+        text: "Candidate first",
+        dueDate: null,
+        category: "work",
+        priority: "medium",
+        timeEstimateMin: 15,
+        source: "moments",
+        sourceLabel: "Moments",
+        existsAlready: false,
+      },
+      {
+        kind: "candidate",
+        text: "Candidate second",
+        dueDate: null,
+        category: "work",
+        priority: "low",
+        timeEstimateMin: 10,
+        source: "notes",
+        sourceLabel: "projects/plan.md",
+        existsAlready: false,
+      },
+    ]);
+
+    const listItems = buildDashboardListItems(savedTasks, candidateViews);
+
+    assert.strictEqual(countDashboardListItemsForFilter(listItems, "candidate"), 2);
+    assert.strictEqual(countDashboardListItemsForFilter(listItems, "all"), 3);
+    assert.strictEqual(countDashboardListItemsForFilter(listItems, "attention"), 1);
   });
 
   test("dashboard task file resolver supports inbox and dated files", () => {

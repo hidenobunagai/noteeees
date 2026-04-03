@@ -78,11 +78,25 @@ export type DashboardTaskSection =
   | "backlog"
   | "done";
 
-interface DashboardTaskView extends DashTask {
+export type DashboardListFilter =
+  | "attention"
+  | "all"
+  | "candidate"
+  | "focus"
+  | DashboardTaskSection;
+
+export interface DashboardTaskView extends DashTask {
+  kind: "task";
   relativePath: string;
   effectiveDate: string | null;
   section: DashboardTaskSection;
 }
+
+export interface DashboardCandidateView extends DashboardCandidateTask {
+  extractionIndex: number;
+}
+
+export type DashboardListItem = DashboardTaskView | DashboardCandidateView;
 
 interface DashboardSummary {
   totalOpen: number;
@@ -549,20 +563,67 @@ function compareDashboardTasks(a: DashboardTaskView, b: DashboardTaskView): numb
   return a.text.localeCompare(b.text);
 }
 
-function buildDashboardTaskViews(tasks: DashTask[], today: string): DashboardTaskView[] {
+export function buildDashboardTaskViews(tasks: DashTask[], today: string): DashboardTaskView[] {
   const horizonDate = shiftDate(today, 7);
   return tasks
-    .map((task) => {
+    .map((task): DashboardTaskView => {
       const relativePath = getRelativePathFromTaskId(task.id, task.filePath);
       const effectiveDate = task.dueDate ?? task.date;
       return {
         ...task,
+        kind: "task",
         relativePath,
         effectiveDate,
         section: classifyDashboardTask(task, today, horizonDate),
       };
     })
     .sort(compareDashboardTasks);
+}
+
+export function buildDashboardCandidateViews(
+  tasks: DashboardCandidateTask[],
+): DashboardCandidateView[] {
+  return tasks.map((task, extractionIndex) => ({
+    ...task,
+    extractionIndex,
+  }));
+}
+
+export function buildDashboardListItems(
+  tasks: DashboardTaskView[],
+  candidates: DashboardCandidateView[],
+): DashboardListItem[] {
+  return [...tasks, ...candidates];
+}
+
+export function matchesDashboardListItemFilter(
+  item: DashboardListItem,
+  filter: DashboardListFilter,
+): boolean {
+  if (filter === "all") {
+    return true;
+  }
+
+  if (filter === "candidate") {
+    return item.kind === "candidate";
+  }
+
+  if (item.kind === "candidate") {
+    return false;
+  }
+
+  if (filter === "attention" || filter === "focus") {
+    return ATTENTION_SECTIONS.has(item.section);
+  }
+
+  return item.section === filter;
+}
+
+export function countDashboardListItemsForFilter(
+  items: DashboardListItem[],
+  filter: DashboardListFilter,
+): number {
+  return items.filter((item) => matchesDashboardListItemFilter(item, filter)).length;
 }
 
 function buildSectionCounts(tasks: DashboardTaskView[]): Record<DashboardTaskSection, number> {
