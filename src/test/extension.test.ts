@@ -728,8 +728,28 @@ suite("Extension Test Suite", () => {
     const html = renderDashboardWebviewHtml();
 
     assert.ok(
-      html.includes('filter: savedState.filter === "focus" ? "attention" : (savedState.filter || "all")'),
-      "expected dashboard state to default to the All filter",
+      html.includes('const filterDefinitions = ['),
+      "expected dashboard script to define the filter chip set",
+    );
+    assert.ok(
+      html.includes('{ id: "all", label: "All", count:'),
+      "expected All filter chip definition in the dashboard toolbar",
+    );
+    assert.ok(
+      html.includes('const activeClass = filter.id === state.filter ? " is-active" : "";'),
+      "expected rendered filter output to include an active state contract",
+    );
+    assert.ok(
+      html.includes(`return '<button type="button" class="filter-chip' + activeClass + '" data-filter="' + esc(filter.id) + '">`),
+      "expected rendered filter output to bind each chip to its filter id",
+    );
+    assert.ok(
+      html.includes('state.filter = button.dataset.filter;'),
+      "expected filter buttons to drive the active filter from the rendered output contract",
+    );
+    assert.ok(
+      html.includes('if (state.filter !== "all") {'),
+      "expected the All filter to remain the primary default list view during rerenders",
     );
 
     for (const filterId of [
@@ -2037,7 +2057,7 @@ suite("Extension Test Suite", () => {
     const candidateOnly = buildDashboardListViewModel(candidates, "candidate", "");
     assert.deepStrictEqual(
       candidateOnly.sections.map((section: { title: string }) => section.title),
-      ["Candidates"],
+      ["Candidate"],
     );
 
     const noCandidateRows = buildDashboardListViewModel([], "candidate", "");
