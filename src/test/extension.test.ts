@@ -801,12 +801,23 @@ suite("Extension Test Suite", () => {
 
     assert.ok(
       html.includes('const subtitle = section.key === "candidates"') &&
-        html.includes(': (section.description || "filtered items");'),
+        html.includes('? sectionDescriptions[section.key]') &&
+        html.includes(': "filtered items";'),
       "expected flat filter subtitles to fall back to a defined label instead of undefined",
     );
+  });
+
+  test("dashboard webview All grouped subtitles keep section-specific copy in Task 1 listboard views", () => {
+    const html = renderDashboardWebviewHtml();
+
     assert.ok(
-      !html.includes('" · " + esc(sectionDescriptions[section.key])'),
-      "expected section subtitles to stop directly rendering possibly undefined descriptions",
+      html.includes('state.filter === "all" && section.key !== "candidates"') &&
+        html.includes('? sectionDescriptions[section.key]'),
+      "expected grouped All sections to keep their specific section description text",
+    );
+    assert.ok(
+      html.includes('? "extracted suggestions"'),
+      "expected candidate sections to keep the extracted suggestions subtitle",
     );
   });
 

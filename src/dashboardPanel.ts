@@ -3110,7 +3110,9 @@ ${buildDashboardExtractSectionHtml(data.today)}
         .map(function (section) {
           const subtitle = section.key === "candidates"
             ? "extracted suggestions"
-            : (section.description || "filtered items");
+            : state.filter === "all" && section.key !== "candidates"
+              ? sectionDescriptions[section.key]
+              : "filtered items";
           const items = section.items
             .map(function (item) {
               if (item.kind === "candidate") {
