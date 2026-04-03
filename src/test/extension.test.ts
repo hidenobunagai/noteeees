@@ -796,6 +796,20 @@ suite("Extension Test Suite", () => {
     );
   });
 
+  test("dashboard webview flat filter subtitles never render undefined in Task 1 listboard views", () => {
+    const html = renderDashboardWebviewHtml();
+
+    assert.ok(
+      html.includes('const subtitle = section.key === "candidates"') &&
+        html.includes(': (section.description || "filtered items");'),
+      "expected flat filter subtitles to fall back to a defined label instead of undefined",
+    );
+    assert.ok(
+      !html.includes('" · " + esc(sectionDescriptions[section.key])'),
+      "expected section subtitles to stop directly rendering possibly undefined descriptions",
+    );
+  });
+
   test("dashboard webview restores notes extraction inputs and status from persisted state", () => {
     const html = renderDashboardWebviewHtml(
       undefined,

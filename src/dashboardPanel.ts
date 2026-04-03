@@ -3108,6 +3108,9 @@ ${buildDashboardExtractSectionHtml(data.today)}
       const visibleCandidates = getVisibleCandidates();
       const html = viewModel.sections
         .map(function (section) {
+          const subtitle = section.key === "candidates"
+            ? "extracted suggestions"
+            : (section.description || "filtered items");
           const items = section.items
             .map(function (item) {
               if (item.kind === "candidate") {
@@ -3122,7 +3125,7 @@ ${buildDashboardExtractSectionHtml(data.today)}
           return '<section class="task-section">' +
             '<div class="task-section-header">' +
               "<h3>" + esc(section.title) + "</h3>" +
-              "<span>" + section.items.length + (section.key === "candidates" ? " · extracted suggestions" : " · " + esc(sectionDescriptions[section.key])) + "</span>" +
+              "<span>" + section.items.length + " · " + esc(subtitle) + "</span>" +
             "</div>" +
             '<div class="task-items">' + items + "</div>" +
           "</section>";
