@@ -2544,6 +2544,11 @@ export class DashboardPanel {
       justify-content: flex-start;
     }
 
+    .task-row-secondary-actions {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
     .dashboard-toolbar,
     .dashboard-action-bar,
     .list-surface,

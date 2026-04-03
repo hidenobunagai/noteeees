@@ -1136,6 +1136,7 @@ suite("Extension Test Suite", () => {
 
   test("dashboard webview keeps saved-row interaction rules in dense listboard rows", () => {
     const html = renderDashboardWebviewHtml();
+    const narrowSecondaryActionsRule = /@media \(max-width: 720px\) \{[\s\S]*?\.task-row-secondary-actions,\s+\.task-row-candidate-actions \{[\s\S]*?justify-content: flex-start;[\s\S]*?opacity: 1;[\s\S]*?pointer-events: auto;[\s\S]*?\}/;
 
     assert.ok(
       html.includes('class="task-row-toggle"') &&
@@ -1164,6 +1165,10 @@ suite("Extension Test Suite", () => {
         html.includes('class="task-row-toggle-entry"') &&
         html.includes('class="task-row-title-entry"'),
       "expected checkbox and title entry points to reveal secondary actions for keyboard users",
+    );
+    assert.ok(
+      narrowSecondaryActionsRule.test(html),
+      "expected narrow layouts to make saved-row secondary actions visible and interactive for touch access",
     );
   });
 
