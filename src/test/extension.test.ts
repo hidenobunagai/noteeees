@@ -3,8 +3,10 @@ import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
 import {
+  buildDashboardListViewModel,
   buildDashboardCandidateViews,
   buildDashboardListItems,
+  migrateDashboardCandidateState,
   buildDashboardTaskViews,
   countDashboardListItemsForFilter,
   canAddDashboardCandidate,
@@ -108,6 +110,16 @@ function createExtensionContextStub(): vscode.ExtensionContext {
   return context as vscode.ExtensionContext;
 }
 
+function createMementoStubWithValues(
+  values: Record<string, unknown>,
+): vscode.Memento & { setKeysForSync(keys: readonly string[]): void } {
+  const memento = createMementoStub();
+  for (const [key, value] of Object.entries(values)) {
+    void memento.update(key, value);
+  }
+  return memento;
+}
+
 function renderMomentsWebviewHtml(): string {
   const webview: Pick<
     vscode.Webview,
@@ -149,7 +161,10 @@ function renderMomentsWebviewHtml(): string {
   return webview.html;
 }
 
-function renderDashboardWebviewHtml(): string {
+function renderDashboardWebviewHtml(
+  seed?: (notesDir: string) => void,
+  stateStore: vscode.Memento = createMementoStub(),
+): string {
   const notesDir = fs.mkdtempSync(path.join(os.tmpdir(), "noteeees-dashboard-"));
   const webview: Pick<
     vscode.Webview,
@@ -192,11 +207,12 @@ function renderDashboardWebviewHtml(): string {
   };
 
   try {
+    seed?.(notesDir);
     new DashboardPanelCtor(
       panel as vscode.WebviewPanel,
       () => notesDir,
       vscode.Uri.file(notesDir),
-      createMementoStub(),
+      stateStore,
     );
     return webview.html;
   } finally {
@@ -260,6 +276,72 @@ function createDashboardPanelTestHarness(): {
   return {
     notesDir,
     panel,
+    cleanup() {
+      fs.rmSync(notesDir, { recursive: true, force: true });
+    },
+  };
+}
+
+function createDashboardPanelMessageHarness(): {
+  notesDir: string;
+  panel: DashboardPanel;
+  messages: Array<Record<string, unknown>>;
+  cleanup: () => void;
+} {
+  const notesDir = fs.mkdtempSync(path.join(os.tmpdir(), "noteeees-dashboard-"));
+  const messages: Array<Record<string, unknown>> = [];
+  const webview: Pick<
+    vscode.Webview,
+    "cspSource" | "html" | "options" | "asWebviewUri" | "onDidReceiveMessage" | "postMessage"
+  > = {
+    cspSource: "vscode-webview-resource://test",
+    html: "",
+    options: {},
+    asWebviewUri(uri: vscode.Uri): vscode.Uri {
+      return uri;
+    },
+    onDidReceiveMessage<T>(_listener: (e: T) => unknown): vscode.Disposable {
+      return new vscode.Disposable(() => undefined);
+    },
+    postMessage(message: Record<string, unknown>): Thenable<boolean> {
+      messages.push(message);
+      return Promise.resolve(true);
+    },
+  };
+
+  const panelStub = {
+    webview,
+    onDidDispose(_listener: () => void): vscode.Disposable {
+      return new vscode.Disposable(() => undefined);
+    },
+    reveal(): void {
+      return;
+    },
+    dispose(): void {
+      return;
+    },
+  } satisfies Pick<vscode.WebviewPanel, "webview" | "onDidDispose" | "reveal" | "dispose">;
+
+  const DashboardPanelCtor = DashboardPanel as unknown as {
+    new (
+      panel: vscode.WebviewPanel,
+      getNotesDir: () => string | undefined,
+      extensionUri: vscode.Uri,
+      stateStore: vscode.Memento,
+    ): DashboardPanel;
+  };
+
+  const panel = new DashboardPanelCtor(
+    panelStub as vscode.WebviewPanel,
+    () => notesDir,
+    vscode.Uri.file(notesDir),
+    createMementoStub(),
+  );
+
+  return {
+    notesDir,
+    panel,
+    messages,
     cleanup() {
       fs.rmSync(notesDir, { recursive: true, force: true });
     },
@@ -599,12 +681,12 @@ suite("Extension Test Suite", () => {
       "expected persisted state to include notesToDate",
     );
     assert.ok(
-      html.includes("notesExtractedTasks: state.notesExtractedTasks"),
-      "expected persisted state to include notesExtractedTasks",
+      html.includes("candidateTasks: state.candidateTasks"),
+      "expected persisted state to include unified candidateTasks",
     );
     assert.ok(
-      html.includes("notesAddedExtractedKeys: state.notesAddedExtractedKeys"),
-      "expected persisted state to include notesAddedExtractedKeys",
+      html.includes("candidateOrderSeed: state.candidateOrderSeed"),
+      "expected persisted state to include candidate order seed",
     );
     assert.ok(
       html.includes("notesAiStatus: state.notesAiStatus"),
@@ -629,16 +711,197 @@ suite("Extension Test Suite", () => {
     );
   });
 
+  test("dashboard webview defines browser-side merged list helpers", () => {
+    const html = renderDashboardWebviewHtml();
+
+    assert.ok(
+      html.includes("function matchesDashboardListItemFilter(item, filter)"),
+      "expected merged list filter helper in browser scope",
+    );
+    assert.ok(
+      html.includes("function buildDashboardListViewModel(items, filter, search)"),
+      "expected merged list view-model helper in browser scope",
+    );
+  });
+
+  test("dashboard webview switches to Candidate after extraction and tracks locally added candidate keys", () => {
+    const html = renderDashboardWebviewHtml();
+
+    assert.ok(
+      html.includes("addedCandidateKeys: state.addedCandidateKeys"),
+      "expected persisted state to include locally added candidate keys",
+    );
+    assert.ok(
+      html.includes("const locallyAddedKeys = (state.addedCandidateKeys || []).filter(Boolean);"),
+      "expected browser-side existing task keys to include locally added candidates",
+    );
+    assert.ok(
+      html.includes('state.filter = "candidate";\n        mergeCandidateBatch("moments", message.tasks || []);'),
+      "expected moments extraction results to switch the UI to Candidate",
+    );
+    assert.ok(
+      html.includes('state.filter = "candidate";\n        mergeCandidateBatch("notes", message.tasks || []);'),
+      "expected notes extraction results to switch the UI to Candidate",
+    );
+    assert.ok(
+      html.includes("function handleDismissExtractedAction(actionEl) {") &&
+        !html.includes("function handleDismissExtractedAction(actionEl) {\n      const index = Number.parseInt(actionEl.dataset.index || \"-1\", 10);\n      const visibleCandidates = getVisibleCandidates();\n      if (Number.isNaN(index) || !visibleCandidates[index]) {\n        return;\n      }\n\n      const task = visibleCandidates[index];\n      state.candidateTasks = (state.candidateTasks || []).filter(function (candidate) {\n        return candidate.order !== task.order;\n      });\n      state.addedCandidateKeys = (state.addedCandidateKeys || []).filter(function (key) {"),
+      "expected dismiss handling to keep local duplicate guard keys intact",
+    );
+  });
+
+  test("dashboard webview restores notes extraction inputs and status from persisted state", () => {
+    const html = renderDashboardWebviewHtml(
+      undefined,
+      createMementoStubWithValues({
+        notesFromDate: "2026-03-20",
+        notesToDate: "2026-03-25",
+        notesAiStatus: "cached notes status",
+        notesAiStatusType: "processing",
+      }),
+    );
+
+    assert.ok(
+      html.includes('const notesFromDateInput = document.getElementById("notes-from-date");'),
+      "expected notes from input to be synchronized on load",
+    );
+    assert.ok(
+      html.includes('const notesToDateInput = document.getElementById("notes-to-date");'),
+      "expected notes to input to be synchronized on load",
+    );
+    assert.ok(
+      html.includes("notesFromDateInput.value = state.notesFromDate;"),
+      "expected persisted notes from date to be restored",
+    );
+    assert.ok(
+      html.includes("notesToDateInput.value = state.notesToDate;"),
+      "expected persisted notes to date to be restored",
+    );
+    assert.ok(
+      html.includes("setNotesAiStatus(state.notesAiStatusType, state.notesAiStatus);"),
+      "expected persisted notes status to be restored",
+    );
+  });
+
+  test("dashboard webview migrates legacy added extracted keys into unified candidate keys", () => {
+    const html = renderDashboardWebviewHtml(
+      undefined,
+      createMementoStubWithValues({
+        extractedTasks: [
+          {
+            kind: "candidate",
+            text: "Legacy moments task",
+            dueDate: null,
+            category: "work",
+            priority: "medium",
+            timeEstimateMin: 15,
+            source: "moments",
+            sourceLabel: "Moments",
+            existsAlready: false,
+          },
+        ],
+        notesExtractedTasks: [
+          {
+            kind: "candidate",
+            text: "Legacy notes task",
+            dueDate: null,
+            category: "admin",
+            priority: "low",
+            timeEstimateMin: 10,
+            source: "notes",
+            sourceLabel: "projects/plan.md",
+            existsAlready: false,
+          },
+        ],
+        addedExtractedKeys: [normalizeExtractedTaskIdentity("Legacy moments task")],
+        notesAddedExtractedKeys: [normalizeExtractedTaskIdentity("Legacy notes task")],
+      }),
+    );
+
+    assert.ok(
+      html.includes("addedCandidateKeys: Array.isArray(savedState.addedCandidateKeys)"),
+      "expected migrated candidate keys to seed unified local duplicate tracking",
+    );
+  });
+
+  test("dashboard webview renders the command center shell in the approved order", () => {
+    const html = renderDashboardWebviewHtml();
+
+    const headerIndex = html.indexOf('id="dashboard-header"');
+    const kpiIndex = html.indexOf('id="dashboard-kpis"');
+    const workspaceIndex = html.indexOf('id="dashboard-workspace"');
+    const toolbarIndex = html.indexOf('id="task-toolbar"');
+    const listIndex = html.indexOf('id="task-list"');
+    const railIndex = html.indexOf('id="support-rail"');
+    const analyticsIndex = html.indexOf('id="analytics-strip"');
+
+    assert.ok(headerIndex >= 0, "expected compact command center header marker");
+    assert.ok(kpiIndex >= 0, "expected KPI strip marker");
+    assert.ok(workspaceIndex >= 0, "expected split workspace marker");
+    assert.ok(toolbarIndex >= 0, "expected toolbar marker above the task list");
+    assert.ok(listIndex >= 0, "expected main list marker");
+    assert.ok(railIndex >= 0, "expected support rail marker");
+    assert.ok(analyticsIndex >= 0, "expected analytics strip marker");
+
+    assert.ok(headerIndex < kpiIndex, "expected header before KPI strip");
+    assert.ok(kpiIndex < workspaceIndex, "expected KPI strip before main workspace");
+    assert.ok(toolbarIndex < listIndex, "expected toolbar before the main task list column");
+    assert.ok(listIndex < railIndex, "expected list column before support rail");
+    assert.ok(workspaceIndex < analyticsIndex, "expected analytics strip below the main workspace");
+  });
+
+  test("dashboard webview removes the old hero-first shell while surfacing overdue context in attention KPI", () => {
+    const html = renderDashboardWebviewHtml((notesDir) => {
+      const overdueDate = new Date();
+      overdueDate.setDate(overdueDate.getDate() - 1);
+      const overdueYmd = formatDateYMD(overdueDate);
+      const overdueFile = path.join(notesDir, "tasks", `${overdueYmd}.md`);
+      fs.mkdirSync(path.dirname(overdueFile), { recursive: true });
+      fs.writeFileSync(overdueFile, `---\ntype: tasks\ndate: ${overdueYmd}\n---\n\n- [ ] Overdue task\n`, "utf8");
+    });
+
+    assert.ok(!html.includes('<section class="hero">'), "expected old hero block to be removed");
+    assert.ok(!html.includes('class="summary-card is-warning"'), "expected old overdue KPI card to be removed");
+    assert.ok(!html.includes('<div class="summary-label">Overdue</div>'), "expected overdue KPI label to be removed");
+    assert.match(
+      html,
+      /id="kpi-attention"[\s\S]*<div class="kpi-value">1<\/div>/,
+      "expected attention KPI to show the overdue task in its main value",
+    );
+    assert.match(
+      html,
+      /id="kpi-attention"[\s\S]*期限超過 1 件/,
+      "expected attention KPI to keep overdue count visible in the note text",
+    );
+  });
+
   test("dashboard webview persists extracted results immediately on message receipt", () => {
     const html = renderDashboardWebviewHtml();
 
     assert.ok(
-      html.includes("state.extractedTasks = message.tasks || [];\n        state.addedExtractedKeys = [];\n        persistState();\n        renderAiResult();"),
-      "expected extractResult handler to persist state before rendering",
+      html.includes("mergeCandidateBatch(\"moments\", message.tasks || []);\n        persistState();\n        rerender();"),
+      "expected extractResult handler to merge unified candidates before rerendering",
     );
     assert.ok(
-      html.includes("state.notesExtractedTasks = message.tasks || [];\n        state.notesAddedExtractedKeys = [];\n        persistState();\n        renderNotesExtractResult();"),
-      "expected notesExtractResult handler to persist state before rendering",
+      html.includes("mergeCandidateBatch(\"notes\", message.tasks || []);\n        persistState();\n        rerender();"),
+      "expected notesExtractResult handler to merge unified candidates before rerendering",
+    );
+  });
+
+  test("dashboard webview renders candidate filter in the main toolbar and keeps the support rail free of candidate cards", () => {
+    const html = renderDashboardWebviewHtml();
+
+    assert.ok(
+      html.includes('{ id: "candidate", label: "Candidate", count:'),
+      "expected Candidate filter chip definition in the main toolbar",
+    );
+    assert.ok(
+      !html.includes('class="ai-result" id="ai-result"'),
+      "expected support rail to drop moments candidate card rendering",
+    );
+    assert.ok(
+      !html.includes('class="ai-result" id="notes-extract-result"'),
+      "expected support rail to drop notes candidate card rendering",
     );
   });
 
@@ -665,6 +928,44 @@ suite("Extension Test Suite", () => {
       const taskLines = contents.split("\n").filter((line) => line.startsWith("- [ ] "));
       assert.deepStrictEqual(taskLines, ["- [ ] Send report @2026-03-30"]);
     } finally {
+      harness.cleanup();
+    }
+  });
+
+  test("addExtractedTask posts a failure ACK when createTask fails", async () => {
+    const harness = createDashboardPanelMessageHarness();
+    const panelWithPrivates = harness.panel as unknown as {
+      _createTask: (text: string, targetDate: string | null, dueDate: string | null) => Promise<void>;
+      _handleMessage(message: Record<string, unknown>): void;
+    };
+    const originalCreateTask = panelWithPrivates._createTask;
+
+    try {
+      panelWithPrivates._createTask = async () => {
+        throw new Error("disk full");
+      };
+
+      panelWithPrivates._handleMessage({
+        command: "addExtractedTask",
+        requestId: "candidate-1",
+        text: "Broken task",
+        dueDate: null,
+        targetDate: null,
+      });
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      assert.ok(
+        harness.messages.some(
+          (message) =>
+            message.type === "candidateAddFailed" &&
+            message.requestId === "candidate-1" &&
+            typeof message.message === "string",
+        ),
+        "expected addExtractedTask to notify the webview when persistence fails",
+      );
+    } finally {
+      panelWithPrivates._createTask = originalCreateTask;
       harness.cleanup();
     }
   });
@@ -931,6 +1232,48 @@ suite("Extension Test Suite", () => {
       "send report",
     );
     assert.strictEqual(normalizeExtractedTaskIdentity("整理する @2026-04-02"), "整理する");
+    assert.strictEqual(
+      normalizeExtractedTaskIdentity("  First line  \n\n second line due:2026-04-02  "),
+      "first line / second line",
+    );
+  });
+
+  test("dashboard webview aligns browser-side candidate identity normalization with multiline task sanitization", () => {
+    const html = renderDashboardWebviewHtml();
+
+    assert.ok(
+      html.includes("function sanitizeBrowserTaskText(text)"),
+      "expected browser-side task identity normalization helper to exist",
+    );
+    assert.ok(
+      html.includes('.join(" / ")'),
+      "expected browser-side task identity normalization to join lines like extension-side sanitization",
+    );
+  });
+
+  test("dashboard webview defines candidate add ACK handlers with rollback support", () => {
+    const html = renderDashboardWebviewHtml();
+
+    assert.ok(
+      html.includes('if (message.type === "candidateAddResult")'),
+      "expected browser-side success ACK handling for extracted candidate adds",
+    );
+    assert.ok(
+      html.includes('if (message.type === "candidateAddFailed")'),
+      "expected browser-side failure ACK handling for extracted candidate adds",
+    );
+    assert.ok(
+      html.includes("candidate.order === pending.order ? { ...candidate, added: false } : candidate"),
+      "expected failure ACK handling to roll candidate rows back into view",
+    );
+    assert.ok(
+      !html.includes('if (state.filter === "candidate") {\n        state.candidateTasks = state.candidateTasks.filter'),
+      "expected optimistic add to keep candidate rows in state so failure rollback can restore them",
+    );
+    assert.ok(
+      html.includes('if (pending && pending.source === "notes")'),
+      "expected failure rollback to route notes candidate errors to the notes status line",
+    );
   });
 
   test("filterExtractedTasksForDisplay hides dismissed and duplicate candidates but keeps existing matches visible", () => {
@@ -1286,6 +1629,214 @@ suite("Extension Test Suite", () => {
     assert.strictEqual(countDashboardListItemsForFilter(listItems, "candidate"), 2);
     assert.strictEqual(countDashboardListItemsForFilter(listItems, "all"), 3);
     assert.strictEqual(countDashboardListItemsForFilter(listItems, "attention"), 1);
+  });
+
+  test("dashboard list view model shows a dedicated Candidates section before saved-task sections", () => {
+    const savedTasks = buildDashboardTaskViews(
+      [
+        {
+          id: "tasks/2026-03-26.md:1",
+          filePath: "/tmp/notes/tasks/2026-03-26.md",
+          lineIndex: 1,
+          text: "Overdue saved",
+          done: false,
+          date: "2026-03-26",
+          dueDate: "2026-03-26",
+          tags: ["#work"],
+        },
+        {
+          id: "tasks/2026-03-27.md:2",
+          filePath: "/tmp/notes/tasks/2026-03-27.md",
+          lineIndex: 2,
+          text: "Today saved",
+          done: false,
+          date: "2026-03-27",
+          dueDate: "2026-03-27",
+          tags: ["#admin"],
+        },
+      ],
+      "2026-03-27",
+    );
+    const candidates = buildDashboardCandidateViews([
+      {
+        kind: "candidate",
+        text: "Candidate first",
+        dueDate: null,
+        category: "work",
+        priority: "medium",
+        timeEstimateMin: 15,
+        source: "moments",
+        sourceLabel: "Moments",
+        existsAlready: false,
+      },
+      {
+        kind: "candidate",
+        text: "Candidate duplicate",
+        dueDate: "2026-03-30",
+        category: "admin",
+        priority: "low",
+        timeEstimateMin: 10,
+        source: "notes",
+        sourceLabel: "projects/plan.md",
+        existsAlready: true,
+      },
+    ]);
+
+    const viewModel = buildDashboardListViewModel(
+      buildDashboardListItems(savedTasks, candidates),
+      "all",
+      "",
+    );
+
+    assert.deepStrictEqual(
+      viewModel.sections.map((section: { title: string; items: DashboardListItem[] }) => ({
+        title: section.title,
+        kinds: section.items.map((item: DashboardListItem) => item.kind),
+      })),
+      [
+        { title: "Candidates", kinds: ["candidate", "candidate"] },
+        { title: "Overdue", kinds: ["task"] },
+        { title: "Today", kinds: ["task"] },
+      ],
+    );
+  });
+
+  test("dashboard list view model keeps candidate filter and candidate-specific empty states distinct", () => {
+    const candidates = buildDashboardCandidateViews([
+      {
+        kind: "candidate",
+        text: "Candidate first",
+        dueDate: "2026-03-30",
+        category: "work",
+        priority: "medium",
+        timeEstimateMin: 15,
+        source: "notes",
+        sourceLabel: "projects/plan.md",
+        existsAlready: false,
+      },
+    ]);
+
+    const candidateOnly = buildDashboardListViewModel(candidates, "candidate", "");
+    assert.deepStrictEqual(
+      candidateOnly.sections.map((section: { title: string }) => section.title),
+      ["Candidates"],
+    );
+
+    const noCandidateRows = buildDashboardListViewModel([], "candidate", "");
+    assert.strictEqual(noCandidateRows.emptyMessage, "No candidates yet");
+
+    const noSearchResults = buildDashboardListViewModel(candidates, "candidate", "missing");
+    assert.strictEqual(noSearchResults.emptyMessage, "No search results");
+
+    const noItemsInFilter = buildDashboardListViewModel([], "today", "");
+    assert.strictEqual(noItemsInFilter.emptyMessage, "No items in this filter");
+
+    const noCandidateRowsWithSearch = buildDashboardListViewModel([], "candidate", "missing");
+    assert.strictEqual(noCandidateRowsWithSearch.emptyMessage, "No candidates yet");
+
+    const noItemsInFilterWithSearch = buildDashboardListViewModel([], "today", "missing");
+    assert.strictEqual(noItemsInFilterWithSearch.emptyMessage, "No items in this filter");
+  });
+
+  test("migrateDashboardCandidateState converts legacy extracted state into unified candidate state", () => {
+    const migrated = migrateDashboardCandidateState({
+      extractedTasks: [
+        {
+          kind: "candidate",
+          text: "Legacy moments task",
+          dueDate: null,
+          category: "work",
+          priority: "medium",
+          timeEstimateMin: 15,
+          source: "moments",
+          sourceLabel: "Moments",
+          existsAlready: false,
+        },
+      ],
+      notesExtractedTasks: [
+        {
+          kind: "candidate",
+          text: "Legacy notes task",
+          dueDate: "2026-03-30",
+          category: "admin",
+          priority: "low",
+          timeEstimateMin: 10,
+          source: "notes",
+          sourceLabel: "projects/plan.md",
+          existsAlready: true,
+        },
+      ],
+      addedExtractedKeys: [normalizeExtractedTaskIdentity("Legacy moments task")],
+      notesAddedExtractedKeys: [normalizeExtractedTaskIdentity("Legacy notes task")],
+    });
+
+    assert.deepStrictEqual(
+      migrated.candidateTasks.map((task) => ({
+        text: task.text,
+        source: task.source,
+        sourceLabel: task.sourceLabel,
+        order: task.order,
+        added: task.added,
+      })),
+      [
+        {
+          text: "Legacy moments task",
+          source: "moments",
+          sourceLabel: "Moments",
+          order: 0,
+          added: true,
+        },
+        {
+          text: "Legacy notes task",
+          source: "notes",
+          sourceLabel: "projects/plan.md",
+          order: 1,
+          added: true,
+        },
+      ],
+    );
+    assert.strictEqual(migrated.candidateOrderSeed, 2);
+    assert.deepStrictEqual(migrated.addedCandidateKeys, [
+      normalizeExtractedTaskIdentity("Legacy moments task"),
+      normalizeExtractedTaskIdentity("Legacy notes task"),
+    ]);
+  });
+
+  test("migrateDashboardCandidateState restores candidate order seed from existing candidate orders", () => {
+    const migrated = migrateDashboardCandidateState({
+      candidateTasks: [
+        {
+          kind: "candidate",
+          text: "Sparse first",
+          dueDate: null,
+          category: "work",
+          priority: "medium",
+          timeEstimateMin: 15,
+          source: "moments",
+          sourceLabel: "Moments",
+          existsAlready: false,
+          extractionIndex: 0,
+          order: 2,
+          added: false,
+        },
+        {
+          kind: "candidate",
+          text: "Sparse second",
+          dueDate: null,
+          category: "admin",
+          priority: "low",
+          timeEstimateMin: 10,
+          source: "notes",
+          sourceLabel: "projects/plan.md",
+          existsAlready: false,
+          extractionIndex: 1,
+          order: 7,
+          added: false,
+        },
+      ],
+    });
+
+    assert.strictEqual(migrated.candidateOrderSeed, 8);
   });
 
   test("dashboard task file resolver supports inbox and dated files", () => {

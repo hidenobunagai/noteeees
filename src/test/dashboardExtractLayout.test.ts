@@ -13,5 +13,10 @@ suite("Dashboard Extract Layout", () => {
       html,
       /From Notes[\s\S]*class="extract-stack"[\s\S]*class="extract-range-row"[\s\S]*id="notes-from-date"[\s\S]*id="notes-to-date"[\s\S]*class="extract-submit-row"[\s\S]*id="btn-extract-notes"/,
     );
+
+    assert.match(html, /id="ai-status"/);
+    assert.match(html, /id="notes-extract-status"/);
+    assert.doesNotMatch(html, /class="ai-result" id="ai-result"/);
+    assert.doesNotMatch(html, /class="ai-result" id="notes-extract-result"/);
   });
 });

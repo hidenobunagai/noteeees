@@ -94,9 +94,33 @@ export interface DashboardTaskView extends DashTask {
 
 export interface DashboardCandidateView extends DashboardCandidateTask {
   extractionIndex: number;
+  order?: number;
+  added?: boolean;
 }
 
 export type DashboardListItem = DashboardTaskView | DashboardCandidateView;
+
+export interface DashboardListSectionView {
+  key: DashboardTaskSection | "candidates";
+  title: string;
+  items: DashboardListItem[];
+}
+
+export interface DashboardListViewModel {
+  sections: DashboardListSectionView[];
+  emptyMessage: string | null;
+}
+
+export interface DashboardCandidateStateMigration {
+  candidateTasks: DashboardCandidateView[];
+  candidateOrderSeed: number;
+  addedCandidateKeys: string[];
+}
+
+interface DashboardCandidateAddAck {
+  requestId: string | null;
+  status: "added" | "exists";
+}
 
 interface DashboardSummary {
   totalOpen: number;
@@ -626,6 +650,155 @@ export function countDashboardListItemsForFilter(
   return items.filter((item) => matchesDashboardListItemFilter(item, filter)).length;
 }
 
+function matchesDashboardListItemSearch(item: DashboardListItem, query: string): boolean {
+  const normalizedQuery = query.trim().toLowerCase();
+  if (!normalizedQuery) {
+    return true;
+  }
+
+  const haystack =
+    item.kind === "candidate"
+      ? [
+          item.text,
+          item.sourceLabel,
+          item.source,
+          item.category,
+          item.priority,
+          item.dueDate ?? "",
+          item.existsAlready ? "already exists" : "",
+          "candidate",
+        ]
+      : [item.text, item.relativePath, item.date ?? "", item.dueDate ?? "", ...(item.tags || [])];
+
+  return haystack.join(" ").toLowerCase().includes(normalizedQuery);
+}
+
+export function buildDashboardListViewModel(
+  items: DashboardListItem[],
+  filter: DashboardListFilter,
+  search: string,
+): DashboardListViewModel {
+  const normalizedSearch = search.trim();
+  const filteredItems = items.filter((item) => matchesDashboardListItemFilter(item, filter));
+  const visibleItems = filteredItems.filter((item) => matchesDashboardListItemSearch(item, search));
+  const sections: DashboardListSectionView[] = [];
+
+  const candidateItems = visibleItems.filter(
+    (item): item is DashboardCandidateView => item.kind === "candidate",
+  );
+  if (candidateItems.length > 0) {
+    sections.push({ key: "candidates", title: "Candidates", items: candidateItems });
+  }
+
+  for (const section of Object.keys(SECTION_ORDER) as DashboardTaskSection[]) {
+    const taskItems = visibleItems.filter(
+      (item): item is DashboardTaskView => item.kind === "task" && item.section === section,
+    );
+    if (taskItems.length > 0) {
+      sections.push({ key: section, title: section[0].toUpperCase() + section.slice(1), items: taskItems });
+    }
+  }
+
+  if (sections.length > 0) {
+    return { sections, emptyMessage: null };
+  }
+
+  if (filteredItems.length === 0) {
+    if (filter === "candidate") {
+      return { sections: [], emptyMessage: "No candidates yet" };
+    }
+
+    return { sections: [], emptyMessage: "No items in this filter" };
+  }
+
+  if (normalizedSearch) {
+    return { sections: [], emptyMessage: "No search results" };
+  }
+
+  if (filter === "candidate") {
+    return { sections: [], emptyMessage: "No candidates yet" };
+  }
+
+  return { sections: [], emptyMessage: "No items in this filter" };
+}
+
+export function migrateDashboardCandidateState(savedState: {
+  candidateTasks?: unknown;
+  candidateOrderSeed?: unknown;
+  addedCandidateKeys?: unknown;
+  extractedTasks?: unknown;
+  notesExtractedTasks?: unknown;
+  addedExtractedKeys?: unknown;
+  notesAddedExtractedKeys?: unknown;
+}): DashboardCandidateStateMigration {
+  if (Array.isArray(savedState.candidateTasks)) {
+    const candidateTasks = savedState.candidateTasks as DashboardCandidateView[];
+    const maxOrder = candidateTasks.reduce((highest, task) => {
+      return typeof task.order === "number" && task.order > highest ? task.order : highest;
+    }, -1);
+    return {
+      candidateTasks,
+      candidateOrderSeed:
+        typeof savedState.candidateOrderSeed === "number"
+          ? savedState.candidateOrderSeed
+          : maxOrder + 1,
+      addedCandidateKeys: Array.isArray(savedState.addedCandidateKeys)
+        ? (savedState.addedCandidateKeys as string[])
+        : [],
+    };
+  }
+
+  let nextOrder = 0;
+  const fromMoments = (Array.isArray(savedState.extractedTasks) ? savedState.extractedTasks : []).map(
+    (task): DashboardCandidateView => {
+      const candidate = task as DashboardCandidateTask;
+      return {
+        ...candidate,
+        kind: "candidate",
+        source: candidate.source || "moments",
+        sourceLabel: candidate.sourceLabel || "Moments",
+        existsAlready: Boolean(candidate.existsAlready),
+        order: nextOrder++,
+        added: Array.isArray(savedState.addedExtractedKeys)
+          ? savedState.addedExtractedKeys.includes(normalizeExtractedTaskIdentity(candidate.text))
+          : false,
+        extractionIndex: nextOrder - 1,
+      };
+    },
+  );
+  const fromNotes = (Array.isArray(savedState.notesExtractedTasks)
+    ? savedState.notesExtractedTasks
+    : []
+  ).map((task): DashboardCandidateView => {
+    const candidate = task as DashboardCandidateTask;
+    return {
+      ...candidate,
+      kind: "candidate",
+      source: candidate.source || "notes",
+      sourceLabel: candidate.sourceLabel || "Notes",
+      existsAlready: Boolean(candidate.existsAlready),
+      order: nextOrder++,
+      added: Array.isArray(savedState.notesAddedExtractedKeys)
+        ? savedState.notesAddedExtractedKeys.includes(normalizeExtractedTaskIdentity(candidate.text))
+        : false,
+      extractionIndex: nextOrder - 1,
+    };
+  });
+
+  return {
+    candidateTasks: fromMoments.concat(fromNotes),
+    candidateOrderSeed: nextOrder,
+    addedCandidateKeys: (Array.isArray(savedState.addedExtractedKeys)
+      ? (savedState.addedExtractedKeys as string[])
+      : []
+    ).concat(
+      Array.isArray(savedState.notesAddedExtractedKeys)
+        ? (savedState.notesAddedExtractedKeys as string[])
+        : [],
+    ),
+  };
+}
+
 function buildSectionCounts(tasks: DashboardTaskView[]): Record<DashboardTaskSection, number> {
   const counts: Record<DashboardTaskSection, number> = {
     overdue: 0,
@@ -873,16 +1046,18 @@ export class DashboardPanel {
       }
 
       case "addExtractedTask": {
-        const { text, dueDate, targetDate } = message as {
+        const { text, dueDate, targetDate, requestId } = message as {
           text: string;
           dueDate?: string | null;
           targetDate?: string | null;
+          requestId?: string | null;
         };
-        void this._addExtractedTask(
+        void this._addExtractedTask({
           text,
-          normalizeOptionalDate(targetDate),
-          normalizeOptionalDate(dueDate),
-        );
+          targetDate: normalizeOptionalDate(targetDate),
+          dueDate: normalizeOptionalDate(dueDate),
+          requestId: typeof requestId === "string" ? requestId : null,
+        });
         return;
       }
 
@@ -1010,16 +1185,16 @@ export class DashboardPanel {
     text: string,
     targetDate: string | null,
     dueDate: string | null,
-  ): Promise<void> {
+  ): Promise<boolean> {
     const notesDir = this._getNotesDir();
     if (!notesDir) {
-      return;
+      return false;
     }
 
     const normalizedText = upsertDashboardDueDate(text, dueDate);
     if (!normalizedText) {
       void vscode.window.showErrorMessage("Task text cannot be empty.");
-      return;
+      return false;
     }
 
     const taskFile = ensureDashboardTaskFile(notesDir, targetDate);
@@ -1032,6 +1207,7 @@ export class DashboardPanel {
     );
 
     this._update();
+    return true;
   }
 
   private _hasExistingExtractedTask(notesDir: string, text: string): boolean {
@@ -1045,22 +1221,58 @@ export class DashboardPanel {
     );
   }
 
-  private async _addExtractedTask(
-    text: string,
-    targetDate: string | null,
-    dueDate: string | null,
-  ): Promise<void> {
+  private async _addExtractedTask({
+    text,
+    targetDate,
+    dueDate,
+    requestId,
+  }: {
+    text: string;
+    targetDate: string | null;
+    dueDate: string | null;
+    requestId: string | null;
+  }): Promise<void> {
     const notesDir = this._getNotesDir();
     if (!notesDir) {
+      this._postCandidateAddFailed(requestId, "Notes directory is not configured.");
       return;
     }
 
     if (this._hasExistingExtractedTask(notesDir, text)) {
       this._update();
+      this._postCandidateAddResult({ requestId, status: "exists" });
       return;
     }
 
-    await this._createTask(text, targetDate, dueDate);
+    try {
+      const created = await this._createTask(text, targetDate, dueDate);
+      if (!created) {
+        this._postCandidateAddFailed(requestId, "Task text cannot be empty.");
+        return;
+      }
+
+      this._postCandidateAddResult({ requestId, status: "added" });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Failed to add candidate task.";
+      void vscode.window.showErrorMessage(message);
+      this._postCandidateAddFailed(requestId, message);
+    }
+  }
+
+  private _postCandidateAddResult(result: DashboardCandidateAddAck): void {
+    void this._panel.webview.postMessage({
+      type: "candidateAddResult",
+      requestId: result.requestId,
+      status: result.status,
+    });
+  }
+
+  private _postCandidateAddFailed(requestId: string | null, message: string): void {
+    void this._panel.webview.postMessage({
+      type: "candidateAddFailed",
+      requestId,
+      message,
+    });
   }
 
   private async _openFile(filePath: string, lineIndex: number): Promise<void> {
@@ -1337,7 +1549,6 @@ export class DashboardPanel {
   :root {
     --bg: var(--vscode-editor-background, #111827);
     --surface: var(--vscode-editorWidget-background, #161b22);
-    --surface-muted: color-mix(in srgb, var(--vscode-editorWidget-background, #161b22) 92%, var(--vscode-textLink-foreground, #4f8cff) 8%);
     --border: var(--vscode-panel-border, #2d3748);
     --text: var(--vscode-foreground, #dbe2ea);
     --muted: var(--vscode-descriptionForeground, #8b98a5);
@@ -1372,23 +1583,25 @@ export class DashboardPanel {
     display: flex;
     flex-direction: column;
     gap: var(--gap);
+    max-width: 1440px;
+    margin: 0 auto;
   }
 
-  .hero {
+  .command-center-header {
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     justify-content: space-between;
     gap: var(--gap);
-    padding: 18px 20px;
+    padding: 14px 16px;
     border: 1px solid var(--border);
     border-radius: var(--radius);
-    background: var(--surface-muted);
+    background: var(--surface);
   }
 
-  .hero-copy {
+  .header-copy {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 4px;
     min-width: 0;
   }
 
@@ -1400,24 +1613,16 @@ export class DashboardPanel {
     text-transform: uppercase;
   }
 
-  .hero-title {
+  .header-title {
     margin: 0;
-    font-size: 24px;
-    font-weight: 700;
-    text-wrap: balance;
+    font-size: 18px;
+    font-weight: 600;
   }
 
-  .hero-subtitle {
-    margin: 0;
-    color: var(--muted);
-    max-width: 60ch;
-    text-wrap: pretty;
-  }
-
-  .hero-meta {
+  .header-meta {
     display: flex;
     flex-wrap: wrap;
-    justify-content: flex-end;
+    justify-content: flex-start;
     gap: 8px;
     align-items: center;
   }
@@ -1439,32 +1644,28 @@ export class DashboardPanel {
     font-variant-numeric: tabular-nums;
   }
 
-  .summary-grid {
+  .kpi-strip {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 12px;
   }
 
-  .summary-card {
+  .kpi-card {
     display: flex;
     flex-direction: column;
     gap: 6px;
-    padding: 16px;
+    padding: 14px 16px;
     border-radius: var(--radius);
     border: 1px solid var(--border);
     background: var(--surface);
     min-width: 0;
   }
 
-  .summary-card.is-accent {
+  .kpi-card.is-accent {
     border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
   }
 
-  .summary-card.is-warning {
-    border-color: color-mix(in srgb, var(--warning) 40%, var(--border));
-  }
-
-  .summary-label {
+  .kpi-label {
     color: var(--muted);
     font-size: 11px;
     font-weight: 600;
@@ -1472,30 +1673,35 @@ export class DashboardPanel {
     text-transform: uppercase;
   }
 
-  .summary-value {
-    font-size: 28px;
-    font-weight: 700;
+  .kpi-value {
+    font-size: 24px;
+    font-weight: 600;
     line-height: 1;
     font-variant-numeric: tabular-nums;
   }
 
-  .summary-note {
+  .kpi-note {
     color: var(--muted);
     font-size: 12px;
   }
 
-  .layout {
+  .workspace-shell {
     display: grid;
     grid-template-columns: minmax(0, 1fr) 340px;
     gap: var(--gap);
     align-items: start;
   }
 
+  .workspace-main,
+  .support-rail {
+    min-width: 0;
+  }
+
   .card {
     border: 1px solid var(--border);
     border-radius: var(--radius);
     background: var(--surface);
-    padding: 18px;
+    padding: 16px;
   }
 
   .card-header {
@@ -1536,7 +1742,11 @@ export class DashboardPanel {
     display: flex;
     flex-direction: column;
     gap: 12px;
-    margin-bottom: 14px;
+    margin-bottom: 16px;
+    padding: 14px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: color-mix(in srgb, var(--surface) 90%, var(--bg));
   }
 
   .filter-row {
@@ -1604,6 +1814,7 @@ export class DashboardPanel {
     display: flex;
     flex-direction: column;
     gap: 18px;
+    min-width: 0;
   }
 
   .task-section {
@@ -1659,6 +1870,14 @@ export class DashboardPanel {
 
   .task-item.is-done {
     opacity: 0.76;
+  }
+
+  .task-item.is-candidate {
+    background: color-mix(in srgb, var(--surface) 86%, var(--bg));
+  }
+
+  .task-item.is-candidate-blocked {
+    opacity: 0.8;
   }
 
   .task-check {
@@ -1984,16 +2203,11 @@ export class DashboardPanel {
     text-align: center;
   }
 
-  .side-column {
-    min-width: 0;
-  }
-
-  .analytics-grid {
+  .analytics-strip {
     display: grid;
     grid-template-columns: minmax(0, 1fr) 340px;
     gap: var(--gap);
-    margin-top: var(--gap);
-    margin-bottom: var(--gap);
+    align-items: start;
   }
 
   .week-chart {
@@ -2177,8 +2391,8 @@ export class DashboardPanel {
   }
 
   @media (max-width: 1000px) {
-    .layout,
-    .analytics-grid {
+    .workspace-shell,
+    .analytics-strip {
       grid-template-columns: 1fr;
     }
   }
@@ -2188,15 +2402,16 @@ export class DashboardPanel {
       padding: 14px;
     }
 
-    .hero {
+    .command-center-header {
       flex-direction: column;
+      align-items: flex-start;
     }
 
-    .hero-meta {
+    .header-meta {
       justify-content: flex-start;
     }
 
-    .summary-grid,
+    .kpi-strip,
     .field-grid {
       grid-template-columns: 1fr;
     }
@@ -2218,75 +2433,47 @@ export class DashboardPanel {
     .task-actions {
       justify-content: flex-start;
     }
+
+    .task-toolbar {
+      padding: 12px;
+    }
   }
 </style>
 </head>
 <body>
   <div class="page">
-    <section class="hero">
-      <div class="hero-copy">
-        <div class="eyebrow">Capture, Manage, Review</div>
-        <h1 class="hero-title">Task Dashboard</h1>
-        <p class="hero-subtitle">Moments や Notes から生まれるタスクを、手動で整えながら見える化する画面です。日付指定が空なら inbox、日付を入れればその日のタスクファイルへ保存します。</p>
+    <header class="command-center-header" id="dashboard-header">
+      <div class="header-copy">
+        <div class="eyebrow">Command Center</div>
+        <h1 class="header-title">Task Dashboard</h1>
       </div>
-      <div class="hero-meta">
+      <div class="header-meta">
         <div class="pill"><strong class="mono">${escHtml(data.today)}</strong><span>Today</span></div>
-        <div class="pill"><strong>${data.tasks.length}</strong><span>Total tasks</span></div>
+        <div class="pill"><strong>${data.tasks.length}</strong><span>Tracked</span></div>
         <button class="btn" id="btn-refresh" type="button">Refresh</button>
       </div>
-    </section>
+    </header>
 
-    <section class="summary-grid">
-      <article class="summary-card is-accent">
-        <div class="summary-label">Open</div>
-        <div class="summary-value">${data.summary.totalOpen}</div>
-        <div class="summary-note">未完了タスク全体</div>
+    <section class="kpi-strip" id="dashboard-kpis">
+      <article class="kpi-card is-accent" id="kpi-open">
+        <div class="kpi-label">Open</div>
+        <div class="kpi-value">${data.summary.totalOpen}</div>
+        <div class="kpi-note">未完了タスク全体</div>
       </article>
-      <article class="summary-card is-accent">
-        <div class="summary-label">Attention</div>
-        <div class="summary-value">${data.summary.attentionCount}</div>
-        <div class="summary-note">overdue / today / 7日以内</div>
+      <article class="kpi-card is-accent" id="kpi-attention">
+        <div class="kpi-label">Attention</div>
+        <div class="kpi-value">${data.summary.attentionCount}</div>
+        <div class="kpi-note">期限超過 ${data.summary.overdueCount} 件 / overdue / today / 7日以内</div>
       </article>
-      <article class="summary-card is-warning">
-        <div class="summary-label">Overdue</div>
-        <div class="summary-value">${data.summary.overdueCount}</div>
-        <div class="summary-note">期限超過または過去日付の未完了</div>
-      </article>
-      <article class="summary-card">
-        <div class="summary-label">Completion</div>
-        <div class="summary-value">${data.summary.completionRate}%</div>
-        <div class="summary-note">${data.summary.totalDone} 件が完了済み</div>
+      <article class="kpi-card" id="kpi-completion">
+        <div class="kpi-label">Completion %</div>
+        <div class="kpi-value">${data.summary.completionRate}%</div>
+        <div class="kpi-note">${data.summary.totalDone} 件が完了済み</div>
       </article>
     </section>
 
-    <div class="analytics-grid">
-      <section class="card">
-        <div class="card-header">
-          <div>
-            <div class="eyebrow">Upcoming Load</div>
-            <h3>Next 7 days</h3>
-          </div>
-        </div>
-        <div class="week-chart">${weekBarsHtml}</div>
-        <div class="chart-legend">
-          <span><span class="legend-dot" style="background:color-mix(in srgb, var(--success) 60%, transparent)"></span>Done</span>
-          <span><span class="legend-dot" style="background:color-mix(in srgb, var(--accent) 55%, transparent)"></span>Open</span>
-        </div>
-      </section>
-
-      <section class="card">
-        <div class="card-header">
-          <div>
-            <div class="eyebrow">Open Mix</div>
-            <h3>Category balance</h3>
-          </div>
-        </div>
-        <div class="category-list">${categoryHtml}</div>
-      </section>
-    </div>
-
-    <div class="layout">
-      <section class="card">
+    <section class="workspace-shell" id="dashboard-workspace">
+      <section class="workspace-main card">
         <div class="card-header">
           <div>
             <div class="eyebrow">Task Workspace</div>
@@ -2296,7 +2483,7 @@ export class DashboardPanel {
           <div class="card-meta"><span class="mono">${data.summary.totalOpen}</span><span>open now</span></div>
         </div>
 
-        <div class="task-toolbar">
+        <div class="task-toolbar" id="task-toolbar">
           <div class="filter-row" id="filter-row"></div>
           <label class="search-shell" aria-label="Search tasks">
             <span>Search</span>
@@ -2307,7 +2494,7 @@ export class DashboardPanel {
         <div class="task-list" id="task-list"></div>
       </section>
 
-      <aside class="side-column">
+      <aside class="support-rail" id="support-rail">
         <section class="card">
           <div class="card-header">
             <div>
@@ -2350,13 +2537,125 @@ ${buildDashboardExtractSectionHtml(data.today)}
           </div>
         </section>
       </aside>
-    </div>
+    </section>
+
+    <section class="analytics-strip" id="analytics-strip">
+      <section class="card">
+        <div class="card-header">
+          <div>
+            <div class="eyebrow">Upcoming Load</div>
+            <h3>Next 7 days</h3>
+          </div>
+        </div>
+        <div class="week-chart">${weekBarsHtml}</div>
+        <div class="chart-legend">
+          <span><span class="legend-dot" style="background:color-mix(in srgb, var(--success) 60%, transparent)"></span>Done</span>
+          <span><span class="legend-dot" style="background:color-mix(in srgb, var(--accent) 55%, transparent)"></span>Open</span>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="card-header">
+          <div>
+            <div class="eyebrow">Open Mix</div>
+            <h3>Category balance</h3>
+          </div>
+        </div>
+        <div class="category-list">${categoryHtml}</div>
+      </section>
+    </section>
   </div>
 
   <script nonce="${nonce}">
     const vscode = acquireVsCodeApi();
     const dashboardData = ${payload};
     const savedState = vscode.getState() || {};
+    const pendingCandidateAdds = [];
+
+    function sanitizeBrowserTaskText(text) {
+      return String(text || "")
+        .replace(/\r\n/g, "\n")
+        .split(/\r?\n/)
+        .map(function (line) {
+          return line.trim();
+        })
+        .filter(Boolean)
+        .join(" / ")
+        .replace(/\s+/g, " ")
+        .trim();
+    }
+
+    function normalizedCandidateIdentity(text) {
+      return sanitizeBrowserTaskText(text)
+        .replace(/\s*(?:📅|due:|@)(\d{4}-\d{2}-\d{2})\b/g, "")
+        .replace(/\s{2,}/g, " ")
+        .trim()
+        .normalize("NFKC")
+        .toLowerCase();
+    }
+
+    function migrateLegacyCandidateState(savedState) {
+      if (Array.isArray(savedState.candidateTasks)) {
+        const maxOrder = savedState.candidateTasks.reduce(function (highest, task) {
+          return typeof task.order === "number" && task.order > highest ? task.order : highest;
+        }, -1);
+        return {
+          candidateTasks: savedState.candidateTasks,
+          candidateOrderSeed:
+            typeof savedState.candidateOrderSeed === "number"
+              ? savedState.candidateOrderSeed
+              : maxOrder + 1,
+          addedCandidateKeys: Array.isArray(savedState.addedCandidateKeys)
+            ? savedState.addedCandidateKeys
+            : [],
+        };
+      }
+
+      let nextOrder = 0;
+      const fromMoments = (Array.isArray(savedState.extractedTasks) ? savedState.extractedTasks : []).map(
+        function (task) {
+          return {
+            kind: "candidate",
+            source: task.source || "moments",
+            sourceLabel: task.sourceLabel || "Moments",
+            existsAlready: Boolean(task.existsAlready),
+            order: nextOrder++,
+            added: Array.isArray(savedState.addedExtractedKeys)
+              ? savedState.addedExtractedKeys.includes(normalizedCandidateIdentity(task.text))
+              : false,
+            extractionIndex: nextOrder - 1,
+            ...task,
+          };
+        },
+      );
+      const fromNotes = (Array.isArray(savedState.notesExtractedTasks) ? savedState.notesExtractedTasks : []).map(
+        function (task) {
+          return {
+            kind: "candidate",
+            source: task.source || "notes",
+            sourceLabel: task.sourceLabel || "Notes",
+            existsAlready: Boolean(task.existsAlready),
+            order: nextOrder++,
+            added: Array.isArray(savedState.notesAddedExtractedKeys)
+              ? savedState.notesAddedExtractedKeys.includes(normalizedCandidateIdentity(task.text))
+              : false,
+            extractionIndex: nextOrder - 1,
+            ...task,
+          };
+        },
+      );
+
+      return {
+        candidateTasks: fromMoments.concat(fromNotes),
+        candidateOrderSeed: nextOrder,
+        addedCandidateKeys: (Array.isArray(savedState.addedExtractedKeys) ? savedState.addedExtractedKeys : []).concat(
+          Array.isArray(savedState.notesAddedExtractedKeys) ? savedState.notesAddedExtractedKeys : [],
+        ),
+      };
+    }
+
+    const migratedCandidates = migrateLegacyCandidateState(savedState);
+
     const state = {
       filter: savedState.filter === "focus" ? "attention" : (savedState.filter || "attention"),
       search: savedState.search || "",
@@ -2365,14 +2664,15 @@ ${buildDashboardExtractSectionHtml(data.today)}
       composerDueDate: savedState.composerDueDate || "",
       aiSourceDate: savedState.aiSourceDate || dashboardData.today,
       editingId: savedState.editingId || null,
-      extractedTasks: Array.isArray(savedState.extractedTasks) ? savedState.extractedTasks : [],
-      addedExtractedKeys: Array.isArray(savedState.addedExtractedKeys) ? savedState.addedExtractedKeys : [],
+      candidateTasks: migratedCandidates.candidateTasks,
+      candidateOrderSeed: migratedCandidates.candidateOrderSeed,
+      addedCandidateKeys: Array.isArray(savedState.addedCandidateKeys)
+        ? savedState.addedCandidateKeys
+        : migratedCandidates.addedCandidateKeys,
       aiStatus: savedState.aiStatus || "",
       aiStatusType: savedState.aiStatusType || "idle",
       notesFromDate: savedState.notesFromDate || dashboardData.today,
       notesToDate: savedState.notesToDate || dashboardData.today,
-      notesExtractedTasks: Array.isArray(savedState.notesExtractedTasks) ? savedState.notesExtractedTasks : [],
-      notesAddedExtractedKeys: Array.isArray(savedState.notesAddedExtractedKeys) ? savedState.notesAddedExtractedKeys : [],
       notesAiStatus: savedState.notesAiStatus || "",
       notesAiStatusType: savedState.notesAiStatusType || "idle",
     };
@@ -2398,6 +2698,7 @@ ${buildDashboardExtractSectionHtml(data.today)}
     const filterDefinitions = [
       { id: "attention", label: "Attention", count: dashboardData.sectionCounts.overdue + dashboardData.sectionCounts.today + dashboardData.sectionCounts.upcoming },
       { id: "all", label: "All", count: dashboardData.tasks.length },
+      { id: "candidate", label: "Candidate", count: state.candidateTasks.filter(function (task) { return !task.added; }).length },
       { id: "overdue", label: "Overdue", count: dashboardData.sectionCounts.overdue },
       { id: "today", label: "Today", count: dashboardData.sectionCounts.today },
       { id: "upcoming", label: "Upcoming", count: dashboardData.sectionCounts.upcoming },
@@ -2415,7 +2716,8 @@ ${buildDashboardExtractSectionHtml(data.today)}
     const composerTargetPreview = document.getElementById("composer-target-preview");
     const aiSourceDateInput = document.getElementById("ai-source-date");
     const aiStatus = document.getElementById("ai-status");
-    const aiResult = document.getElementById("ai-result");
+    const notesFromDateInput = document.getElementById("notes-from-date");
+    const notesToDateInput = document.getElementById("notes-to-date");
 
     function persistState() {
       vscode.setState({
@@ -2426,14 +2728,13 @@ ${buildDashboardExtractSectionHtml(data.today)}
         composerDueDate: state.composerDueDate,
         aiSourceDate: state.aiSourceDate,
         editingId: state.editingId,
-        extractedTasks: state.extractedTasks,
-        addedExtractedKeys: state.addedExtractedKeys,
+        candidateTasks: state.candidateTasks,
+        candidateOrderSeed: state.candidateOrderSeed,
+        addedCandidateKeys: state.addedCandidateKeys,
         aiStatus: state.aiStatus,
         aiStatusType: state.aiStatusType,
         notesFromDate: state.notesFromDate,
         notesToDate: state.notesToDate,
-        notesExtractedTasks: state.notesExtractedTasks,
-        notesAddedExtractedKeys: state.notesAddedExtractedKeys,
         notesAiStatus: state.notesAiStatus,
         notesAiStatusType: state.notesAiStatusType,
       });
@@ -2473,12 +2774,24 @@ ${buildDashboardExtractSectionHtml(data.today)}
     }
 
     function normalizeTaskIdentity(text) {
-      return String(text || "")
-        .replace(/\s*(?:📅|due:|@)(\d{4}-\d{2}-\d{2})\b/g, "")
-        .replace(/\s+/g, " ")
-        .trim()
-        .normalize("NFKC")
-        .toLowerCase();
+      return normalizedCandidateIdentity(text);
+    }
+
+    function createPendingCandidateRequestId(task) {
+      return "candidate-" + String(task.order) + "-" + Date.now();
+    }
+
+    function removePendingCandidateAdd(requestId) {
+      const index = pendingCandidateAdds.findIndex(function (pending) {
+        return pending.requestId === requestId;
+      });
+      if (index < 0) {
+        return null;
+      }
+
+      const pending = pendingCandidateAdds[index];
+      pendingCandidateAdds.splice(index, 1);
+      return pending;
     }
 
     function getSaveTargetLabel() {
@@ -2490,53 +2803,155 @@ ${buildDashboardExtractSectionHtml(data.today)}
     }
 
     function getExistingTaskKeys() {
+      const persistedTaskKeys = (dashboardData.tasks || [])
+        .map(function (task) {
+          return normalizeTaskIdentity(task.text);
+        })
+        .filter(Boolean);
+      state.addedCandidateKeys = (state.addedCandidateKeys || []).filter(function (key) {
+        return !persistedTaskKeys.includes(key);
+      });
+      const locallyAddedKeys = (state.addedCandidateKeys || []).filter(Boolean);
       return new Set(
-        (dashboardData.tasks || [])
-          .map(function (task) {
-            return normalizeTaskIdentity(task.text);
-          })
+        persistedTaskKeys
+          .concat(locallyAddedKeys)
           .filter(Boolean),
       );
     }
 
-    function matchesFilter(task) {
-      if (state.filter === "all") {
+    function matchesDashboardListItemFilter(item, filter) {
+      if (filter === "all") {
         return true;
       }
 
-      if (state.filter === "attention" || state.filter === "focus") {
-        return task.section === "overdue" || task.section === "today" || task.section === "upcoming";
+      if (filter === "candidate") {
+        return item.kind === "candidate";
       }
 
-      return task.section === state.filter;
+      if (item.kind === "candidate") {
+        return false;
+      }
+
+      if (filter === "attention" || filter === "focus") {
+        return item.section === "overdue" || item.section === "today" || item.section === "upcoming";
+      }
+
+      return item.section === filter;
     }
 
-    function matchesSearch(task) {
-      if (!state.search) {
+    function matchesDashboardListItemSearch(item, query) {
+      const normalizedQuery = String(query || "").trim().toLowerCase();
+      if (!normalizedQuery) {
         return true;
       }
 
-      const query = state.search.toLowerCase();
-      const haystack = [
-        task.text,
-        task.relativePath,
-        task.date || "",
-        task.dueDate || "",
-        ...(task.tags || []),
-      ]
-        .join(" ")
-        .toLowerCase();
+      const haystack = item.kind === "candidate"
+        ? [
+            item.text,
+            item.sourceLabel || "",
+            item.source || "",
+            item.category || "",
+            item.priority || "",
+            item.dueDate || "",
+            item.existsAlready ? "already exists" : "",
+            "candidate",
+          ]
+        : [item.text, item.relativePath || "", item.date || "", item.dueDate || ""].concat(item.tags || []);
 
-      return haystack.includes(query);
+      return haystack.join(" ").toLowerCase().includes(normalizedQuery);
     }
 
-    function getVisibleTasks() {
-      return dashboardData.tasks.filter(function (task) {
-        return matchesFilter(task) && matchesSearch(task);
+    function buildDashboardListViewModel(items, filter, search) {
+      const normalizedSearch = String(search || "").trim();
+      const filteredItems = items.filter(function (item) {
+        return matchesDashboardListItemFilter(item, filter);
       });
+      const visibleItems = filteredItems.filter(function (item) {
+        return matchesDashboardListItemSearch(item, search);
+      });
+      const sections = [];
+
+      const candidateItems = visibleItems.filter(function (item) {
+        return item.kind === "candidate";
+      });
+      if (candidateItems.length > 0) {
+        sections.push({ key: "candidates", title: "Candidates", items: candidateItems });
+      }
+
+      sectionOrder.forEach(function (section) {
+        const taskItems = visibleItems.filter(function (item) {
+          return item.kind === "task" && item.section === section;
+        });
+        if (taskItems.length > 0) {
+          sections.push({ key: section, title: sectionTitles[section], items: taskItems });
+        }
+      });
+
+      if (sections.length > 0) {
+        return { sections: sections, emptyMessage: null };
+      }
+
+      if (filteredItems.length === 0) {
+        return {
+          sections: [],
+          emptyMessage: filter === "candidate" ? "No candidates yet" : "No items in this filter",
+        };
+      }
+
+      if (normalizedSearch) {
+        return { sections: [], emptyMessage: "No search results" };
+      }
+
+      if (filter === "candidate") {
+        return { sections: [], emptyMessage: "No candidates yet" };
+      }
+
+      return { sections: [], emptyMessage: "No items in this filter" };
+    }
+
+    function getVisibleCandidates() {
+      const existingTaskKeys = getExistingTaskKeys();
+      return (state.candidateTasks || [])
+        .map(function (task) {
+          return {
+            ...task,
+            existsAlready: existingTaskKeys.has(extractedTaskKey(task)) || Boolean(task.existsAlready),
+          };
+        })
+        .filter(function (task) {
+          return !task.added;
+        })
+        .sort(function (a, b) {
+          return (a.order || 0) - (b.order || 0);
+        });
+    }
+
+    function mergeCandidateBatch(source, tasks) {
+      const retained = (state.candidateTasks || []).filter(function (task) {
+        return task.source !== source;
+      });
+      const merged = (tasks || []).map(function (task) {
+        return {
+          kind: "candidate",
+          source: source,
+          sourceLabel: task.sourceLabel || (source === "notes" ? "Notes" : "Moments"),
+          existsAlready: Boolean(task.existsAlready),
+          order: state.candidateOrderSeed++,
+          added: false,
+          ...task,
+        };
+      });
+      state.candidateTasks = retained.concat(merged);
+    }
+
+    function getListViewModel() {
+      const listItems = (dashboardData.tasks || []).concat(getVisibleCandidates());
+      return buildDashboardListViewModel(listItems, state.filter, state.search);
     }
 
     function renderFilters() {
+      filterDefinitions[1].count = dashboardData.tasks.length + getVisibleCandidates().length;
+      filterDefinitions[2].count = getVisibleCandidates().length;
       filterRow.innerHTML = filterDefinitions
         .map(function (filter) {
           const activeClass = filter.id === state.filter ? " is-active" : "";
@@ -2560,6 +2975,17 @@ ${buildDashboardExtractSectionHtml(data.today)}
       }
       for (const tag of task.tags || []) {
         badges.push('<span class="badge is-accent">' + esc(tag) + "</span>");
+      }
+      return badges.join("");
+    }
+
+    function renderCandidateMeta(task) {
+      const badges = [
+        '<span class="badge">' + esc(task.sourceLabel || "Unknown") + "</span>",
+        '<span class="badge">' + esc(task.category) + "</span>",
+      ];
+      if (task.dueDate) {
+        badges.push('<span class="badge is-accent">Due ' + esc(formatDateLabel(task.dueDate)) + "</span>");
       }
       return badges.join("");
     }
@@ -2619,32 +3045,52 @@ ${buildDashboardExtractSectionHtml(data.today)}
       "</article>";
     }
 
+    function renderCandidateItem(task, index) {
+      const canAdd = canAddDashboardCandidate(task, getExistingTaskKeys());
+      const itemClasses = ["task-item", "is-candidate", task.existsAlready ? "is-candidate-blocked" : ""]
+        .filter(Boolean)
+        .join(" ");
+      return '<article class="' + itemClasses + '">' +
+        '<label class="task-check"><span class="badge">AI</span></label>' +
+        '<div class="task-body">' +
+          '<div class="task-head">' +
+            '<div class="task-title">' + esc(task.text) + '</div>' +
+            '<div class="task-actions">' +
+              '<span class="badge">Candidate</span>' +
+              '<button type="button" class="text-btn" data-action="dismiss-candidate" data-index="' + index + '">Dismiss</button>' +
+              '<button type="button" class="text-btn' + (canAdd ? '' : ' is-danger') + '"' + (canAdd ? '' : ' disabled') + ' data-action="add-candidate" data-index="' + index + '">' + (canAdd ? 'Add' : 'Already exists') + '</button>' +
+            '</div>' +
+          '</div>' +
+          '<div class="task-meta">' + renderCandidateMeta(task) + '</div>' +
+        '</div>' +
+      '</article>';
+    }
+
     function renderTasks() {
-      const visibleTasks = getVisibleTasks();
-      if (visibleTasks.length === 0) {
-        taskList.innerHTML = '<div class="empty-state">該当するタスクはありません。検索条件を変えるか、右側の Composer から追加してください。</div>';
+      const viewModel = getListViewModel();
+      if (viewModel.emptyMessage) {
+        taskList.innerHTML = '<div class="empty-state">' + esc(viewModel.emptyMessage) + '</div>';
         return;
       }
 
-      const groups = {};
-      for (const section of sectionOrder) {
-        groups[section] = [];
-      }
-
-      for (const task of visibleTasks) {
-        groups[task.section].push(task);
-      }
-
-      const html = sectionOrder
-        .filter(function (section) {
-          return groups[section].length > 0;
-        })
+      const visibleCandidates = getVisibleCandidates();
+      const html = viewModel.sections
         .map(function (section) {
-          const items = groups[section].map(renderTaskItem).join("");
+          const items = section.items
+            .map(function (item) {
+              if (item.kind === "candidate") {
+                const index = visibleCandidates.findIndex(function (candidate) {
+                  return candidate.order === item.order;
+                });
+                return renderCandidateItem(item, index);
+              }
+              return renderTaskItem(item);
+            })
+            .join("");
           return '<section class="task-section">' +
             '<div class="task-section-header">' +
-              "<h3>" + esc(sectionTitles[section]) + "</h3>" +
-              "<span>" + groups[section].length + " · " + esc(sectionDescriptions[section]) + "</span>" +
+              "<h3>" + esc(section.title) + "</h3>" +
+              "<span>" + section.items.length + (section.key === "candidates" ? " · extracted suggestions" : " · " + esc(sectionDescriptions[section.key])) + "</span>" +
             "</div>" +
             '<div class="task-items">' + items + "</div>" +
           "</section>";
@@ -2673,98 +3119,23 @@ ${buildDashboardExtractSectionHtml(data.today)}
       notesStatus.textContent = state.notesAiStatus;
     }
 
-    function renderExtractResult() {
-      const existingTaskKeys = getExistingTaskKeys();
-      const visibleItems = (state.extractedTasks || [])
-        .map(function (task, index) {
-          const key = extractedTaskKey(task);
-          const isAdded = state.addedExtractedKeys.includes(key);
-          const existsAlready = existingTaskKeys.has(key);
-          const dueBadge = task.dueDate
-            ? '<span class="badge is-accent">Due ' + esc(formatDateLabel(task.dueDate)) + "</span>"
-            : "";
-          return '<div class="extract-item">' +
-            '<div class="extract-head">' +
-              '<div class="extract-title">' + esc(task.text) + "</div>" +
-              '<div class="extract-meta">' + esc(task.category) + " · " + esc(task.priority) + " · ~" + esc(String(task.timeEstimateMin)) + " min</div>" +
-              (dueBadge ? '<div style="margin-top: 4px;">' + dueBadge + '</div>' : '') +
-            "</div>" +
-            '<div class="extract-actions">' +
-              '<button type="button" class="btn" data-action="dismiss-extracted" data-index="' + index + '">Hide</button>' +
-              '<button type="button" class="btn btn-primary"' + (isAdded || existsAlready ? " disabled" : "") + ' data-action="add-extracted" data-index="' + index + '">' + (isAdded ? "Added" : existsAlready ? "Already exists" : "Add Task") + "</button>" +
-            "</div>" +
-          "</div>";
-        })
-        .filter(Boolean)
-        .join("");
-
-      if (!visibleItems) {
-        aiResult.innerHTML = "";
-        return;
-      }
-
-      aiResult.innerHTML = '<div class="helper" style="margin-bottom: 12px;">抽出結果は上部の保存先に追加されます。</div>' + visibleItems;
-    }
-
-    function renderAiResult() {
-      renderExtractResult();
-    }
-
-    function renderNotesExtractResult() {
-      const notesResult = document.getElementById("notes-extract-result");
-      if (!state.notesExtractedTasks || state.notesExtractedTasks.length === 0) {
-        notesResult.innerHTML = "";
-        return;
-      }
-
-      const existingTaskKeys = getExistingTaskKeys();
-      const visibleItems = (state.notesExtractedTasks || [])
-        .map(function (task, index) {
-          const key = extractedTaskKey(task);
-          const existsAlready = existingTaskKeys.has(key);
-          const isAdded = state.notesAddedExtractedKeys.includes(key);
-          const dueBadge = task.dueDate
-            ? '<span class="badge is-accent">Due ' + esc(formatDateLabel(task.dueDate)) + "</span>"
-            : "";
-          const sourceBadge = '<span class="badge">' + esc(task.sourceLabel || "unknown") + "</span>";
-          return '<div class="extract-item">' +
-            '<div class="extract-head">' +
-              '<div class="extract-title">' + esc(task.text) + "</div>" +
-              '<div class="extract-meta">' + esc(task.category) + " · " + esc(task.priority) + " · ~" + esc(String(task.timeEstimateMin)) + " min</div>" +
-              '<div style="margin-top: 4px; display: flex; gap: 6px; flex-wrap: wrap;">' + sourceBadge + dueBadge + '</div>' +
-            "</div>" +
-            '<div class="extract-actions">' +
-              '<button type="button" class="btn" data-action="dismiss-notes-extracted" data-index="' + index + '">Hide</button>' +
-              '<button type="button" class="btn btn-primary"' + (isAdded || existsAlready ? " disabled" : "") + ' data-action="add-notes-extracted" data-index="' + index + '">' + (isAdded ? "Added" : existsAlready ? "Already exists" : "Add Task") + "</button>" +
-            "</div>" +
-          "</div>";
-        })
-        .join("");
-
-      if (!visibleItems) {
-        notesResult.innerHTML = "";
-        return;
-      }
-
-      notesResult.innerHTML = '<div class="helper" style="margin-bottom: 12px;">抽出結果は上部の保存先に追加されます。</div>' + visibleItems;
-    }
-
     function syncStaticInputs() {
       taskSearchInput.value = state.search;
       newTaskText.value = state.composerText;
       newTaskTargetDate.value = state.targetDate;
       newTaskDueDate.value = state.composerDueDate;
       aiSourceDateInput.value = state.aiSourceDate;
+      notesFromDateInput.value = state.notesFromDate;
+      notesToDateInput.value = state.notesToDate;
       updateComposerPreview();
       setAiStatus(state.aiStatusType, state.aiStatus);
+      setNotesAiStatus(state.notesAiStatusType, state.notesAiStatus);
     }
 
     function rerender() {
       persistState();
       renderFilters();
       renderTasks();
-      renderAiResult();
-      renderNotesExtractResult();
       updateComposerPreview();
     }
 
@@ -2805,18 +3176,16 @@ ${buildDashboardExtractSectionHtml(data.today)}
     });
 
     document.getElementById("btn-ai-extract").addEventListener("click", function () {
-      state.extractedTasks = [];
-      state.addedExtractedKeys = [];
+      mergeCandidateBatch("moments", []);
       setAiStatus("processing", state.aiSourceDate + " の Moments を分析しています...");
-      renderAiResult();
+      rerender();
       vscode.postMessage({ command: "aiExtract", sourceDate: state.aiSourceDate });
     });
 
     document.getElementById("btn-extract-notes").addEventListener("click", function () {
-      state.notesExtractedTasks = [];
-      state.notesAddedExtractedKeys = [];
+      mergeCandidateBatch("notes", []);
       setNotesAiStatus("processing", state.notesFromDate + " ～ " + state.notesToDate + " のノートを分析しています...");
-      renderNotesExtractResult();
+      rerender();
       vscode.postMessage({
         command: "extractFromNotes",
         fromDate: state.notesFromDate,
@@ -2861,92 +3230,60 @@ ${buildDashboardExtractSectionHtml(data.today)}
 
     function handleAddExtractedAction(actionEl) {
       const index = Number.parseInt(actionEl.dataset.index || "-1", 10);
-      if (Number.isNaN(index) || !state.extractedTasks[index]) {
+      const visibleCandidates = getVisibleCandidates();
+      if (Number.isNaN(index) || !visibleCandidates[index]) {
         return;
       }
 
-      const task = state.extractedTasks[index];
+      const task = visibleCandidates[index];
       if (!canAddDashboardCandidate(task, getExistingTaskKeys())) {
-        renderAiResult();
+        rerender();
         return;
       }
 
-      const key = extractedTaskKey(task);
-      if (!state.addedExtractedKeys.includes(key)) {
-        state.addedExtractedKeys = state.addedExtractedKeys.concat([key]);
-        persistState();
+      const requestId = createPendingCandidateRequestId(task);
+      pendingCandidateAdds.push({
+        requestId: requestId,
+        order: task.order,
+        key: extractedTaskKey(task),
+        source: task.source,
+      });
+
+      state.candidateTasks = (state.candidateTasks || []).map(function (candidate) {
+        return candidate.order === task.order ? { ...candidate, added: true } : candidate;
+      });
+      if (!state.addedCandidateKeys.includes(extractedTaskKey(task))) {
+        state.addedCandidateKeys = state.addedCandidateKeys.concat([extractedTaskKey(task)]);
       }
+      persistState();
 
       vscode.postMessage({
         command: "addExtractedTask",
+        requestId: requestId,
         text: task.text,
         dueDate: task.dueDate || null,
         targetDate: state.targetDate || null,
       });
-      renderAiResult();
+      rerender();
     }
 
     function handleDismissExtractedAction(actionEl) {
       const index = Number.parseInt(actionEl.dataset.index || "-1", 10);
-      if (Number.isNaN(index) || !state.extractedTasks[index]) {
+      const visibleCandidates = getVisibleCandidates();
+      if (Number.isNaN(index) || !visibleCandidates[index]) {
         return;
       }
 
-      const task = state.extractedTasks[index];
-      state.extractedTasks = state.extractedTasks.filter(function (_task, taskIndex) {
-        return taskIndex !== index;
+      const task = visibleCandidates[index];
+      state.candidateTasks = (state.candidateTasks || []).filter(function (candidate) {
+        return candidate.order !== task.order;
       });
       persistState();
       vscode.postMessage({
         command: "dismissExtractedTask",
         text: task.text,
       });
-      renderAiResult();
-    }
-
-    function handleAddNotesExtractedAction(actionEl) {
-      const index = Number.parseInt(actionEl.dataset.index || "-1", 10);
-      if (Number.isNaN(index) || !state.notesExtractedTasks[index]) {
-        return;
-      }
-
-      const task = state.notesExtractedTasks[index];
-      if (!canAddDashboardCandidate(task, getExistingTaskKeys())) {
-        renderNotesExtractResult();
-        return;
-      }
-
-      const key = extractedTaskKey(task);
-      if (!state.notesAddedExtractedKeys.includes(key)) {
-        state.notesAddedExtractedKeys = state.notesAddedExtractedKeys.concat([key]);
-        persistState();
-      }
-
-      vscode.postMessage({
-        command: "addExtractedTask",
-        text: task.text,
-        dueDate: task.dueDate || null,
-        targetDate: state.targetDate || null,
-      });
-      renderNotesExtractResult();
-    }
-
-    function handleDismissNotesExtractedAction(actionEl) {
-      const index = Number.parseInt(actionEl.dataset.index || "-1", 10);
-      if (Number.isNaN(index) || !state.notesExtractedTasks[index]) {
-        return;
-      }
-
-      const task = state.notesExtractedTasks[index];
-      state.notesExtractedTasks = state.notesExtractedTasks.filter(function (_task, taskIndex) {
-        return taskIndex !== index;
-      });
-      persistState();
-      vscode.postMessage({
-        command: "dismissExtractedTask",
-        text: task.text,
-      });
-      renderNotesExtractResult();
+      rerender();
     }
 
     filterRow.addEventListener("click", function (event) {
@@ -3022,53 +3359,15 @@ ${buildDashboardExtractSectionHtml(data.today)}
         return;
       }
 
-      if (action === "add-extracted") {
+      if (action === "add-extracted" || action === "add-candidate") {
         handleAddExtractedAction(actionEl);
         return;
       }
 
-      if (action === "dismiss-extracted") {
+      if (action === "dismiss-extracted" || action === "dismiss-candidate") {
         handleDismissExtractedAction(actionEl);
         return;
       }
-
-      if (action === "add-notes-extracted") {
-        handleAddNotesExtractedAction(actionEl);
-        return;
-      }
-
-      if (action === "dismiss-notes-extracted") {
-        handleDismissNotesExtractedAction(actionEl);
-      }
-    });
-
-    aiResult.addEventListener("click", function (event) {
-      const actionEl = event.target.closest("[data-action='add-extracted'], [data-action='dismiss-extracted']");
-      if (!actionEl) {
-        return;
-      }
-
-      if (actionEl.dataset.action === "dismiss-extracted") {
-        handleDismissExtractedAction(actionEl);
-        return;
-      }
-
-      handleAddExtractedAction(actionEl);
-    });
-
-    const notesResult = document.getElementById("notes-extract-result");
-    notesResult.addEventListener("click", function (event) {
-      const actionEl = event.target.closest("[data-action='add-notes-extracted'], [data-action='dismiss-notes-extracted']");
-      if (!actionEl) {
-        return;
-      }
-
-      if (actionEl.dataset.action === "dismiss-notes-extracted") {
-        handleDismissNotesExtractedAction(actionEl);
-        return;
-      }
-
-      handleAddNotesExtractedAction(actionEl);
     });
 
     taskList.addEventListener("change", function (event) {
@@ -3088,29 +3387,54 @@ ${buildDashboardExtractSectionHtml(data.today)}
       const message = event.data;
       if (message.type === "aiStatus") {
         setAiStatus(message.status, message.message || "");
-        renderAiResult();
+        rerender();
         return;
       }
 
       if (message.type === "extractResult") {
-        state.extractedTasks = message.tasks || [];
-        state.addedExtractedKeys = [];
+        state.filter = "candidate";
+        mergeCandidateBatch("moments", message.tasks || []);
         persistState();
-        renderAiResult();
+        rerender();
+        return;
+      }
+
+      if (message.type === "candidateAddResult") {
+        removePendingCandidateAdd(message.requestId || null);
+        rerender();
+        return;
+      }
+
+      if (message.type === "candidateAddFailed") {
+        const pending = removePendingCandidateAdd(message.requestId || null);
+        if (pending) {
+          state.candidateTasks = (state.candidateTasks || []).map(function (candidate) {
+            return candidate.order === pending.order ? { ...candidate, added: false } : candidate;
+          });
+          state.addedCandidateKeys = (state.addedCandidateKeys || []).filter(function (key) {
+            return key !== pending.key;
+          });
+        }
+        if (pending && pending.source === "notes") {
+          setNotesAiStatus("error", message.message || "Failed to add candidate task.");
+        } else {
+          setAiStatus("error", message.message || "Failed to add candidate task.");
+        }
+        rerender();
         return;
       }
 
       if (message.type === "notesAiStatus") {
         setNotesAiStatus(message.status, message.message || "");
-        renderNotesExtractResult();
+        rerender();
         return;
       }
 
       if (message.type === "notesExtractResult") {
-        state.notesExtractedTasks = message.tasks || [];
-        state.notesAddedExtractedKeys = [];
+        state.filter = "candidate";
+        mergeCandidateBatch("notes", message.tasks || []);
         persistState();
-        renderNotesExtractResult();
+        rerender();
       }
     });
 

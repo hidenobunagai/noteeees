@@ -17,7 +17,6 @@ export function buildDashboardExtractSectionHtml(today: string): string {
                   </div>
                 </div>
                 <div class="status-line" id="ai-status" style="margin-top: 4px;"></div>
-                <div class="ai-result" id="ai-result" style="margin-top: 8px;"></div>
               </div>
 
               <!-- Notes Extract -->
@@ -34,6 +33,5 @@ export function buildDashboardExtractSectionHtml(today: string): string {
                   </div>
                 </div>
                 <div class="status-line" id="notes-extract-status" style="margin-top: 4px;"></div>
-                <div class="ai-result" id="notes-extract-result" style="margin-top: 8px;"></div>
               </div>`;
 }
