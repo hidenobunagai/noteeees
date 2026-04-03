@@ -101,14 +101,31 @@ export interface DashboardCandidateView extends DashboardCandidateTask {
 export type DashboardListItem = DashboardTaskView | DashboardCandidateView;
 
 export interface DashboardListSectionView {
-  key: DashboardTaskSection | "candidates";
+  key: DashboardListFilter | "candidates";
   title: string;
   items: DashboardListItem[];
 }
 
 export interface DashboardListViewModel {
   sections: DashboardListSectionView[];
+  flatItems?: DashboardListItem[];
   emptyMessage: string | null;
+}
+
+const DASHBOARD_EMPTY_MESSAGE_SEPARATOR = "||";
+
+function buildDashboardEmptyMessage(filter: DashboardListFilter): string {
+  switch (filter) {
+    case "all":
+      return `No tasks yet${DASHBOARD_EMPTY_MESSAGE_SEPARATOR}Use Quick Add or AI Extract to create your first task.`;
+    case "attention":
+    case "focus":
+      return `Nothing urgent right now${DASHBOARD_EMPTY_MESSAGE_SEPARATOR}Attention items from Overdue, Today, and Upcoming will appear here.`;
+    case "candidate":
+      return `No candidates yet${DASHBOARD_EMPTY_MESSAGE_SEPARATOR}Extraction results from Moments or Notes will appear here.`;
+    default:
+      return "No items in this filter";
+  }
 }
 
 export interface DashboardCandidateStateMigration {
@@ -681,45 +698,62 @@ export function buildDashboardListViewModel(
   const normalizedSearch = search.trim();
   const filteredItems = items.filter((item) => matchesDashboardListItemFilter(item, filter));
   const visibleItems = filteredItems.filter((item) => matchesDashboardListItemSearch(item, search));
-  const sections: DashboardListSectionView[] = [];
-
-  const candidateItems = visibleItems.filter(
-    (item): item is DashboardCandidateView => item.kind === "candidate",
-  );
-  if (candidateItems.length > 0) {
-    sections.push({ key: "candidates", title: "Candidates", items: candidateItems });
-  }
-
-  for (const section of Object.keys(SECTION_ORDER) as DashboardTaskSection[]) {
-    const taskItems = visibleItems.filter(
-      (item): item is DashboardTaskView => item.kind === "task" && item.section === section,
-    );
-    if (taskItems.length > 0) {
-      sections.push({ key: section, title: section[0].toUpperCase() + section.slice(1), items: taskItems });
+  if (filter === "all") {
+    if (normalizedSearch && visibleItems.length === 0) {
+      return { sections: [], emptyMessage: "No search results" };
     }
-  }
 
-  if (sections.length > 0) {
+    if (!normalizedSearch && filteredItems.length === 0) {
+      return { sections: [], emptyMessage: buildDashboardEmptyMessage("all") };
+    }
+
+    const sections: DashboardListSectionView[] = [];
+    const candidateItems = visibleItems.filter(
+      (item): item is DashboardCandidateView => item.kind === "candidate",
+    );
+    if (!normalizedSearch || candidateItems.length > 0) {
+      sections.push({ key: "candidates", title: "Candidates", items: candidateItems });
+    }
+
+    for (const section of Object.keys(SECTION_ORDER) as DashboardTaskSection[]) {
+      const taskItems = visibleItems.filter(
+        (item): item is DashboardTaskView => item.kind === "task" && item.section === section,
+      );
+      if (!normalizedSearch || taskItems.length > 0) {
+        sections.push({
+          key: section,
+          title: section[0].toUpperCase() + section.slice(1),
+          items: taskItems,
+        });
+      }
+    }
+
     return { sections, emptyMessage: null };
   }
 
   if (filteredItems.length === 0) {
-    if (filter === "candidate") {
-      return { sections: [], emptyMessage: "No candidates yet" };
-    }
-
-    return { sections: [], emptyMessage: "No items in this filter" };
+    return { sections: [], emptyMessage: buildDashboardEmptyMessage(filter) };
   }
 
-  if (normalizedSearch) {
-    return { sections: [], emptyMessage: "No search results" };
+  if (visibleItems.length === 0) {
+    return {
+      sections: [],
+      emptyMessage: normalizedSearch ? "No search results" : buildDashboardEmptyMessage(filter),
+    };
   }
 
-  if (filter === "candidate") {
-    return { sections: [], emptyMessage: "No candidates yet" };
-  }
+  const title =
+    filter === "attention"
+      ? "Attention"
+      : filter === "candidate"
+        ? "Candidate"
+        : filter[0].toUpperCase() + filter.slice(1);
 
-  return { sections: [], emptyMessage: "No items in this filter" };
+  return {
+    sections: [],
+    flatItems: visibleItems,
+    emptyMessage: null,
+  };
 }
 
 export function migrateDashboardCandidateState(savedState: {
@@ -1494,9 +1528,9 @@ export class DashboardPanel {
         const label = `${Number.parseInt(month, 10)}/${Number.parseInt(dateOfMonth, 10)}`;
         const title = `${day.date} · open ${day.open} · done ${day.done}`;
         return `<div class="week-day${isToday ? " is-today" : ""}" title="${escAttr(title)}">
-  <div class="week-day-bars">
-    ${day.open > 0 ? `<div class="week-bar week-bar-open" style="height:${openHeight}%"></div>` : ""}
-    ${day.done > 0 ? `<div class="week-bar week-bar-done" style="height:${doneHeight}%"></div>` : ""}
+  <div class="week-day-bars" data-zero="${total === 0}">
+    <div class="week-bar week-bar-open${day.open === 0 ? " is-zero" : ""}" style="height:${openHeight}%"></div>
+    <div class="week-bar week-bar-done${day.done === 0 ? " is-zero" : ""}" style="height:${doneHeight}%"></div>
   </div>
   <div class="week-day-label">
     <span>${escHtml(day.label)}</span>
@@ -1532,7 +1566,7 @@ export class DashboardPanel {
   <div class="category-label"><span class="category-icon">${escHtml(categoryIcons[key])}</span>${escHtml(
           categoryLabels[key],
         )}</div>
-  <div class="category-track"><div class="category-fill" style="width:${width}%"></div></div>
+  <div class="category-track" data-empty="${count === 0}"><div class="category-fill${count === 0 ? " is-zero" : ""}" style="width:${width}%"></div></div>
   <div class="category-count">${count}</div>
 </div>`;
       })
@@ -1582,20 +1616,18 @@ export class DashboardPanel {
   .page {
     display: flex;
     flex-direction: column;
-    gap: var(--gap);
-    max-width: 1440px;
+    gap: 10px;
+    max-width: 1320px;
     margin: 0 auto;
   }
 
-  .command-center-header {
+  .dashboard-header {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: space-between;
-    gap: var(--gap);
-    padding: 14px 16px;
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    background: var(--surface);
+    gap: 12px;
+    padding: 10px 0 6px;
+    border-bottom: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
   }
 
   .header-copy {
@@ -1619,89 +1651,95 @@ export class DashboardPanel {
     font-weight: 600;
   }
 
-  .header-meta {
+  .header-right {
     display: flex;
     flex-wrap: wrap;
-    justify-content: flex-start;
+    justify-content: flex-end;
     gap: 8px;
     align-items: center;
   }
 
-  .pill {
+  .dashboard-date-group {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    padding: 6px 10px;
+    min-height: 32px;
+    padding: 0 10px;
     border-radius: 999px;
-    border: 1px solid var(--border);
-    background: var(--surface);
+    border: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
+    background: color-mix(in srgb, var(--surface) 60%, transparent);
     color: var(--muted);
     font-size: 12px;
+    white-space: nowrap;
   }
 
-  .pill strong {
+  .dashboard-date-label {
     color: var(--text);
+    font-weight: 600;
     font-variant-numeric: tabular-nums;
   }
 
-  .kpi-strip {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 12px;
+  .dashboard-weekday-marker {
+    color: var(--muted);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
   }
 
-  .kpi-card {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    padding: 14px 16px;
-    border-radius: var(--radius);
-    border: 1px solid var(--border);
-    background: var(--surface);
-    min-width: 0;
+  .dashboard-kpi-row {
+    display: inline-flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 8px;
   }
 
-  .kpi-card.is-accent {
-    border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+  .dashboard-kpi-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 32px;
+    padding: 0 10px;
+    border-radius: 999px;
+    border: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
+    background: color-mix(in srgb, var(--surface) 68%, transparent);
+    color: var(--text);
+    cursor: pointer;
   }
 
-  .kpi-label {
+  .dashboard-kpi-chip:hover {
+    border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+  }
+
+  .dashboard-kpi-label {
     color: var(--muted);
     font-size: 11px;
     font-weight: 600;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.04em;
     text-transform: uppercase;
   }
 
-  .kpi-value {
-    font-size: 24px;
-    font-weight: 600;
+  .dashboard-kpi-value {
+    font-size: 13px;
+    font-weight: 700;
     line-height: 1;
     font-variant-numeric: tabular-nums;
   }
 
-  .kpi-note {
+  .dashboard-kpi-note {
     color: var(--muted);
-    font-size: 12px;
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
   }
 
-  .workspace-shell {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) 340px;
-    gap: var(--gap);
-    align-items: start;
-  }
-
-  .workspace-main,
-  .support-rail {
+  .dashboard-toolbar,
+  .dashboard-action-bar,
+  .list-surface,
+  .analytics-strip,
+  .analytics-panel {
     min-width: 0;
-  }
-
-  .card {
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    background: var(--surface);
-    padding: 16px;
+    border: 1px solid color-mix(in srgb, var(--border) 78%, transparent);
+    border-radius: var(--radius-sm);
+    background: color-mix(in srgb, var(--surface) 56%, transparent);
   }
 
   .card-header {
@@ -1709,44 +1747,57 @@ export class DashboardPanel {
     align-items: flex-start;
     justify-content: space-between;
     gap: 12px;
-    margin-bottom: 14px;
+    margin-bottom: 10px;
   }
 
   .card-header h2,
   .card-header h3 {
     margin: 4px 0 0;
-    font-size: 18px;
+    font-size: 14px;
     line-height: 1.3;
   }
 
   .card-header p {
-    margin: 6px 0 0;
+    margin: 4px 0 0;
     color: var(--muted);
-    font-size: 13px;
+    font-size: 12px;
   }
 
   .card-header .eyebrow {
     font-size: 10px;
   }
 
-  .card-meta {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    color: var(--muted);
-    font-size: 12px;
-    white-space: nowrap;
-  }
-
-  .task-toolbar {
+  .dashboard-toolbar {
     display: flex;
     flex-direction: column;
-    gap: 12px;
-    margin-bottom: 16px;
-    padding: 14px;
-    border: 1px solid var(--border);
+    gap: 8px;
+    padding: 9px 12px;
+  }
+
+  .dashboard-action-bar {
+    display: grid;
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+    gap: 10px;
+    padding: 10px 12px;
+  }
+
+  .action-panel {
+    min-width: 0;
+    padding: 10px 12px;
     border-radius: var(--radius-sm);
-    background: color-mix(in srgb, var(--surface) 90%, var(--bg));
+    border: 1px solid color-mix(in srgb, var(--border) 68%, transparent);
+    background: color-mix(in srgb, var(--surface) 38%, transparent);
+  }
+
+  .action-panel-quick-add,
+  .action-panel-ai-extract {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .list-surface {
+    padding: 10px 12px;
   }
 
   .filter-row {
@@ -1787,11 +1838,11 @@ export class DashboardPanel {
     display: flex;
     align-items: center;
     gap: 10px;
-    border: 1px solid var(--border);
+    border: 1px solid color-mix(in srgb, var(--border) 78%, transparent);
     border-radius: var(--radius-sm);
     padding: 0 12px;
-    min-height: 42px;
-    background: color-mix(in srgb, var(--surface) 90%, var(--bg));
+    min-height: 38px;
+    background: color-mix(in srgb, var(--surface) 34%, transparent);
   }
 
   .search-shell span {
@@ -1810,17 +1861,17 @@ export class DashboardPanel {
     padding: 10px 0;
   }
 
-  .task-list {
+  .dashboard-main-list {
     display: flex;
     flex-direction: column;
-    gap: 18px;
+    gap: 14px;
     min-width: 0;
   }
 
   .task-section {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 8px;
   }
 
   .task-section-header {
@@ -1847,51 +1898,56 @@ export class DashboardPanel {
   .task-items {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 6px;
   }
 
-  .task-item {
+  .task-row {
     display: flex;
     align-items: flex-start;
-    gap: 12px;
-    padding: 14px;
+    gap: 10px;
+    padding: 10px 12px;
     border-radius: var(--radius-sm);
-    border: 1px solid var(--border);
-    background: color-mix(in srgb, var(--surface) 92%, var(--bg));
+    border: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
+    background: color-mix(in srgb, var(--surface) 90%, var(--bg));
+    min-width: 0;
   }
 
-  .task-item.is-overdue {
+  .task-row.task-row-saved.is-overdue {
     border-color: color-mix(in srgb, var(--danger) 35%, var(--border));
   }
 
-  .task-item.is-today {
+  .task-row.task-row-saved.is-today {
     border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
   }
 
-  .task-item.is-done {
+  .task-row.task-row-saved.is-done {
     opacity: 0.76;
   }
 
-  .task-item.is-candidate {
-    background: color-mix(in srgb, var(--surface) 86%, var(--bg));
+  .task-row.task-row-candidate {
+    background: color-mix(in srgb, var(--surface) 84%, var(--bg));
   }
 
-  .task-item.is-candidate-blocked {
+  .task-row.task-row-candidate.is-candidate-blocked {
     opacity: 0.8;
   }
 
-  .task-check {
+  .task-row-toggle-entry,
+  .task-row-leading {
     position: relative;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 18px;
-    height: 18px;
-    margin-top: 2px;
     flex-shrink: 0;
+    margin-top: 2px;
   }
 
-  .task-check input {
+  .task-row-toggle-entry {
+    width: 18px;
+    height: 18px;
+  }
+
+  .task-row-toggle {
     appearance: none;
     -webkit-appearance: none;
     width: 18px;
@@ -1903,12 +1959,12 @@ export class DashboardPanel {
     cursor: pointer;
   }
 
-  .task-check input:checked {
+  .task-row-toggle:checked {
     background: color-mix(in srgb, var(--success) 16%, transparent);
     border-color: color-mix(in srgb, var(--success) 55%, var(--border));
   }
 
-  .task-check input:checked::after {
+  .task-row-toggle:checked::after {
     content: "";
     position: absolute;
     inset: 4px;
@@ -1916,49 +1972,81 @@ export class DashboardPanel {
     clip-path: polygon(14% 52%, 0 67%, 39% 100%, 100% 22%, 84% 8%, 39% 68%);
   }
 
-  .task-body {
+  .task-row-body {
     flex: 1;
     min-width: 0;
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 6px;
   }
 
-  .task-head {
+  .task-row-main {
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
-    gap: 12px;
+    gap: 10px;
+    min-width: 0;
   }
 
-  .task-title {
+  .task-row-title-entry {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .task-row-title {
     margin: 0;
     border: none;
     padding: 0;
     background: transparent;
     color: var(--text);
     text-align: left;
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 600;
+    line-height: 1.35;
     cursor: pointer;
     min-width: 0;
+    width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
-  .task-title:hover {
+  .task-row-saved .task-row-title:hover {
     color: var(--accent);
   }
 
-  .task-item.is-done .task-title {
+  .task-row-candidate .task-row-title {
+    cursor: default;
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .task-row.task-row-saved.is-done .task-row-title {
     color: var(--muted);
     text-decoration: line-through;
   }
 
-  .task-actions {
-    display: flex;
+  .task-row-secondary-actions,
+  .task-row-candidate-actions {
+    display: inline-flex;
     align-items: center;
     gap: 8px;
-    flex-wrap: wrap;
     justify-content: flex-end;
+    flex-shrink: 0;
+  }
+
+  .task-row-secondary-actions {
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 120ms ease-out;
+  }
+
+  .task-row:hover .task-row-secondary-actions,
+  .task-row:focus-within .task-row-secondary-actions {
+    opacity: 1;
+    pointer-events: auto;
   }
 
   .link-btn,
@@ -2013,10 +2101,29 @@ export class DashboardPanel {
     color: var(--danger);
   }
 
-  .task-meta {
+  .task-row-meta {
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     gap: 8px;
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+
+  .task-row-meta-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+    flex-shrink: 0;
+  }
+
+  .task-row-meta-source {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1 1 auto;
   }
 
   .badge {
@@ -2138,6 +2245,19 @@ export class DashboardPanel {
     gap: 10px;
   }
 
+  .action-bar-extract-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .extract-group-label {
+    color: var(--muted);
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+  }
+
   .extract-range-row {
     display: flex;
     align-items: center;
@@ -2198,23 +2318,45 @@ export class DashboardPanel {
   .empty-state {
     border: 1px dashed var(--border);
     border-radius: var(--radius-sm);
-    padding: 18px;
+    padding: 14px 16px;
     color: var(--muted);
     text-align: center;
+    max-width: 420px;
+    margin: 4px auto;
+  }
+
+  .empty-state-title {
+    display: block;
+    color: var(--text);
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+
+  .empty-state-body {
+    margin: 0;
+    font-size: 12px;
+    line-height: 1.45;
   }
 
   .analytics-strip {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 340px;
-    gap: var(--gap);
+    grid-template-columns: minmax(0, 1fr) minmax(260px, 320px);
+    gap: 10px;
     align-items: start;
+    padding: 8px 10px;
   }
 
-  .week-chart {
+  .analytics-panel {
+    padding: 8px 10px;
+  }
+
+  .week-chart,
+  .week-chart-compact {
     display: flex;
-    gap: 10px;
+    gap: 8px;
     align-items: stretch;
-    height: 150px;
+    height: 108px;
   }
 
   .week-day {
@@ -2222,7 +2364,7 @@ export class DashboardPanel {
     display: flex;
     flex-direction: column;
     justify-content: flex-end;
-    gap: 8px;
+    gap: 6px;
   }
 
   .week-day-bars {
@@ -2231,10 +2373,14 @@ export class DashboardPanel {
     flex-direction: column;
     justify-content: flex-end;
     gap: 3px;
-    padding: 6px;
+    padding: 5px;
     border-radius: var(--radius-sm);
     background: color-mix(in srgb, var(--surface) 88%, var(--bg));
     border: 1px solid var(--border);
+  }
+
+  .week-day-bars[data-zero="true"] {
+    opacity: 0.88;
   }
 
   .week-day.is-today .week-day-bars {
@@ -2246,6 +2392,10 @@ export class DashboardPanel {
     width: 100%;
     border-radius: 999px;
     min-height: 6px;
+  }
+
+  .week-bar.is-zero {
+    opacity: 0.38;
   }
 
   .week-bar-open {
@@ -2275,7 +2425,7 @@ export class DashboardPanel {
     display: flex;
     justify-content: flex-end;
     gap: 10px;
-    margin-top: 12px;
+    margin-top: 8px;
     color: var(--muted);
     font-size: 12px;
   }
@@ -2289,10 +2439,11 @@ export class DashboardPanel {
     vertical-align: middle;
   }
 
-  .category-list {
+  .category-list,
+  .category-list-compact {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 8px;
   }
 
   .category-row {
@@ -2332,8 +2483,13 @@ export class DashboardPanel {
 
   .category-fill {
     height: 100%;
+    min-width: 10px;
     border-radius: 999px;
     background: color-mix(in srgb, var(--accent) 70%, transparent);
+  }
+
+  .category-fill.is-zero {
+    opacity: 0.35;
   }
 
   .category-count {
@@ -2390,8 +2546,11 @@ export class DashboardPanel {
     font-size: 12px;
   }
 
-  @media (max-width: 1000px) {
-    .workspace-shell,
+  @media (width < 1000px) {
+    .dashboard-action-bar {
+      grid-template-columns: 1fr;
+    }
+
     .analytics-strip {
       grid-template-columns: 1fr;
     }
@@ -2402,16 +2561,16 @@ export class DashboardPanel {
       padding: 14px;
     }
 
-    .command-center-header {
+    .dashboard-header {
       flex-direction: column;
       align-items: flex-start;
     }
 
-    .header-meta {
+    .header-right,
+    .dashboard-kpi-row {
       justify-content: flex-start;
     }
 
-    .kpi-strip,
     .field-grid {
       grid-template-columns: 1fr;
     }
@@ -2425,143 +2584,150 @@ export class DashboardPanel {
       display: none;
     }
 
-    .task-head,
+    .task-row-main,
     .extract-head {
       flex-direction: column;
     }
 
-    .task-actions {
+    .task-row-secondary-actions,
+    .task-row-candidate-actions {
       justify-content: flex-start;
     }
 
-    .task-toolbar {
+    .task-row-secondary-actions {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .dashboard-toolbar,
+    .dashboard-action-bar,
+    .list-surface,
+    .analytics-strip {
       padding: 12px;
+    }
+
+    .dashboard-weekday-marker {
+      display: none;
     }
   }
 </style>
 </head>
 <body>
   <div class="page">
-    <header class="command-center-header" id="dashboard-header">
+    <header class="dashboard-header" id="dashboard-header">
       <div class="header-copy">
-        <div class="eyebrow">Command Center</div>
         <h1 class="header-title">Task Dashboard</h1>
       </div>
-      <div class="header-meta">
-        <div class="pill"><strong class="mono">${escHtml(data.today)}</strong><span>Today</span></div>
-        <div class="pill"><strong>${data.tasks.length}</strong><span>Tracked</span></div>
+      <div class="header-right" id="dashboard-header-right">
+        <div class="dashboard-date-group">
+          <span class="dashboard-date-label mono" id="dashboard-date-label">${escHtml(data.today)}</span>
+          <span class="dashboard-weekday-marker" id="dashboard-weekday-marker"></span>
+        </div>
+        <div class="dashboard-kpi-row">
+          <button class="dashboard-kpi-chip" id="dashboard-kpi-open" type="button" data-kpi-filter="all">
+            <span class="dashboard-kpi-label">Open</span>
+            <span class="dashboard-kpi-value">${data.summary.totalOpen}</span>
+          </button>
+          <button class="dashboard-kpi-chip" id="dashboard-kpi-attention" type="button" data-kpi-filter="attention">
+            <span class="dashboard-kpi-label">Attention</span>
+            <span class="dashboard-kpi-value">${data.summary.attentionCount}</span>
+            <span class="dashboard-kpi-note">${data.summary.overdueCount}</span>
+          </button>
+          <button class="dashboard-kpi-chip" id="dashboard-kpi-done" type="button" data-kpi-filter="done">
+            <span class="dashboard-kpi-label">Done %</span>
+            <span class="dashboard-kpi-value">${data.summary.completionRate}%</span>
+          </button>
+        </div>
         <button class="btn" id="btn-refresh" type="button">Refresh</button>
       </div>
     </header>
 
-    <section class="kpi-strip" id="dashboard-kpis">
-      <article class="kpi-card is-accent" id="kpi-open">
-        <div class="kpi-label">Open</div>
-        <div class="kpi-value">${data.summary.totalOpen}</div>
-        <div class="kpi-note">未完了タスク全体</div>
-      </article>
-      <article class="kpi-card is-accent" id="kpi-attention">
-        <div class="kpi-label">Attention</div>
-        <div class="kpi-value">${data.summary.attentionCount}</div>
-        <div class="kpi-note">期限超過 ${data.summary.overdueCount} 件 / overdue / today / 7日以内</div>
-      </article>
-      <article class="kpi-card" id="kpi-completion">
-        <div class="kpi-label">Completion %</div>
-        <div class="kpi-value">${data.summary.completionRate}%</div>
-        <div class="kpi-note">${data.summary.totalDone} 件が完了済み</div>
-      </article>
+    <section class="dashboard-toolbar" id="dashboard-toolbar">
+      <label class="search-shell" aria-label="Search tasks">
+        <span>Search</span>
+        <input id="task-search" type="search" placeholder="text, tag, file path, date" />
+      </label>
+      <div class="filter-row" id="filter-row"></div>
     </section>
 
-    <section class="workspace-shell" id="dashboard-workspace">
-      <section class="workspace-main card">
+    <section class="dashboard-action-bar" id="dashboard-action-bar">
+      <section class="action-panel action-panel-quick-add">
         <div class="card-header">
           <div>
-            <div class="eyebrow">Task Workspace</div>
-            <h2>Daily operations</h2>
-            <p>検索、絞り込み、インライン編集、削除、元ファイルへのジャンプまでここで完結します。</p>
+            <div class="eyebrow">Quick Add</div>
+            <h3>Add a task</h3>
+            <p>保存先と due を指定して、そのまま上部から追加します。</p>
           </div>
-          <div class="card-meta"><span class="mono">${data.summary.totalOpen}</span><span>open now</span></div>
         </div>
-
-        <div class="task-toolbar" id="task-toolbar">
-          <div class="filter-row" id="filter-row"></div>
-          <label class="search-shell" aria-label="Search tasks">
-            <span>Search</span>
-            <input id="task-search" type="search" placeholder="text, tag, file path, date" />
-          </label>
+        <div class="composer-body">
+          <div class="field">
+            <span>Task</span>
+            <textarea id="new-task-text" placeholder="例: 見積もりを送る #work"></textarea>
+          </div>
+          <div class="field-grid" style="margin-bottom: 12px;">
+            <label class="field-compact">
+              <span>Save In Date File</span>
+              <input id="new-task-target-date" type="date" />
+            </label>
+            <label class="field-compact">
+              <span>Due Date</span>
+              <input id="new-task-due-date" type="date" />
+            </label>
+          </div>
+          <p class="helper" id="composer-target-preview">保存先: tasks/inbox.md</p>
+          <div class="inline-actions">
+            <button class="btn btn-primary" id="btn-create-task" type="button">Add Task</button>
+            <button class="btn" id="btn-clear-task" type="button">Clear</button>
+          </div>
         </div>
-
-        <div class="task-list" id="task-list"></div>
       </section>
 
-      <aside class="support-rail" id="support-rail">
-        <section class="card">
-          <div class="card-header">
-            <div>
-              <div class="eyebrow">Composer</div>
-              <h3>Create & Extract</h3>
-              <p>手動追加や、Moments/Notes からの AI 抽出を一箇所で行えます。</p>
-            </div>
+      <section class="action-panel action-panel-ai-extract">
+        <div class="card-header">
+          <div>
+            <div class="eyebrow">AI Extract</div>
+            <h3>Capture candidates</h3>
+            <p>Moments と Notes の抽出操作は上部に残し、リストより軽い補助面として扱います。</p>
           </div>
-          <div class="composer-body">
-            <!-- Manual Task Input -->
-            <div class="field">
-              <span>Task</span>
-              <textarea id="new-task-text" placeholder="例: 見積もりを送る #work"></textarea>
-            </div>
-            
-            <div class="field-grid" style="margin-bottom: 12px;">
-              <label class="field-compact">
-                <span>Save In Date File</span>
-                <input id="new-task-target-date" type="date" />
-              </label>
-              <label class="field-compact">
-                <span>Due Date</span>
-                <input id="new-task-due-date" type="date" />
-              </label>
-            </div>
-            <p class="helper" id="composer-target-preview">保存先: tasks/inbox.md</p>
-            
-            <div class="inline-actions">
-              <button class="btn btn-primary" id="btn-create-task" type="button">Add Task</button>
-              <button class="btn" id="btn-clear-task" type="button">Clear</button>
-            </div>
-
-            <!-- AI Extraction Section -->
-            <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--border);">
-              <h4 style="margin: 0 0 16px; font-size: 14px; font-weight: 600; color: var(--text);">AI Extract</h4>
-              
+        </div>
 ${buildDashboardExtractSectionHtml(data.today)}
+      </section>
+    </section>
 
-            </div>
-          </div>
-        </section>
-      </aside>
+    <section class="list-surface">
+      <div class="card-header">
+        <div>
+          <div class="eyebrow">Main List</div>
+          <h2>All task sections</h2>
+          <p>メインリストを最優先に見せる listboard shell です。</p>
+        </div>
+      </div>
+      <div class="dashboard-main-list" id="dashboard-main-list"></div>
     </section>
 
     <section class="analytics-strip" id="analytics-strip">
-      <section class="card">
+      <section class="analytics-panel">
         <div class="card-header">
           <div>
             <div class="eyebrow">Upcoming Load</div>
             <h3>Next 7 days</h3>
           </div>
         </div>
-        <div class="week-chart">${weekBarsHtml}</div>
+        <div class="week-chart week-chart-compact">${weekBarsHtml}</div>
         <div class="chart-legend">
           <span><span class="legend-dot" style="background:color-mix(in srgb, var(--success) 60%, transparent)"></span>Done</span>
           <span><span class="legend-dot" style="background:color-mix(in srgb, var(--accent) 55%, transparent)"></span>Open</span>
         </div>
       </section>
 
-      <section class="card">
+      <section class="analytics-panel">
         <div class="card-header">
           <div>
             <div class="eyebrow">Open Mix</div>
             <h3>Category balance</h3>
           </div>
         </div>
-        <div class="category-list">${categoryHtml}</div>
+        <div class="category-list category-list-compact">${categoryHtml}</div>
       </section>
     </section>
   </div>
@@ -2657,7 +2823,7 @@ ${buildDashboardExtractSectionHtml(data.today)}
     const migratedCandidates = migrateLegacyCandidateState(savedState);
 
     const state = {
-      filter: savedState.filter === "focus" ? "attention" : (savedState.filter || "attention"),
+      filter: savedState.filter === "focus" ? "attention" : (savedState.filter || "all"),
       search: savedState.search || "",
       targetDate: savedState.targetDate || "",
       composerText: savedState.composerText || "",
@@ -2709,7 +2875,7 @@ ${buildDashboardExtractSectionHtml(data.today)}
 
     const taskSearchInput = document.getElementById("task-search");
     const filterRow = document.getElementById("filter-row");
-    const taskList = document.getElementById("task-list");
+    const taskList = document.getElementById("dashboard-main-list");
     const newTaskText = document.getElementById("new-task-text");
     const newTaskTargetDate = document.getElementById("new-task-target-date");
     const newTaskDueDate = document.getElementById("new-task-due-date");
@@ -2718,6 +2884,8 @@ ${buildDashboardExtractSectionHtml(data.today)}
     const aiStatus = document.getElementById("ai-status");
     const notesFromDateInput = document.getElementById("notes-from-date");
     const notesToDateInput = document.getElementById("notes-to-date");
+    const dashboardDateLabel = document.getElementById("dashboard-date-label");
+    const dashboardWeekdayMarker = document.getElementById("dashboard-weekday-marker");
 
     function persistState() {
       vscode.setState({
@@ -2759,6 +2927,42 @@ ${buildDashboardExtractSectionHtml(data.today)}
       }
 
       return Number.parseInt(parts[1], 10) + "/" + Number.parseInt(parts[2], 10);
+    }
+
+    function formatDashboardHeaderDate(dateString) {
+      const date = new Date(String(dateString || dashboardData.today) + "T00:00:00");
+      if (Number.isNaN(date.getTime())) {
+        return String(dateString || dashboardData.today);
+      }
+
+      return date.toLocaleDateString(undefined, {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      });
+    }
+
+    function formatDashboardWeekdayMarker(dateString) {
+      const date = new Date(String(dateString || dashboardData.today) + "T00:00:00");
+      if (Number.isNaN(date.getTime())) {
+        return "";
+      }
+
+      return date.toLocaleDateString(undefined, { weekday: "short" });
+    }
+
+    function getCurrentDashboardDate() {
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, "0");
+      const day = String(now.getDate()).padStart(2, "0");
+      return year + "-" + month + "-" + day;
+    }
+
+    function syncHeaderDate() {
+      const currentDate = getCurrentDashboardDate();
+      dashboardDateLabel.textContent = formatDashboardHeaderDate(currentDate);
+      dashboardWeekdayMarker.textContent = formatDashboardWeekdayMarker(currentDate);
     }
 
     function extractedTaskKey(task) {
@@ -2862,6 +3066,20 @@ ${buildDashboardExtractSectionHtml(data.today)}
     }
 
     function buildDashboardListViewModel(items, filter, search) {
+      function buildDashboardEmptyMessage(filter) {
+        switch (filter) {
+          case "all":
+            return "No tasks yet||Use Quick Add or AI Extract to create your first task.";
+          case "attention":
+          case "focus":
+            return "Nothing urgent right now||Attention items from Overdue, Today, and Upcoming will appear here.";
+          case "candidate":
+            return "No candidates yet||Extraction results from Moments or Notes will appear here.";
+          default:
+            return "No items in this filter";
+        }
+      }
+
       const normalizedSearch = String(search || "").trim();
       const filteredItems = items.filter(function (item) {
         return matchesDashboardListItemFilter(item, filter);
@@ -2869,44 +3087,60 @@ ${buildDashboardExtractSectionHtml(data.today)}
       const visibleItems = filteredItems.filter(function (item) {
         return matchesDashboardListItemSearch(item, search);
       });
-      const sections = [];
-
-      const candidateItems = visibleItems.filter(function (item) {
-        return item.kind === "candidate";
-      });
-      if (candidateItems.length > 0) {
-        sections.push({ key: "candidates", title: "Candidates", items: candidateItems });
-      }
-
-      sectionOrder.forEach(function (section) {
-        const taskItems = visibleItems.filter(function (item) {
-          return item.kind === "task" && item.section === section;
-        });
-        if (taskItems.length > 0) {
-          sections.push({ key: section, title: sectionTitles[section], items: taskItems });
+      if (filter === "all") {
+        if (normalizedSearch && visibleItems.length === 0) {
+          return { sections: [], emptyMessage: "No search results" };
         }
-      });
 
-      if (sections.length > 0) {
+        if (!normalizedSearch && filteredItems.length === 0) {
+          return { sections: [], emptyMessage: buildDashboardEmptyMessage("all") };
+        }
+
+        const sections = [];
+        const candidateItems = visibleItems.filter(function (item) {
+          return item.kind === "candidate";
+        });
+        if (!normalizedSearch || candidateItems.length > 0) {
+          sections.push({ key: "candidates", title: "Candidates", items: candidateItems });
+        }
+
+        sectionOrder.forEach(function (section) {
+          const taskItems = visibleItems.filter(function (item) {
+            return item.kind === "task" && item.section === section;
+          });
+          if (!normalizedSearch || taskItems.length > 0) {
+            sections.push({ key: section, title: sectionTitles[section], items: taskItems });
+          }
+        });
+
         return { sections: sections, emptyMessage: null };
       }
 
       if (filteredItems.length === 0) {
         return {
           sections: [],
-          emptyMessage: filter === "candidate" ? "No candidates yet" : "No items in this filter",
+          emptyMessage: buildDashboardEmptyMessage(filter),
         };
       }
 
-      if (normalizedSearch) {
-        return { sections: [], emptyMessage: "No search results" };
+      if (visibleItems.length === 0) {
+        return {
+          sections: [],
+          emptyMessage: normalizedSearch ? "No search results" : buildDashboardEmptyMessage(filter),
+        };
       }
 
-      if (filter === "candidate") {
-        return { sections: [], emptyMessage: "No candidates yet" };
-      }
+      const title = filter === "attention"
+        ? "Attention"
+        : filter === "candidate"
+          ? "Candidate"
+          : sectionTitles[filter] || (filter.charAt(0).toUpperCase() + filter.slice(1));
 
-      return { sections: [], emptyMessage: "No items in this filter" };
+      return {
+        sections: [],
+        flatItems: visibleItems,
+        emptyMessage: null,
+      };
     }
 
     function getVisibleCandidates() {
@@ -2965,34 +3199,39 @@ ${buildDashboardExtractSectionHtml(data.today)}
 
     function renderTaskMeta(task) {
       const badges = [];
-      badges.push('<span class="badge">' + esc(task.relativePath) + "</span>");
       if (task.date) {
-        badges.push('<span class="badge">' + esc(formatDateLabel(task.date)) + "</span>");
+        badges.push('<span class="badge task-row-meta-item task-row-meta-date">' + esc(formatDateLabel(task.date)) + "</span>");
       }
       if (task.dueDate) {
         const dueClass = task.section === "overdue" ? " is-danger" : task.section === "today" ? " is-warning" : " is-accent";
-        badges.push('<span class="badge' + dueClass + '">Due ' + esc(formatDateLabel(task.dueDate)) + "</span>");
+        badges.push('<span class="badge task-row-meta-item task-row-meta-due' + dueClass + '">Due ' + esc(formatDateLabel(task.dueDate)) + "</span>");
       }
       for (const tag of task.tags || []) {
-        badges.push('<span class="badge is-accent">' + esc(tag) + "</span>");
+        badges.push('<span class="badge is-accent task-row-meta-item task-row-meta-tag">' + esc(tag) + "</span>");
       }
-      return badges.join("");
+      badges.push('<span class="badge task-row-meta-item task-row-meta-source task-row-meta-source-saved">' + esc(task.relativePath) + "</span>");
+      return '<div class="task-row-meta task-row-meta-saved">' + badges.join("") + "</div>";
     }
 
     function renderCandidateMeta(task) {
-      const badges = [
-        '<span class="badge">' + esc(task.sourceLabel || "Unknown") + "</span>",
-        '<span class="badge">' + esc(task.category) + "</span>",
-      ];
+      const badges = [];
       if (task.dueDate) {
-        badges.push('<span class="badge is-accent">Due ' + esc(formatDateLabel(task.dueDate)) + "</span>");
+        badges.push('<span class="badge is-accent task-row-meta-item task-row-meta-candidate-due">Due ' + esc(formatDateLabel(task.dueDate)) + "</span>");
       }
-      return badges.join("");
+      if (task.category) {
+        badges.push('<span class="badge task-row-meta-item task-row-meta-category">' + esc(task.category) + "</span>");
+      }
+      if (task.priority) {
+        badges.push('<span class="badge task-row-meta-item task-row-meta-priority">' + esc(task.priority) + "</span>");
+      }
+      badges.push('<span class="badge task-row-meta-item task-row-meta-source task-row-meta-source-candidate">' + esc(task.sourceLabel || "Unknown") + "</span>");
+      return '<div class="task-row-meta task-row-meta-candidate">' + badges.join("") + "</div>";
     }
 
     function renderTaskItem(task) {
       const itemClasses = [
-        "task-item",
+        "task-row",
+        "task-row-saved",
         task.done ? "is-done" : "",
         task.section === "overdue" ? "is-overdue" : "",
         task.section === "today" ? "is-today" : "",
@@ -3001,9 +3240,9 @@ ${buildDashboardExtractSectionHtml(data.today)}
         .join(" ");
 
       if (state.editingId === task.id) {
-        return '<article class="' + itemClasses + '" data-task-id="' + esc(task.id) + '">' +
-          '<label class="task-check"><input type="checkbox" data-action="toggle" data-task-id="' + esc(task.id) + '"' + (task.done ? " checked" : "") + "></label>" +
-          '<div class="task-body">' +
+        return '<article class="' + itemClasses + '" data-task-id="' + esc(task.id) + '" tabindex="-1">' +
+          '<label class="task-row-toggle-entry"><input class="task-row-toggle" type="checkbox" data-action="toggle" data-task-id="' + esc(task.id) + '"' + (task.done ? " checked" : "") + "></label>" +
+          '<div class="task-row-body">' +
             '<div class="task-edit">' +
               '<label class="field">' +
                 "<span>Task</span>" +
@@ -3029,53 +3268,84 @@ ${buildDashboardExtractSectionHtml(data.today)}
         "</article>";
       }
 
-      return '<article class="' + itemClasses + '" data-task-id="' + esc(task.id) + '">' +
-        '<label class="task-check"><input type="checkbox" data-action="toggle" data-task-id="' + esc(task.id) + '"' + (task.done ? " checked" : "") + "></label>" +
-        '<div class="task-body">' +
-          '<div class="task-head">' +
-            '<button type="button" class="task-title" data-action="open" data-file="' + esc(task.filePath) + '" data-line="' + task.lineIndex + '">' + esc(task.text) + "</button>" +
-            '<div class="task-actions">' +
+      return '<article class="' + itemClasses + '" data-task-id="' + esc(task.id) + '" tabindex="-1">' +
+        '<label class="task-row-toggle-entry"><input class="task-row-toggle" type="checkbox" data-action="toggle" data-task-id="' + esc(task.id) + '"' + (task.done ? " checked" : "") + "></label>" +
+        '<div class="task-row-body">' +
+          '<div class="task-row-main">' +
+            '<div class="task-row-title-entry"><button type="button" class="task-row-title" data-action="open" data-file="' + esc(task.filePath) + '" data-line="' + task.lineIndex + '">' + esc(task.text) + "</button></div>" +
+            '<div class="task-row-secondary-actions">' +
               '<button type="button" class="text-btn" data-action="edit" data-task-id="' + esc(task.id) + '">Edit</button>' +
               '<button type="button" class="text-btn" data-action="open" data-file="' + esc(task.filePath) + '" data-line="' + task.lineIndex + '">Open</button>' +
               '<button type="button" class="text-btn is-danger" data-action="delete" data-task-id="' + esc(task.id) + '">Delete</button>' +
             "</div>" +
           "</div>" +
-          '<div class="task-meta">' + renderTaskMeta(task) + "</div>" +
+          renderTaskMeta(task) +
         "</div>" +
       "</article>";
     }
 
     function renderCandidateItem(task, index) {
       const canAdd = canAddDashboardCandidate(task, getExistingTaskKeys());
-      const itemClasses = ["task-item", "is-candidate", task.existsAlready ? "is-candidate-blocked" : ""]
+      const itemClasses = ["task-row", "task-row-candidate", task.existsAlready ? "is-candidate-blocked" : ""]
         .filter(Boolean)
         .join(" ");
       return '<article class="' + itemClasses + '">' +
-        '<label class="task-check"><span class="badge">AI</span></label>' +
-        '<div class="task-body">' +
-          '<div class="task-head">' +
-            '<div class="task-title">' + esc(task.text) + '</div>' +
-            '<div class="task-actions">' +
-              '<span class="badge">Candidate</span>' +
+        '<div class="task-row-leading"><span class="badge task-row-label">AI</span></div>' +
+        '<div class="task-row-body">' +
+          '<div class="task-row-main">' +
+            '<div class="task-row-title-entry"><div class="task-row-title">' + esc(task.text) + '</div></div>' +
+            '<div class="task-row-candidate-actions">' +
+              '<span class="badge task-row-label">Candidate</span>' +
               '<button type="button" class="text-btn" data-action="dismiss-candidate" data-index="' + index + '">Dismiss</button>' +
-              '<button type="button" class="text-btn' + (canAdd ? '' : ' is-danger') + '"' + (canAdd ? '' : ' disabled') + ' data-action="add-candidate" data-index="' + index + '">' + (canAdd ? 'Add' : 'Already exists') + '</button>' +
+              '<button type="button" class="text-btn' + (canAdd ? '' : ' is-danger') + '"' + (canAdd ? '' : ' disabled') + ' data-action="add-candidate" data-index="' + index + '">Add</button>' +
+              (canAdd ? '' : '<span class="badge is-danger">Already exists</span>') +
             '</div>' +
           '</div>' +
-          '<div class="task-meta">' + renderCandidateMeta(task) + '</div>' +
+          renderCandidateMeta(task) +
         '</div>' +
       '</article>';
+    }
+
+    function renderEmptyState(message) {
+      const parts = String(message || "").split("||");
+      const title = parts[0] || "";
+      const body = parts[1] || "";
+      return '<div class="empty-state">' +
+        '<strong class="empty-state-title">' + esc(title) + '</strong>' +
+        (body ? '<p class="empty-state-body">' + esc(body) + '</p>' : '') +
+      '</div>';
     }
 
     function renderTasks() {
       const viewModel = getListViewModel();
       if (viewModel.emptyMessage) {
-        taskList.innerHTML = '<div class="empty-state">' + esc(viewModel.emptyMessage) + '</div>';
+        taskList.innerHTML = renderEmptyState(viewModel.emptyMessage);
         return;
       }
 
       const visibleCandidates = getVisibleCandidates();
+      if (viewModel.flatItems && viewModel.flatItems.length > 0) {
+        taskList.innerHTML = viewModel.flatItems
+          .map(function (item) {
+            if (item.kind === "candidate") {
+              const index = visibleCandidates.findIndex(function (candidate) {
+                return candidate.order === item.order;
+              });
+              return renderCandidateItem(item, index);
+            }
+            return renderTaskItem(item);
+          })
+          .join("");
+        return;
+      }
+
       const html = viewModel.sections
         .map(function (section) {
+          const subtitle = section.key === "candidates"
+            ? "extracted suggestions"
+            : state.filter === "all" && section.key !== "candidates"
+              ? sectionDescriptions[section.key]
+              : "filtered items";
           const items = section.items
             .map(function (item) {
               if (item.kind === "candidate") {
@@ -3090,7 +3360,7 @@ ${buildDashboardExtractSectionHtml(data.today)}
           return '<section class="task-section">' +
             '<div class="task-section-header">' +
               "<h3>" + esc(section.title) + "</h3>" +
-              "<span>" + section.items.length + (section.key === "candidates" ? " · extracted suggestions" : " · " + esc(sectionDescriptions[section.key])) + "</span>" +
+              "<span>" + section.items.length + " · " + esc(subtitle) + "</span>" +
             "</div>" +
             '<div class="task-items">' + items + "</div>" +
           "</section>";
@@ -3137,10 +3407,19 @@ ${buildDashboardExtractSectionHtml(data.today)}
       renderFilters();
       renderTasks();
       updateComposerPreview();
+      syncHeaderDate();
     }
 
     document.getElementById("btn-refresh").addEventListener("click", function () {
       vscode.postMessage({ command: "refresh" });
+    });
+
+    document.querySelectorAll("[data-kpi-filter]").forEach(function (chip) {
+      chip.addEventListener("click", function () {
+        state.filter = chip.dataset.kpiFilter;
+        persistState();
+        rerender();
+      });
     });
 
     document.getElementById("btn-clear-task").addEventListener("click", function () {
@@ -3439,6 +3718,7 @@ ${buildDashboardExtractSectionHtml(data.today)}
     });
 
     syncStaticInputs();
+    syncHeaderDate();
     rerender();
   </script>
 </body>

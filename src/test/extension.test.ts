@@ -724,6 +724,61 @@ suite("Extension Test Suite", () => {
     );
   });
 
+  test("dashboard webview uses a flat list render path for non-All Task 1 listboard views", () => {
+    const html = renderDashboardWebviewHtml();
+
+    assert.ok(
+      html.includes("if (viewModel.flatItems && viewModel.flatItems.length > 0)"),
+      "expected non-All views to use a flat-item render path without section headers",
+    );
+  });
+
+  test("dashboard webview defaults the listboard filter to All and renders the full chip set", () => {
+    const html = renderDashboardWebviewHtml();
+
+    assert.ok(
+      html.includes('const filterDefinitions = ['),
+      "expected dashboard script to define the filter chip set",
+    );
+    assert.ok(
+      html.includes('{ id: "all", label: "All", count:'),
+      "expected All filter chip definition in the dashboard toolbar",
+    );
+    assert.ok(
+      html.includes('const activeClass = filter.id === state.filter ? " is-active" : "";'),
+      "expected rendered filter output to include an active state contract",
+    );
+    assert.ok(
+      html.includes(`return '<button type="button" class="filter-chip' + activeClass + '" data-filter="' + esc(filter.id) + '">`),
+      "expected rendered filter output to bind each chip to its filter id",
+    );
+    assert.ok(
+      html.includes('state.filter = button.dataset.filter;'),
+      "expected filter buttons to drive the active filter from the rendered output contract",
+    );
+    assert.ok(
+      html.includes('if (state.filter !== "all") {'),
+      "expected the All filter to remain the primary default list view during rerenders",
+    );
+
+    for (const filterId of [
+      "all",
+      "attention",
+      "candidate",
+      "overdue",
+      "today",
+      "upcoming",
+      "scheduled",
+      "backlog",
+      "done",
+    ]) {
+      assert.ok(
+        html.includes(`{ id: "${filterId}", label:`),
+        `expected ${filterId} filter chip definition in the dashboard toolbar`,
+      );
+    }
+  });
+
   test("dashboard webview switches to Candidate after extraction and tracks locally added candidate keys", () => {
     const html = renderDashboardWebviewHtml();
 
@@ -747,6 +802,31 @@ suite("Extension Test Suite", () => {
       html.includes("function handleDismissExtractedAction(actionEl) {") &&
         !html.includes("function handleDismissExtractedAction(actionEl) {\n      const index = Number.parseInt(actionEl.dataset.index || \"-1\", 10);\n      const visibleCandidates = getVisibleCandidates();\n      if (Number.isNaN(index) || !visibleCandidates[index]) {\n        return;\n      }\n\n      const task = visibleCandidates[index];\n      state.candidateTasks = (state.candidateTasks || []).filter(function (candidate) {\n        return candidate.order !== task.order;\n      });\n      state.addedCandidateKeys = (state.addedCandidateKeys || []).filter(function (key) {"),
       "expected dismiss handling to keep local duplicate guard keys intact",
+    );
+  });
+
+  test("dashboard webview flat filter subtitles never render undefined in Task 1 listboard views", () => {
+    const html = renderDashboardWebviewHtml();
+
+    assert.ok(
+      html.includes('const subtitle = section.key === "candidates"') &&
+        html.includes('? sectionDescriptions[section.key]') &&
+        html.includes(': "filtered items";'),
+      "expected flat filter subtitles to fall back to a defined label instead of undefined",
+    );
+  });
+
+  test("dashboard webview All grouped subtitles keep section-specific copy in Task 1 listboard views", () => {
+    const html = renderDashboardWebviewHtml();
+
+    assert.ok(
+      html.includes('state.filter === "all" && section.key !== "candidates"') &&
+        html.includes('? sectionDescriptions[section.key]'),
+      "expected grouped All sections to keep their specific section description text",
+    );
+    assert.ok(
+      html.includes('? "extracted suggestions"'),
+      "expected candidate sections to keep the extracted suggestions subtitle",
     );
   });
 
@@ -824,30 +904,31 @@ suite("Extension Test Suite", () => {
     );
   });
 
-  test("dashboard webview renders the command center shell in the approved order", () => {
+  test("dashboard webview renders the listboard shell in the approved order", () => {
     const html = renderDashboardWebviewHtml();
 
     const headerIndex = html.indexOf('id="dashboard-header"');
-    const kpiIndex = html.indexOf('id="dashboard-kpis"');
-    const workspaceIndex = html.indexOf('id="dashboard-workspace"');
-    const toolbarIndex = html.indexOf('id="task-toolbar"');
-    const listIndex = html.indexOf('id="task-list"');
-    const railIndex = html.indexOf('id="support-rail"');
+    const toolbarIndex = html.indexOf('id="dashboard-toolbar"');
+    const actionBarIndex = html.indexOf('id="dashboard-action-bar"');
+    const listIndex = html.indexOf('id="dashboard-main-list"');
     const analyticsIndex = html.indexOf('id="analytics-strip"');
 
-    assert.ok(headerIndex >= 0, "expected compact command center header marker");
-    assert.ok(kpiIndex >= 0, "expected KPI strip marker");
-    assert.ok(workspaceIndex >= 0, "expected split workspace marker");
+    assert.ok(headerIndex >= 0, "expected compact listboard header marker");
     assert.ok(toolbarIndex >= 0, "expected toolbar marker above the task list");
+    assert.ok(actionBarIndex >= 0, "expected top action bar marker");
     assert.ok(listIndex >= 0, "expected main list marker");
-    assert.ok(railIndex >= 0, "expected support rail marker");
     assert.ok(analyticsIndex >= 0, "expected analytics strip marker");
 
-    assert.ok(headerIndex < kpiIndex, "expected header before KPI strip");
-    assert.ok(kpiIndex < workspaceIndex, "expected KPI strip before main workspace");
-    assert.ok(toolbarIndex < listIndex, "expected toolbar before the main task list column");
-    assert.ok(listIndex < railIndex, "expected list column before support rail");
-    assert.ok(workspaceIndex < analyticsIndex, "expected analytics strip below the main workspace");
+    assert.ok(!html.includes('id="dashboard-kpis"'), "expected old KPI strip shell to be removed");
+    assert.ok(!html.includes('id="dashboard-workspace"'), "expected old split workspace shell to be removed");
+    assert.ok(!html.includes('id="task-toolbar"'), "expected old toolbar shell id to be removed");
+    assert.ok(!html.includes('id="task-list"'), "expected old list shell id to be removed");
+    assert.ok(!html.includes('id="support-rail"'), "expected right-side support rail shell to be removed");
+
+    assert.ok(headerIndex < toolbarIndex, "expected header before toolbar");
+    assert.ok(toolbarIndex < actionBarIndex, "expected toolbar before action bar");
+    assert.ok(actionBarIndex < listIndex, "expected action bar before main list");
+    assert.ok(listIndex < analyticsIndex, "expected analytics strip below the main list");
   });
 
   test("dashboard webview removes the old hero-first shell while surfacing overdue context in attention KPI", () => {
@@ -865,13 +946,13 @@ suite("Extension Test Suite", () => {
     assert.ok(!html.includes('<div class="summary-label">Overdue</div>'), "expected overdue KPI label to be removed");
     assert.match(
       html,
-      /id="kpi-attention"[\s\S]*<div class="kpi-value">1<\/div>/,
+      /id="dashboard-kpi-attention"[\s\S]*<span class="dashboard-kpi-value">1<\/span>/,
       "expected attention KPI to show the overdue task in its main value",
     );
     assert.match(
       html,
-      /id="kpi-attention"[\s\S]*期限超過 1 件/,
-      "expected attention KPI to keep overdue count visible in the note text",
+      /id="dashboard-kpi-attention"[\s\S]*<span class="dashboard-kpi-note">1<\/span>/,
+      "expected attention KPI to keep overdue context visible in the compact chip note",
     );
   });
 
@@ -902,6 +983,335 @@ suite("Extension Test Suite", () => {
     assert.ok(
       !html.includes('class="ai-result" id="notes-extract-result"'),
       "expected support rail to drop notes candidate card rendering",
+    );
+  });
+
+  test("dashboard webview keeps compact header KPI and date contracts for the listboard shell", () => {
+    const html = renderDashboardWebviewHtml();
+
+    assert.ok(html.includes('id="dashboard-header-right"'), "expected dedicated header right container");
+    assert.ok(html.includes('id="dashboard-date-label"'), "expected current local date label in header");
+    assert.ok(
+      html.includes('id="dashboard-weekday-marker"'),
+      "expected compact weekday marker container in header",
+    );
+    assert.ok(
+      html.includes('id="dashboard-kpi-open"') && html.includes('>Open<'),
+      "expected Open KPI chip label",
+    );
+    assert.ok(
+      html.includes('id="dashboard-kpi-attention"') && html.includes('>Attention<'),
+      "expected Attention KPI chip label",
+    );
+    assert.ok(
+      html.includes('id="dashboard-kpi-done"') && html.includes('>Done %<'),
+      "expected Done % KPI chip label",
+    );
+    assert.ok(
+      html.includes('data-kpi-filter="all"'),
+      "expected Open KPI chip to map to All filter",
+    );
+    assert.ok(
+      html.includes('data-kpi-filter="attention"'),
+      "expected Attention KPI chip to map to Attention filter",
+    );
+    assert.ok(
+      html.includes('data-kpi-filter="done"'),
+      "expected Done % KPI chip to map to Done filter",
+    );
+    assert.ok(
+      html.includes('document.querySelectorAll("[data-kpi-filter]")'),
+      "expected KPI chip interactions to be wired in browser script",
+    );
+    assert.ok(
+      html.includes('state.filter = chip.dataset.kpiFilter;\n        persistState();\n        rerender();'),
+      "expected KPI chip interactions to persist filter state before rerendering like toolbar filters",
+    );
+    assert.ok(html.includes('id="btn-refresh"'), "expected refresh action in header");
+    assert.ok(
+      !html.includes('>Listboard<'),
+      "expected header left side to avoid an extra eyebrow label outside the approved contract",
+    );
+    assert.ok(
+      html.includes('function formatDashboardHeaderDate(dateString)') &&
+        html.includes('function formatDashboardWeekdayMarker(dateString)'),
+      "expected rerender-driven date formatting helpers for header label and weekday",
+    );
+    assert.ok(
+      html.includes('function getCurrentDashboardDate()') &&
+        html.includes('const now = new Date();') &&
+        html.includes('syncHeaderDate();'),
+      "expected header date to use the browser local date during rerender without a timer",
+    );
+    assert.ok(
+      html.includes('const currentDate = getCurrentDashboardDate();') &&
+        html.includes('formatDashboardHeaderDate(currentDate)') &&
+        html.includes('formatDashboardWeekdayMarker(currentDate)'),
+      "expected syncHeaderDate to derive both label and weekday from the current browser-local date",
+    );
+    assert.ok(
+      !html.includes('formatDashboardHeaderDate(dashboardData.today)') &&
+        !html.includes('formatDashboardWeekdayMarker(dashboardData.today)'),
+      "expected header date rendering to avoid stale webview-generation date data",
+    );
+    assert.ok(html.includes('.dashboard-kpi-value {') && html.includes('font-variant-numeric: tabular-nums;'), "expected KPI numbers to use tabular alignment");
+    assert.ok(
+      html.includes('.header-right {') &&
+        html.includes('flex-wrap: wrap;') &&
+        html.includes('justify-content: flex-end;'),
+      "expected header right area to wrap into two rows when needed",
+    );
+  });
+
+  test("dashboard webview keeps Quick Add and AI Extract in a 60/40 top action bar without changing task or candidate behavior", () => {
+    const html = renderDashboardWebviewHtml();
+
+    assert.match(
+      html,
+      /id="dashboard-action-bar"[\s\S]*<section class="action-panel action-panel-quick-add"[\s\S]*Quick Add[\s\S]*id="new-task-text"[\s\S]*<section class="action-panel action-panel-ai-extract"[\s\S]*AI Extract[\s\S]*id="btn-ai-extract"[\s\S]*id="btn-extract-notes"/,
+      "expected Quick Add to render before AI Extract in the top action bar",
+    );
+    assert.ok(
+      html.includes('.dashboard-action-bar {') &&
+        html.includes('grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);'),
+      "expected desktop action bar to use an explicit 60/40 split",
+    );
+    assert.ok(
+      html.includes('@media (width < 1000px) {') &&
+        html.includes('.dashboard-action-bar {\n      grid-template-columns: 1fr;'),
+      "expected action bar to stack vertically below 1000px",
+    );
+    assert.ok(
+      html.includes('class="action-panel action-panel-quick-add"') &&
+        html.includes('class="action-panel action-panel-ai-extract"'),
+      "expected dedicated action bar panels for Quick Add and AI Extract",
+    );
+    assert.ok(
+      html.includes('data-extract-group="moments"') && html.includes('data-extract-group="notes"'),
+      "expected extract controls to belong to action-bar groups instead of a right rail",
+    );
+    assert.ok(
+      html.includes('function getSaveTargetLabel() {') &&
+        html.includes('"tasks/" + state.targetDate + ".md"') &&
+        html.includes('"tasks/inbox.md"'),
+      "expected Quick Add save target behavior to stay unchanged",
+    );
+    assert.ok(
+      html.includes('document.getElementById("btn-ai-extract").addEventListener("click", function () {') &&
+        html.includes('document.getElementById("btn-extract-notes").addEventListener("click", function () {'),
+      "expected extraction commands to stay wired from the top action bar",
+    );
+    assert.ok(
+      html.includes('const aiStatus = document.getElementById("ai-status");') &&
+        html.includes('const notesStatus = document.getElementById("notes-extract-status");'),
+      "expected extraction status updates to remain attached to their control groups",
+    );
+    assert.ok(
+      html.includes('data-action="add-candidate"') && html.includes('data-action="dismiss-candidate"'),
+      "expected candidate Add and Dismiss actions to remain wired",
+    );
+    assert.ok(
+      html.includes("Already exists") &&
+        html.includes("canAddDashboardCandidate(task, existingTaskKeys)") &&
+        html.includes("data-action=\"add-candidate\"") &&
+        html.includes("data-action=\"dismiss-candidate\""),
+      "expected duplicate candidates to remain blocked with Already exists",
+    );
+    assert.ok(!html.includes('id="support-rail"'), "expected extract controls to stay out of a right rail");
+  });
+
+  test("dashboard action bar stacks only below 1000px", () => {
+    const html = renderDashboardWebviewHtml();
+
+    assert.ok(
+      html.includes('@media (width < 1000px) {') &&
+        html.includes('.dashboard-action-bar {\n      grid-template-columns: 1fr;'),
+      "expected action bar stacking rule to start only below 1000px",
+    );
+    assert.ok(
+      !html.includes('@media (max-width: 1000px) {\n    .dashboard-action-bar {'),
+      "expected action bar not to stack at exactly 1000px",
+    );
+  });
+
+  test("dashboard webview keeps saved-row interaction rules in dense listboard rows", () => {
+    const html = renderDashboardWebviewHtml();
+    const narrowSecondaryActionsRule = /@media \(max-width: 720px\) \{[\s\S]*?\.task-row-secondary-actions,\s+\.task-row-candidate-actions \{[\s\S]*?justify-content: flex-start;[\s\S]*?opacity: 1;[\s\S]*?pointer-events: auto;[\s\S]*?\}/;
+
+    assert.ok(
+      html.includes('class="task-row-toggle"') &&
+        html.includes('data-action="toggle"') &&
+        !html.includes('data-action="toggle" data-file='),
+      "expected the checkbox toggle to remain the only done-toggle control",
+    );
+    assert.ok(
+      html.includes('class="task-row-title"') &&
+        html.includes('data-action="open"') &&
+        !html.includes('class="task-row-title" data-action="edit"'),
+      "expected the task title to remain the Open control",
+    );
+    assert.ok(
+      html.includes('class="task-row-secondary-actions"') &&
+        html.includes('task-row:hover .task-row-secondary-actions') &&
+        html.includes('task-row:focus-within .task-row-secondary-actions') &&
+        html.includes('>Edit</button>') &&
+        html.includes('>Open</button>') &&
+        html.includes('>Delete</button>'),
+      "expected Edit, Open, and Delete to stay as secondary actions revealed by hover or focus-within",
+    );
+    assert.ok(
+      html.includes('task-row-saved') &&
+        html.includes('tabindex="-1"') &&
+        html.includes('class="task-row-toggle-entry"') &&
+        html.includes('class="task-row-title-entry"'),
+      "expected checkbox and title entry points to reveal secondary actions for keyboard users",
+    );
+    assert.ok(
+      narrowSecondaryActionsRule.test(html),
+      "expected narrow layouts to make saved-row secondary actions visible and interactive for touch access",
+    );
+  });
+
+  test("dashboard webview renders candidate rows in the dedicated Candidates section with duplicate handling", () => {
+    const html = renderDashboardWebviewHtml();
+
+    assert.ok(
+      html.includes("Candidates") &&
+        html.includes('section.key === "candidates"') &&
+        html.includes('function renderCandidateItem(task, index)') &&
+        html.includes('task-row-candidate') &&
+        html.includes('badge task-row-label">Candidate</span>'),
+      "expected candidate rows to render in the dedicated Candidates section under All",
+    );
+    assert.ok(
+      html.includes('>Already exists</span>') &&
+        html.includes('data-action="dismiss-candidate"') &&
+        html.includes('data-action="add-candidate"') &&
+        html.includes(' data-index="') &&
+        html.includes(' disabled') &&
+        html.includes('>Add</button>'),
+      "expected duplicate candidate rows to keep Dismiss, keep Add visible but disabled, and still communicate Already exists",
+    );
+    assert.ok(
+      html.includes('.task-row-candidate .task-row-title {') &&
+        html.includes('white-space: normal;') &&
+        html.includes('-webkit-line-clamp: 2;') &&
+        html.includes('display: -webkit-box;'),
+      "expected candidate row titles to stay readable with a compact two-line clamp",
+    );
+    assert.ok(html.includes('.task-row-candidate .task-row-title {'), "expected candidate title rule");
+    assert.ok(html.includes('cursor: default;'), "expected non-clickable candidate cursor");
+    assert.ok(!html.includes('.task-row-candidate .task-row-title:hover {'), "expected no candidate-specific hover rule");
+    assert.ok(html.includes('.task-row-saved .task-row-title:hover {'), "expected saved-task hover rule to remain");
+    assert.ok(!/^\s*\.task-row-title:hover \{/m.test(html), "expected shared hover rule to be removed");
+  });
+
+  test("dashboard webview keeps dense metadata priority for saved and candidate rows", () => {
+    const html = renderDashboardWebviewHtml();
+
+    assert.ok(html.includes('class="task-row-meta task-row-meta-saved"'), "expected saved-task metadata container");
+    assert.ok(
+      html.indexOf('task-row-meta-date') < html.indexOf('task-row-meta-tag') &&
+        html.indexOf('task-row-meta-tag') < html.indexOf('task-row-meta-source-saved'),
+      "expected saved-task rows to keep date and due metadata before tags before source",
+    );
+    assert.ok(html.includes('task-row-meta-due'), "expected saved-task due metadata class");
+    assert.ok(html.includes('class="task-row-meta task-row-meta-candidate"'), "expected candidate metadata container");
+    assert.ok(
+      html.indexOf('task-row-meta-candidate-due') < html.indexOf('task-row-meta-category') &&
+        html.indexOf('task-row-meta-category') < html.indexOf('task-row-meta-source-candidate'),
+      "expected candidate rows to keep due/date before category or priority before source",
+    );
+    assert.ok(html.includes('task-row-meta-priority'), "expected candidate priority metadata class");
+    assert.ok(
+      html.includes('.task-row-meta {') &&
+        html.includes('flex-wrap: nowrap;') &&
+        html.includes('overflow: hidden;') &&
+        html.includes('.task-row-meta-source {') &&
+        html.includes('min-width: 0;') &&
+        html.includes('text-overflow: ellipsis;') &&
+        html.includes('white-space: nowrap;'),
+      "expected source metadata to truncate first without uncontrolled wrapping that destroys density",
+    );
+  });
+
+  test("dashboard webview keeps a compact analytics strip with zero-data visuals", () => {
+    const html = renderDashboardWebviewHtml();
+
+    assert.ok(
+      html.includes('id="analytics-strip"') &&
+        html.includes('class="week-chart week-chart-compact"') &&
+        html.includes('class="category-list category-list-compact"'),
+      "expected analytics strip to keep compact chart and bar-list containers",
+    );
+    assert.ok(
+      html.includes('class="week-day-bars"') &&
+        html.includes('data-zero="') &&
+        html.includes('class="week-bar week-bar-open') &&
+        html.includes('class="week-bar week-bar-done'),
+      "expected next 7 days to keep mini bars rendered even when a value is zero",
+    );
+    assert.ok(
+      html.includes('class="category-track"') &&
+        html.includes('class="category-fill') &&
+        html.includes('data-empty="') &&
+        html.includes('min-width: 10px;'),
+      "expected category balance rows to keep fixed-height zero-value bars instead of disappearing",
+    );
+    assert.ok(
+      html.includes('.week-chart-compact {') &&
+        html.includes('height: 108px;') &&
+        html.includes('.category-list-compact {'),
+      "expected analytics strip CSS to stay visually compact",
+    );
+  });
+
+  test("dashboard list view model uses final compact empty-state messaging", () => {
+    const noTasksAtAll = buildDashboardListViewModel([], "all", "");
+    assert.strictEqual(
+      noTasksAtAll.emptyMessage,
+      "No tasks yet||Use Quick Add or AI Extract to create your first task.",
+    );
+
+    const noAttention = buildDashboardListViewModel([], "attention", "");
+    assert.strictEqual(
+      noAttention.emptyMessage,
+      "Nothing urgent right now||Attention items from Overdue, Today, and Upcoming will appear here.",
+    );
+
+    const legacyFocusEmpty = buildDashboardListViewModel([], "focus", "");
+    assert.strictEqual(
+      legacyFocusEmpty.emptyMessage,
+      "Nothing urgent right now||Attention items from Overdue, Today, and Upcoming will appear here.",
+    );
+
+    const noCandidates = buildDashboardListViewModel([], "candidate", "");
+    assert.strictEqual(
+      noCandidates.emptyMessage,
+      "No candidates yet||Extraction results from Moments or Notes will appear here.",
+    );
+  });
+
+  test("dashboard webview renders final compact empty-state copy for All, Attention, and Candidate", () => {
+    const html = renderDashboardWebviewHtml();
+
+    assert.ok(
+      html.includes('function renderEmptyState(message) {') &&
+        html.includes('class="empty-state-title"') &&
+        html.includes('class="empty-state-body"'),
+      "expected empty states to render compact structured messaging",
+    );
+    assert.ok(
+      html.includes('"No tasks yet||Use Quick Add or AI Extract to create your first task."'),
+      "expected All empty state to direct users to Quick Add or AI Extract",
+    );
+    assert.ok(
+      html.includes('"Nothing urgent right now||Attention items from Overdue, Today, and Upcoming will appear here."'),
+      "expected Attention empty state to explain there is nothing urgent",
+    );
+    assert.ok(
+      html.includes('"No candidates yet||Extraction results from Moments or Notes will appear here."'),
+      "expected Candidate empty state to explain where extracted candidates appear",
     );
   });
 
@@ -1697,8 +2107,313 @@ suite("Extension Test Suite", () => {
         { title: "Candidates", kinds: ["candidate", "candidate"] },
         { title: "Overdue", kinds: ["task"] },
         { title: "Today", kinds: ["task"] },
+        { title: "Upcoming", kinds: [] },
+        { title: "Scheduled", kinds: [] },
+        { title: "Backlog", kinds: [] },
+        { title: "Done", kinds: [] },
       ],
     );
+  });
+
+  test("dashboard list view model keeps All sectioned and non-All filters flat in listboard order", () => {
+    const savedTasks = buildDashboardTaskViews(
+      [
+        {
+          id: "tasks/2026-03-26.md:1",
+          filePath: "/tmp/notes/tasks/2026-03-26.md",
+          lineIndex: 1,
+          text: "Overdue saved",
+          done: false,
+          date: "2026-03-26",
+          dueDate: "2026-03-26",
+          tags: ["#work"],
+        },
+        {
+          id: "tasks/2026-03-27.md:2",
+          filePath: "/tmp/notes/tasks/2026-03-27.md",
+          lineIndex: 2,
+          text: "Today saved",
+          done: false,
+          date: "2026-03-27",
+          dueDate: "2026-03-27",
+          tags: ["#admin"],
+        },
+        {
+          id: "tasks/2026-03-29.md:3",
+          filePath: "/tmp/notes/tasks/2026-03-29.md",
+          lineIndex: 3,
+          text: "Upcoming saved",
+          done: false,
+          date: "2026-03-29",
+          dueDate: "2026-03-29",
+          tags: [],
+        },
+        {
+          id: "tasks/2026-04-10.md:4",
+          filePath: "/tmp/notes/tasks/2026-04-10.md",
+          lineIndex: 4,
+          text: "Scheduled saved",
+          done: false,
+          date: "2026-04-10",
+          dueDate: "2026-04-10",
+          tags: [],
+        },
+        {
+          id: "tasks/inbox.md:5",
+          filePath: "/tmp/notes/tasks/inbox.md",
+          lineIndex: 5,
+          text: "Backlog saved",
+          done: false,
+          date: null,
+          dueDate: null,
+          tags: [],
+        },
+        {
+          id: "tasks/2026-03-20.md:6",
+          filePath: "/tmp/notes/tasks/2026-03-20.md",
+          lineIndex: 6,
+          text: "Done saved",
+          done: true,
+          date: "2026-03-20",
+          dueDate: null,
+          tags: [],
+        },
+      ],
+      "2026-03-27",
+    );
+    const candidates = buildDashboardCandidateViews([
+      {
+        kind: "candidate",
+        text: "Candidate first",
+        dueDate: null,
+        category: "work",
+        priority: "medium",
+        timeEstimateMin: 15,
+        source: "moments",
+        sourceLabel: "Moments",
+        existsAlready: false,
+      },
+    ]);
+    const items = buildDashboardListItems(savedTasks, candidates);
+
+    const allView = buildDashboardListViewModel(items, "all", "");
+    assert.deepStrictEqual(
+      allView.sections.map((section) => section.title),
+      ["Candidates", "Overdue", "Today", "Upcoming", "Scheduled", "Backlog", "Done"],
+    );
+
+    const attentionView = buildDashboardListViewModel(items, "attention", "");
+    assert.deepStrictEqual(attentionView.sections, []);
+    assert.deepStrictEqual(
+      (attentionView as { flatItems?: DashboardListItem[] }).flatItems?.map((item) => item.text),
+      ["Overdue saved", "Today saved", "Upcoming saved"],
+    );
+
+    const candidateView = buildDashboardListViewModel(items, "candidate", "");
+    assert.deepStrictEqual(candidateView.sections, []);
+    assert.deepStrictEqual(
+      (candidateView as { flatItems?: DashboardListItem[] }).flatItems?.map((item) => item.text),
+      ["Candidate first"],
+    );
+
+    const todayView = buildDashboardListViewModel(items, "today", "");
+    assert.deepStrictEqual(todayView.sections, []);
+    assert.deepStrictEqual(
+      (todayView as { flatItems?: DashboardListItem[] }).flatItems?.map((item) => item.text),
+      ["Today saved"],
+    );
+  });
+
+  test("dashboard list view model preserves active-view order when searching across saved tasks and candidates", () => {
+    const savedTasks = buildDashboardTaskViews(
+      [
+        {
+          id: "tasks/2026-03-26.md:1",
+          filePath: "/tmp/notes/tasks/2026-03-26.md",
+          lineIndex: 1,
+          text: "Alpha overdue",
+          done: false,
+          date: "2026-03-26",
+          dueDate: "2026-03-26",
+          tags: [],
+        },
+        {
+          id: "tasks/2026-03-27.md:2",
+          filePath: "/tmp/notes/tasks/2026-03-27.md",
+          lineIndex: 2,
+          text: "Alpha today",
+          done: false,
+          date: "2026-03-27",
+          dueDate: "2026-03-27",
+          tags: [],
+        },
+      ],
+      "2026-03-27",
+    );
+    const candidates = buildDashboardCandidateViews([
+      {
+        kind: "candidate",
+        text: "Alpha candidate",
+        dueDate: null,
+        category: "work",
+        priority: "medium",
+        timeEstimateMin: 15,
+        source: "moments",
+        sourceLabel: "Moments",
+        existsAlready: false,
+      },
+    ]);
+
+    const allSearch = buildDashboardListViewModel(
+      buildDashboardListItems(savedTasks, candidates),
+      "all",
+      "alpha",
+    );
+
+    assert.deepStrictEqual(
+      allSearch.sections.map((section) => ({
+        title: section.title,
+        items: section.items.map((item) => item.text),
+      })),
+      [
+        { title: "Candidates", items: ["Alpha candidate"] },
+        { title: "Overdue", items: ["Alpha overdue"] },
+        { title: "Today", items: ["Alpha today"] },
+      ],
+    );
+  });
+
+  test("dashboard list view model keeps zero-count All sections visible and uses compact empty states", () => {
+    const savedTasks = buildDashboardTaskViews(
+      [
+        {
+          id: "tasks/2026-03-27.md:1",
+          filePath: "/tmp/notes/tasks/2026-03-27.md",
+          lineIndex: 1,
+          text: "Today saved",
+          done: false,
+          date: "2026-03-27",
+          dueDate: "2026-03-27",
+          tags: [],
+        },
+      ],
+      "2026-03-27",
+    );
+    const items = buildDashboardListItems(savedTasks, []);
+
+    const allView = buildDashboardListViewModel(items, "all", "");
+    assert.deepStrictEqual(
+      allView.sections.map((section) => ({ title: section.title, count: section.items.length })),
+      [
+        { title: "Candidates", count: 0 },
+        { title: "Overdue", count: 0 },
+        { title: "Today", count: 1 },
+        { title: "Upcoming", count: 0 },
+        { title: "Scheduled", count: 0 },
+        { title: "Backlog", count: 0 },
+        { title: "Done", count: 0 },
+      ],
+    );
+    assert.strictEqual(allView.emptyMessage, null);
+
+    const emptyAll = buildDashboardListViewModel([], "all", "");
+    assert.deepStrictEqual(emptyAll.sections, []);
+    assert.strictEqual(
+      emptyAll.emptyMessage,
+      "No tasks yet||Use Quick Add or AI Extract to create your first task.",
+    );
+  });
+
+  test("dashboard list view model keeps matching All sections during partial search and hides non-matching ones", () => {
+    const savedTasks = buildDashboardTaskViews(
+      [
+        {
+          id: "tasks/2026-03-26.md:1",
+          filePath: "/tmp/notes/tasks/2026-03-26.md",
+          lineIndex: 1,
+          text: "Ops overdue alpha",
+          done: false,
+          date: "2026-03-26",
+          dueDate: "2026-03-26",
+          tags: [],
+        },
+        {
+          id: "tasks/2026-03-27.md:2",
+          filePath: "/tmp/notes/tasks/2026-03-27.md",
+          lineIndex: 2,
+          text: "Today beta",
+          done: false,
+          date: "2026-03-27",
+          dueDate: "2026-03-27",
+          tags: [],
+        },
+        {
+          id: "tasks/inbox.md:3",
+          filePath: "/tmp/notes/tasks/inbox.md",
+          lineIndex: 3,
+          text: "Ops backlog gamma",
+          done: false,
+          date: null,
+          dueDate: null,
+          tags: [],
+        },
+      ],
+      "2026-03-27",
+    );
+    const candidates = buildDashboardCandidateViews([
+      {
+        kind: "candidate",
+        text: "Ops candidate alpha",
+        dueDate: null,
+        category: "work",
+        priority: "medium",
+        timeEstimateMin: 15,
+        source: "moments",
+        sourceLabel: "Moments",
+        existsAlready: false,
+      },
+    ]);
+
+    const viewModel = buildDashboardListViewModel(
+      buildDashboardListItems(savedTasks, candidates),
+      "all",
+      "ops",
+    );
+
+    assert.deepStrictEqual(
+      viewModel.sections.map((section) => ({
+        title: section.title,
+        items: section.items.map((item) => item.text),
+      })),
+      [
+        { title: "Candidates", items: ["Ops candidate alpha"] },
+        { title: "Overdue", items: ["Ops overdue alpha"] },
+        { title: "Backlog", items: ["Ops backlog gamma"] },
+      ],
+    );
+    assert.strictEqual(viewModel.emptyMessage, null);
+  });
+
+  test("dashboard list view model shows only No search results for empty All search results", () => {
+    const savedTasks = buildDashboardTaskViews(
+      [
+        {
+          id: "tasks/2026-03-27.md:1",
+          filePath: "/tmp/notes/tasks/2026-03-27.md",
+          lineIndex: 1,
+          text: "Today saved",
+          done: false,
+          date: "2026-03-27",
+          dueDate: "2026-03-27",
+          tags: [],
+        },
+      ],
+      "2026-03-27",
+    );
+
+    const viewModel = buildDashboardListViewModel(buildDashboardListItems(savedTasks, []), "all", "missing");
+    assert.deepStrictEqual(viewModel.sections, []);
+    assert.strictEqual(viewModel.emptyMessage, "No search results");
   });
 
   test("dashboard list view model keeps candidate filter and candidate-specific empty states distinct", () => {
@@ -1717,13 +2432,17 @@ suite("Extension Test Suite", () => {
     ]);
 
     const candidateOnly = buildDashboardListViewModel(candidates, "candidate", "");
+    assert.deepStrictEqual(candidateOnly.sections, []);
     assert.deepStrictEqual(
-      candidateOnly.sections.map((section: { title: string }) => section.title),
-      ["Candidates"],
+      (candidateOnly as { flatItems?: DashboardListItem[] }).flatItems?.map((item) => item.text),
+      ["Candidate first"],
     );
 
     const noCandidateRows = buildDashboardListViewModel([], "candidate", "");
-    assert.strictEqual(noCandidateRows.emptyMessage, "No candidates yet");
+    assert.strictEqual(
+      noCandidateRows.emptyMessage,
+      "No candidates yet||Extraction results from Moments or Notes will appear here.",
+    );
 
     const noSearchResults = buildDashboardListViewModel(candidates, "candidate", "missing");
     assert.strictEqual(noSearchResults.emptyMessage, "No search results");
@@ -1732,7 +2451,10 @@ suite("Extension Test Suite", () => {
     assert.strictEqual(noItemsInFilter.emptyMessage, "No items in this filter");
 
     const noCandidateRowsWithSearch = buildDashboardListViewModel([], "candidate", "missing");
-    assert.strictEqual(noCandidateRowsWithSearch.emptyMessage, "No candidates yet");
+    assert.strictEqual(
+      noCandidateRowsWithSearch.emptyMessage,
+      "No candidates yet||Extraction results from Moments or Notes will appear here.",
+    );
 
     const noItemsInFilterWithSearch = buildDashboardListViewModel([], "today", "missing");
     assert.strictEqual(noItemsInFilterWithSearch.emptyMessage, "No items in this filter");
