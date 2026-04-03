@@ -6,6 +6,15 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-04-03
+
+### Changed
+- **Task Dashboard listboard redesign**: Rebuilt the dashboard into a denser list-first workspace with `All` as the default view, a dedicated top `Candidates` section, compact KPI chips, and a thin analytics strip so the full task landscape is visible immediately.
+- **Task Dashboard capture flow**: Moved `Quick Add` and AI extraction into a shared top action bar, tightened saved-task and candidate rows into a denser two-line rhythm, and kept duplicate candidates dismissible while clearly disabling duplicate adds.
+
+### Fixed
+- **Task Dashboard empty states**: Added clearer empty-state guidance for `All`, `Attention`, and `Candidate`, preserved legacy `focus` compatibility during the filter transition, and kept zero-value analytics visuals visible instead of collapsing away.
+
 ## [0.5.1] - 2026-04-03
 
 ### Fixed
