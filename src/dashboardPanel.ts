@@ -2480,7 +2480,6 @@ export class DashboardPanel {
   <div class="page">
     <header class="dashboard-header" id="dashboard-header">
       <div class="header-copy">
-        <div class="eyebrow">Listboard</div>
         <h1 class="header-title">Task Dashboard</h1>
       </div>
       <div class="header-right" id="dashboard-header-right">
@@ -2816,9 +2815,18 @@ ${buildDashboardExtractSectionHtml(data.today)}
       return date.toLocaleDateString(undefined, { weekday: "short" });
     }
 
+    function getCurrentDashboardDate() {
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, "0");
+      const day = String(now.getDate()).padStart(2, "0");
+      return year + "-" + month + "-" + day;
+    }
+
     function syncHeaderDate() {
-      dashboardDateLabel.textContent = formatDashboardHeaderDate(dashboardData.today);
-      dashboardWeekdayMarker.textContent = formatDashboardWeekdayMarker(dashboardData.today);
+      const currentDate = getCurrentDashboardDate();
+      dashboardDateLabel.textContent = formatDashboardHeaderDate(currentDate);
+      dashboardWeekdayMarker.textContent = formatDashboardWeekdayMarker(currentDate);
     }
 
     function extractedTaskKey(task) {

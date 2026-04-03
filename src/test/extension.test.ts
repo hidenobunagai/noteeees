@@ -1025,18 +1025,32 @@ suite("Extension Test Suite", () => {
     );
     assert.ok(html.includes('id="btn-refresh"'), "expected refresh action in header");
     assert.ok(
+      !html.includes('>Listboard<'),
+      "expected header left side to avoid an extra eyebrow label outside the approved contract",
+    );
+    assert.ok(
       html.includes('function formatDashboardHeaderDate(dateString)') &&
         html.includes('function formatDashboardWeekdayMarker(dateString)'),
       "expected rerender-driven date formatting helpers for header label and weekday",
     );
     assert.ok(
-      html.includes('function syncHeaderDate()') && html.includes('syncHeaderDate();'),
-      "expected header date to refresh during rerender without a timer",
+      html.includes('function getCurrentDashboardDate()') &&
+        html.includes('const now = new Date();') &&
+        html.includes('syncHeaderDate();'),
+      "expected header date to use the browser local date during rerender without a timer",
     );
     assert.ok(
-      html.includes('.dashboard-kpi-value {') && html.includes('font-variant-numeric: tabular-nums;'),
-      "expected KPI numbers to use tabular alignment",
+      html.includes('const currentDate = getCurrentDashboardDate();') &&
+        html.includes('formatDashboardHeaderDate(currentDate)') &&
+        html.includes('formatDashboardWeekdayMarker(currentDate)'),
+      "expected syncHeaderDate to derive both label and weekday from the current browser-local date",
     );
+    assert.ok(
+      !html.includes('formatDashboardHeaderDate(dashboardData.today)') &&
+        !html.includes('formatDashboardWeekdayMarker(dashboardData.today)'),
+      "expected header date rendering to avoid stale webview-generation date data",
+    );
+    assert.ok(html.includes('.dashboard-kpi-value {') && html.includes('font-variant-numeric: tabular-nums;'), "expected KPI numbers to use tabular alignment");
     assert.ok(
       html.includes('.header-right {') &&
         html.includes('flex-wrap: wrap;') &&
