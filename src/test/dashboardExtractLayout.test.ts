@@ -19,4 +19,19 @@ suite("Dashboard Extract Layout", () => {
     assert.doesNotMatch(html, /class="ai-result" id="ai-result"/);
     assert.doesNotMatch(html, /class="ai-result" id="notes-extract-result"/);
   });
+
+  test("extract groups are structured for the top action bar with status lines attached", () => {
+    const html = buildDashboardExtractSectionHtml("2026-04-02");
+
+    assert.match(
+      html,
+      /class="action-bar-extract-group" data-extract-group="moments"[\s\S]*From Moments[\s\S]*id="btn-ai-extract"[\s\S]*id="ai-status"/,
+    );
+    assert.match(
+      html,
+      /class="action-bar-extract-group" data-extract-group="notes"[\s\S]*From Notes[\s\S]*id="btn-extract-notes"[\s\S]*id="notes-extract-status"/,
+    );
+    assert.doesNotMatch(html, /support-rail/i);
+    assert.doesNotMatch(html, /right-rail/i);
+  });
 });

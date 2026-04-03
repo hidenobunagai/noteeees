@@ -1063,6 +1063,63 @@ suite("Extension Test Suite", () => {
     );
   });
 
+  test("dashboard webview keeps Quick Add and AI Extract in a 60/40 top action bar without changing task or candidate behavior", () => {
+    const html = renderDashboardWebviewHtml();
+
+    assert.match(
+      html,
+      /id="dashboard-action-bar"[\s\S]*<section class="action-panel action-panel-quick-add"[\s\S]*Quick Add[\s\S]*id="new-task-text"[\s\S]*<section class="action-panel action-panel-ai-extract"[\s\S]*AI Extract[\s\S]*id="btn-ai-extract"[\s\S]*id="btn-extract-notes"/,
+      "expected Quick Add to render before AI Extract in the top action bar",
+    );
+    assert.ok(
+      html.includes('.dashboard-action-bar {') &&
+        html.includes('grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);'),
+      "expected desktop action bar to use an explicit 60/40 split",
+    );
+    assert.ok(
+      html.includes('@media (max-width: 1000px) {') &&
+        html.includes('.dashboard-action-bar {\n      grid-template-columns: 1fr;'),
+      "expected action bar to stack vertically below 1000px",
+    );
+    assert.ok(
+      html.includes('class="action-panel action-panel-quick-add"') &&
+        html.includes('class="action-panel action-panel-ai-extract"'),
+      "expected dedicated action bar panels for Quick Add and AI Extract",
+    );
+    assert.ok(
+      html.includes('data-extract-group="moments"') && html.includes('data-extract-group="notes"'),
+      "expected extract controls to belong to action-bar groups instead of a right rail",
+    );
+    assert.ok(
+      html.includes('function getSaveTargetLabel() {') &&
+        html.includes('"tasks/" + state.targetDate + ".md"') &&
+        html.includes('"tasks/inbox.md"'),
+      "expected Quick Add save target behavior to stay unchanged",
+    );
+    assert.ok(
+      html.includes('document.getElementById("btn-ai-extract").addEventListener("click", function () {') &&
+        html.includes('document.getElementById("btn-extract-notes").addEventListener("click", function () {'),
+      "expected extraction commands to stay wired from the top action bar",
+    );
+    assert.ok(
+      html.includes('const aiStatus = document.getElementById("ai-status");') &&
+        html.includes('const notesStatus = document.getElementById("notes-extract-status");'),
+      "expected extraction status updates to remain attached to their control groups",
+    );
+    assert.ok(
+      html.includes('data-action="add-candidate"') && html.includes('data-action="dismiss-candidate"'),
+      "expected candidate Add and Dismiss actions to remain wired",
+    );
+    assert.ok(
+      html.includes("Already exists") &&
+        html.includes("canAddDashboardCandidate(task, existingTaskKeys)") &&
+        html.includes("data-action=\"add-candidate\"") &&
+        html.includes("data-action=\"dismiss-candidate\""),
+      "expected duplicate candidates to remain blocked with Already exists",
+    );
+    assert.ok(!html.includes('id="support-rail"'), "expected extract controls to stay out of a right rail");
+  });
+
   test("addExtractedTask does not create a duplicate saved task when identity already exists", () => {
     const harness = createDashboardPanelTestHarness();
 

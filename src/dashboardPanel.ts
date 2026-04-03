@@ -1761,7 +1761,7 @@ export class DashboardPanel {
 
   .dashboard-action-bar {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
     gap: 12px;
     padding: 12px;
   }
@@ -1772,6 +1772,13 @@ export class DashboardPanel {
     border-radius: var(--radius-sm);
     border: 1px solid color-mix(in srgb, var(--border) 68%, transparent);
     background: color-mix(in srgb, var(--surface) 38%, transparent);
+  }
+
+  .action-panel-quick-add,
+  .action-panel-ai-extract {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
   }
 
   .list-surface {
@@ -2167,6 +2174,19 @@ export class DashboardPanel {
     gap: 10px;
   }
 
+  .action-bar-extract-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .extract-group-label {
+    color: var(--muted);
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+  }
+
   .extract-range-row {
     display: flex;
     align-items: center;
@@ -2421,6 +2441,10 @@ export class DashboardPanel {
   }
 
   @media (max-width: 1000px) {
+    .dashboard-action-bar {
+      grid-template-columns: 1fr;
+    }
+
     .analytics-strip {
       grid-template-columns: 1fr;
     }
@@ -2515,7 +2539,7 @@ export class DashboardPanel {
     </section>
 
     <section class="dashboard-action-bar" id="dashboard-action-bar">
-      <section class="action-panel">
+      <section class="action-panel action-panel-quick-add">
         <div class="card-header">
           <div>
             <div class="eyebrow">Quick Add</div>
@@ -2546,7 +2570,7 @@ export class DashboardPanel {
         </div>
       </section>
 
-      <section class="action-panel">
+      <section class="action-panel action-panel-ai-extract">
         <div class="card-header">
           <div>
             <div class="eyebrow">AI Extract</div>
