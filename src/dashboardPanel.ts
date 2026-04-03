@@ -1601,20 +1601,18 @@ export class DashboardPanel {
   .page {
     display: flex;
     flex-direction: column;
-    gap: var(--gap);
-    max-width: 1440px;
+    gap: 12px;
+    max-width: 1320px;
     margin: 0 auto;
   }
 
-  .command-center-header {
+  .dashboard-header {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: space-between;
-    gap: var(--gap);
-    padding: 14px 16px;
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    background: var(--surface);
+    gap: 12px;
+    padding: 10px 0 6px;
+    border-bottom: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
   }
 
   .header-copy {
@@ -1638,89 +1636,95 @@ export class DashboardPanel {
     font-weight: 600;
   }
 
-  .header-meta {
+  .header-right {
     display: flex;
     flex-wrap: wrap;
-    justify-content: flex-start;
+    justify-content: flex-end;
     gap: 8px;
     align-items: center;
   }
 
-  .pill {
+  .dashboard-date-group {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    padding: 6px 10px;
+    min-height: 32px;
+    padding: 0 10px;
     border-radius: 999px;
-    border: 1px solid var(--border);
-    background: var(--surface);
+    border: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
+    background: color-mix(in srgb, var(--surface) 60%, transparent);
     color: var(--muted);
     font-size: 12px;
+    white-space: nowrap;
   }
 
-  .pill strong {
+  .dashboard-date-label {
     color: var(--text);
+    font-weight: 600;
     font-variant-numeric: tabular-nums;
   }
 
-  .kpi-strip {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 12px;
+  .dashboard-weekday-marker {
+    color: var(--muted);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
   }
 
-  .kpi-card {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    padding: 14px 16px;
-    border-radius: var(--radius);
-    border: 1px solid var(--border);
-    background: var(--surface);
-    min-width: 0;
+  .dashboard-kpi-row {
+    display: inline-flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 8px;
   }
 
-  .kpi-card.is-accent {
-    border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+  .dashboard-kpi-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 32px;
+    padding: 0 10px;
+    border-radius: 999px;
+    border: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
+    background: color-mix(in srgb, var(--surface) 68%, transparent);
+    color: var(--text);
+    cursor: pointer;
   }
 
-  .kpi-label {
+  .dashboard-kpi-chip:hover {
+    border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+  }
+
+  .dashboard-kpi-label {
     color: var(--muted);
     font-size: 11px;
     font-weight: 600;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.04em;
     text-transform: uppercase;
   }
 
-  .kpi-value {
-    font-size: 24px;
-    font-weight: 600;
+  .dashboard-kpi-value {
+    font-size: 13px;
+    font-weight: 700;
     line-height: 1;
     font-variant-numeric: tabular-nums;
   }
 
-  .kpi-note {
+  .dashboard-kpi-note {
     color: var(--muted);
-    font-size: 12px;
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
   }
 
-  .workspace-shell {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) 340px;
-    gap: var(--gap);
-    align-items: start;
-  }
-
-  .workspace-main,
-  .support-rail {
+  .dashboard-toolbar,
+  .dashboard-action-bar,
+  .list-surface,
+  .analytics-strip,
+  .analytics-panel {
     min-width: 0;
-  }
-
-  .card {
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    background: var(--surface);
-    padding: 16px;
+    border: 1px solid color-mix(in srgb, var(--border) 78%, transparent);
+    border-radius: var(--radius-sm);
+    background: color-mix(in srgb, var(--surface) 56%, transparent);
   }
 
   .card-header {
@@ -1728,44 +1732,50 @@ export class DashboardPanel {
     align-items: flex-start;
     justify-content: space-between;
     gap: 12px;
-    margin-bottom: 14px;
+    margin-bottom: 10px;
   }
 
   .card-header h2,
   .card-header h3 {
     margin: 4px 0 0;
-    font-size: 18px;
+    font-size: 14px;
     line-height: 1.3;
   }
 
   .card-header p {
-    margin: 6px 0 0;
+    margin: 4px 0 0;
     color: var(--muted);
-    font-size: 13px;
+    font-size: 12px;
   }
 
   .card-header .eyebrow {
     font-size: 10px;
   }
 
-  .card-meta {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    color: var(--muted);
-    font-size: 12px;
-    white-space: nowrap;
-  }
-
-  .task-toolbar {
+  .dashboard-toolbar {
     display: flex;
     flex-direction: column;
+    gap: 10px;
+    padding: 10px 12px;
+  }
+
+  .dashboard-action-bar {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
     gap: 12px;
-    margin-bottom: 16px;
-    padding: 14px;
-    border: 1px solid var(--border);
+    padding: 12px;
+  }
+
+  .action-panel {
+    min-width: 0;
+    padding: 12px;
     border-radius: var(--radius-sm);
-    background: color-mix(in srgb, var(--surface) 90%, var(--bg));
+    border: 1px solid color-mix(in srgb, var(--border) 68%, transparent);
+    background: color-mix(in srgb, var(--surface) 38%, transparent);
+  }
+
+  .list-surface {
+    padding: 12px;
   }
 
   .filter-row {
@@ -1806,11 +1816,11 @@ export class DashboardPanel {
     display: flex;
     align-items: center;
     gap: 10px;
-    border: 1px solid var(--border);
+    border: 1px solid color-mix(in srgb, var(--border) 78%, transparent);
     border-radius: var(--radius-sm);
     padding: 0 12px;
-    min-height: 42px;
-    background: color-mix(in srgb, var(--surface) 90%, var(--bg));
+    min-height: 38px;
+    background: color-mix(in srgb, var(--surface) 34%, transparent);
   }
 
   .search-shell span {
@@ -1829,10 +1839,10 @@ export class DashboardPanel {
     padding: 10px 0;
   }
 
-  .task-list {
+  .dashboard-main-list {
     display: flex;
     flex-direction: column;
-    gap: 18px;
+    gap: 14px;
     min-width: 0;
   }
 
@@ -2224,9 +2234,10 @@ export class DashboardPanel {
 
   .analytics-strip {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 340px;
-    gap: var(--gap);
+    grid-template-columns: minmax(0, 1fr) minmax(260px, 320px);
+    gap: 12px;
     align-items: start;
+    padding: 10px 12px;
   }
 
   .week-chart {
@@ -2410,7 +2421,6 @@ export class DashboardPanel {
   }
 
   @media (max-width: 1000px) {
-    .workspace-shell,
     .analytics-strip {
       grid-template-columns: 1fr;
     }
@@ -2421,16 +2431,16 @@ export class DashboardPanel {
       padding: 14px;
     }
 
-    .command-center-header {
+    .dashboard-header {
       flex-direction: column;
       align-items: flex-start;
     }
 
-    .header-meta {
+    .header-right,
+    .dashboard-kpi-row {
       justify-content: flex-start;
     }
 
-    .kpi-strip,
     .field-grid {
       grid-template-columns: 1fr;
     }
@@ -2453,113 +2463,115 @@ export class DashboardPanel {
       justify-content: flex-start;
     }
 
-    .task-toolbar {
+    .dashboard-toolbar,
+    .dashboard-action-bar,
+    .list-surface,
+    .analytics-strip {
       padding: 12px;
+    }
+
+    .dashboard-weekday-marker {
+      display: none;
     }
   }
 </style>
 </head>
 <body>
   <div class="page">
-    <header class="command-center-header" id="dashboard-header">
+    <header class="dashboard-header" id="dashboard-header">
       <div class="header-copy">
-        <div class="eyebrow">Command Center</div>
+        <div class="eyebrow">Listboard</div>
         <h1 class="header-title">Task Dashboard</h1>
       </div>
-      <div class="header-meta">
-        <div class="pill"><strong class="mono">${escHtml(data.today)}</strong><span>Today</span></div>
-        <div class="pill"><strong>${data.tasks.length}</strong><span>Tracked</span></div>
+      <div class="header-right" id="dashboard-header-right">
+        <div class="dashboard-date-group">
+          <span class="dashboard-date-label mono" id="dashboard-date-label">${escHtml(data.today)}</span>
+          <span class="dashboard-weekday-marker" id="dashboard-weekday-marker"></span>
+        </div>
+        <div class="dashboard-kpi-row">
+          <button class="dashboard-kpi-chip" id="dashboard-kpi-open" type="button" data-kpi-filter="all">
+            <span class="dashboard-kpi-label">Open</span>
+            <span class="dashboard-kpi-value">${data.summary.totalOpen}</span>
+          </button>
+          <button class="dashboard-kpi-chip" id="dashboard-kpi-attention" type="button" data-kpi-filter="attention">
+            <span class="dashboard-kpi-label">Attention</span>
+            <span class="dashboard-kpi-value">${data.summary.attentionCount}</span>
+            <span class="dashboard-kpi-note">${data.summary.overdueCount}</span>
+          </button>
+          <button class="dashboard-kpi-chip" id="dashboard-kpi-done" type="button" data-kpi-filter="done">
+            <span class="dashboard-kpi-label">Done %</span>
+            <span class="dashboard-kpi-value">${data.summary.completionRate}%</span>
+          </button>
+        </div>
         <button class="btn" id="btn-refresh" type="button">Refresh</button>
       </div>
     </header>
 
-    <section class="kpi-strip" id="dashboard-kpis">
-      <article class="kpi-card is-accent" id="kpi-open">
-        <div class="kpi-label">Open</div>
-        <div class="kpi-value">${data.summary.totalOpen}</div>
-        <div class="kpi-note">未完了タスク全体</div>
-      </article>
-      <article class="kpi-card is-accent" id="kpi-attention">
-        <div class="kpi-label">Attention</div>
-        <div class="kpi-value">${data.summary.attentionCount}</div>
-        <div class="kpi-note">期限超過 ${data.summary.overdueCount} 件 / overdue / today / 7日以内</div>
-      </article>
-      <article class="kpi-card" id="kpi-completion">
-        <div class="kpi-label">Completion %</div>
-        <div class="kpi-value">${data.summary.completionRate}%</div>
-        <div class="kpi-note">${data.summary.totalDone} 件が完了済み</div>
-      </article>
+    <section class="dashboard-toolbar" id="dashboard-toolbar">
+      <label class="search-shell" aria-label="Search tasks">
+        <span>Search</span>
+        <input id="task-search" type="search" placeholder="text, tag, file path, date" />
+      </label>
+      <div class="filter-row" id="filter-row"></div>
     </section>
 
-    <section class="workspace-shell" id="dashboard-workspace">
-      <section class="workspace-main card">
+    <section class="dashboard-action-bar" id="dashboard-action-bar">
+      <section class="action-panel">
         <div class="card-header">
           <div>
-            <div class="eyebrow">Task Workspace</div>
-            <h2>Daily operations</h2>
-            <p>検索、絞り込み、インライン編集、削除、元ファイルへのジャンプまでここで完結します。</p>
+            <div class="eyebrow">Quick Add</div>
+            <h3>Add a task</h3>
+            <p>保存先と due を指定して、そのまま上部から追加します。</p>
           </div>
-          <div class="card-meta"><span class="mono">${data.summary.totalOpen}</span><span>open now</span></div>
         </div>
-
-        <div class="task-toolbar" id="task-toolbar">
-          <div class="filter-row" id="filter-row"></div>
-          <label class="search-shell" aria-label="Search tasks">
-            <span>Search</span>
-            <input id="task-search" type="search" placeholder="text, tag, file path, date" />
-          </label>
+        <div class="composer-body">
+          <div class="field">
+            <span>Task</span>
+            <textarea id="new-task-text" placeholder="例: 見積もりを送る #work"></textarea>
+          </div>
+          <div class="field-grid" style="margin-bottom: 12px;">
+            <label class="field-compact">
+              <span>Save In Date File</span>
+              <input id="new-task-target-date" type="date" />
+            </label>
+            <label class="field-compact">
+              <span>Due Date</span>
+              <input id="new-task-due-date" type="date" />
+            </label>
+          </div>
+          <p class="helper" id="composer-target-preview">保存先: tasks/inbox.md</p>
+          <div class="inline-actions">
+            <button class="btn btn-primary" id="btn-create-task" type="button">Add Task</button>
+            <button class="btn" id="btn-clear-task" type="button">Clear</button>
+          </div>
         </div>
-
-        <div class="task-list" id="task-list"></div>
       </section>
 
-      <aside class="support-rail" id="support-rail">
-        <section class="card">
-          <div class="card-header">
-            <div>
-              <div class="eyebrow">Composer</div>
-              <h3>Create & Extract</h3>
-              <p>手動追加や、Moments/Notes からの AI 抽出を一箇所で行えます。</p>
-            </div>
+      <section class="action-panel">
+        <div class="card-header">
+          <div>
+            <div class="eyebrow">AI Extract</div>
+            <h3>Capture candidates</h3>
+            <p>Moments と Notes の抽出操作は上部に残し、リストより軽い補助面として扱います。</p>
           </div>
-          <div class="composer-body">
-            <!-- Manual Task Input -->
-            <div class="field">
-              <span>Task</span>
-              <textarea id="new-task-text" placeholder="例: 見積もりを送る #work"></textarea>
-            </div>
-            
-            <div class="field-grid" style="margin-bottom: 12px;">
-              <label class="field-compact">
-                <span>Save In Date File</span>
-                <input id="new-task-target-date" type="date" />
-              </label>
-              <label class="field-compact">
-                <span>Due Date</span>
-                <input id="new-task-due-date" type="date" />
-              </label>
-            </div>
-            <p class="helper" id="composer-target-preview">保存先: tasks/inbox.md</p>
-            
-            <div class="inline-actions">
-              <button class="btn btn-primary" id="btn-create-task" type="button">Add Task</button>
-              <button class="btn" id="btn-clear-task" type="button">Clear</button>
-            </div>
-
-            <!-- AI Extraction Section -->
-            <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--border);">
-              <h4 style="margin: 0 0 16px; font-size: 14px; font-weight: 600; color: var(--text);">AI Extract</h4>
-              
+        </div>
 ${buildDashboardExtractSectionHtml(data.today)}
+      </section>
+    </section>
 
-            </div>
-          </div>
-        </section>
-      </aside>
+    <section class="list-surface">
+      <div class="card-header">
+        <div>
+          <div class="eyebrow">Main List</div>
+          <h2>All task sections</h2>
+          <p>メインリストを最優先に見せる listboard shell です。</p>
+        </div>
+      </div>
+      <div class="dashboard-main-list" id="dashboard-main-list"></div>
     </section>
 
     <section class="analytics-strip" id="analytics-strip">
-      <section class="card">
+      <section class="analytics-panel">
         <div class="card-header">
           <div>
             <div class="eyebrow">Upcoming Load</div>
@@ -2573,7 +2585,7 @@ ${buildDashboardExtractSectionHtml(data.today)}
         </div>
       </section>
 
-      <section class="card">
+      <section class="analytics-panel">
         <div class="card-header">
           <div>
             <div class="eyebrow">Open Mix</div>
@@ -2728,7 +2740,7 @@ ${buildDashboardExtractSectionHtml(data.today)}
 
     const taskSearchInput = document.getElementById("task-search");
     const filterRow = document.getElementById("filter-row");
-    const taskList = document.getElementById("task-list");
+    const taskList = document.getElementById("dashboard-main-list");
     const newTaskText = document.getElementById("new-task-text");
     const newTaskTargetDate = document.getElementById("new-task-target-date");
     const newTaskDueDate = document.getElementById("new-task-due-date");
@@ -2737,6 +2749,8 @@ ${buildDashboardExtractSectionHtml(data.today)}
     const aiStatus = document.getElementById("ai-status");
     const notesFromDateInput = document.getElementById("notes-from-date");
     const notesToDateInput = document.getElementById("notes-to-date");
+    const dashboardDateLabel = document.getElementById("dashboard-date-label");
+    const dashboardWeekdayMarker = document.getElementById("dashboard-weekday-marker");
 
     function persistState() {
       vscode.setState({
@@ -2778,6 +2792,33 @@ ${buildDashboardExtractSectionHtml(data.today)}
       }
 
       return Number.parseInt(parts[1], 10) + "/" + Number.parseInt(parts[2], 10);
+    }
+
+    function formatDashboardHeaderDate(dateString) {
+      const date = new Date(String(dateString || dashboardData.today) + "T00:00:00");
+      if (Number.isNaN(date.getTime())) {
+        return String(dateString || dashboardData.today);
+      }
+
+      return date.toLocaleDateString(undefined, {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      });
+    }
+
+    function formatDashboardWeekdayMarker(dateString) {
+      const date = new Date(String(dateString || dashboardData.today) + "T00:00:00");
+      if (Number.isNaN(date.getTime())) {
+        return "";
+      }
+
+      return date.toLocaleDateString(undefined, { weekday: "short" });
+    }
+
+    function syncHeaderDate() {
+      dashboardDateLabel.textContent = formatDashboardHeaderDate(dashboardData.today);
+      dashboardWeekdayMarker.textContent = formatDashboardWeekdayMarker(dashboardData.today);
     }
 
     function extractedTaskKey(task) {
@@ -3192,10 +3233,18 @@ ${buildDashboardExtractSectionHtml(data.today)}
       renderFilters();
       renderTasks();
       updateComposerPreview();
+      syncHeaderDate();
     }
 
     document.getElementById("btn-refresh").addEventListener("click", function () {
       vscode.postMessage({ command: "refresh" });
+    });
+
+    document.querySelectorAll("[data-kpi-filter]").forEach(function (chip) {
+      chip.addEventListener("click", function () {
+        state.filter = chip.dataset.kpiFilter;
+        rerender();
+      });
     });
 
     document.getElementById("btn-clear-task").addEventListener("click", function () {
@@ -3494,6 +3543,7 @@ ${buildDashboardExtractSectionHtml(data.today)}
     });
 
     syncStaticInputs();
+    syncHeaderDate();
     rerender();
   </script>
 </body>

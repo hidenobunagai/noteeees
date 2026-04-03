@@ -904,30 +904,31 @@ suite("Extension Test Suite", () => {
     );
   });
 
-  test("dashboard webview renders the command center shell in the approved order", () => {
+  test("dashboard webview renders the listboard shell in the approved order", () => {
     const html = renderDashboardWebviewHtml();
 
     const headerIndex = html.indexOf('id="dashboard-header"');
-    const kpiIndex = html.indexOf('id="dashboard-kpis"');
-    const workspaceIndex = html.indexOf('id="dashboard-workspace"');
-    const toolbarIndex = html.indexOf('id="task-toolbar"');
-    const listIndex = html.indexOf('id="task-list"');
-    const railIndex = html.indexOf('id="support-rail"');
+    const toolbarIndex = html.indexOf('id="dashboard-toolbar"');
+    const actionBarIndex = html.indexOf('id="dashboard-action-bar"');
+    const listIndex = html.indexOf('id="dashboard-main-list"');
     const analyticsIndex = html.indexOf('id="analytics-strip"');
 
-    assert.ok(headerIndex >= 0, "expected compact command center header marker");
-    assert.ok(kpiIndex >= 0, "expected KPI strip marker");
-    assert.ok(workspaceIndex >= 0, "expected split workspace marker");
+    assert.ok(headerIndex >= 0, "expected compact listboard header marker");
     assert.ok(toolbarIndex >= 0, "expected toolbar marker above the task list");
+    assert.ok(actionBarIndex >= 0, "expected top action bar marker");
     assert.ok(listIndex >= 0, "expected main list marker");
-    assert.ok(railIndex >= 0, "expected support rail marker");
     assert.ok(analyticsIndex >= 0, "expected analytics strip marker");
 
-    assert.ok(headerIndex < kpiIndex, "expected header before KPI strip");
-    assert.ok(kpiIndex < workspaceIndex, "expected KPI strip before main workspace");
-    assert.ok(toolbarIndex < listIndex, "expected toolbar before the main task list column");
-    assert.ok(listIndex < railIndex, "expected list column before support rail");
-    assert.ok(workspaceIndex < analyticsIndex, "expected analytics strip below the main workspace");
+    assert.ok(!html.includes('id="dashboard-kpis"'), "expected old KPI strip shell to be removed");
+    assert.ok(!html.includes('id="dashboard-workspace"'), "expected old split workspace shell to be removed");
+    assert.ok(!html.includes('id="task-toolbar"'), "expected old toolbar shell id to be removed");
+    assert.ok(!html.includes('id="task-list"'), "expected old list shell id to be removed");
+    assert.ok(!html.includes('id="support-rail"'), "expected right-side support rail shell to be removed");
+
+    assert.ok(headerIndex < toolbarIndex, "expected header before toolbar");
+    assert.ok(toolbarIndex < actionBarIndex, "expected toolbar before action bar");
+    assert.ok(actionBarIndex < listIndex, "expected action bar before main list");
+    assert.ok(listIndex < analyticsIndex, "expected analytics strip below the main list");
   });
 
   test("dashboard webview removes the old hero-first shell while surfacing overdue context in attention KPI", () => {
@@ -945,13 +946,13 @@ suite("Extension Test Suite", () => {
     assert.ok(!html.includes('<div class="summary-label">Overdue</div>'), "expected overdue KPI label to be removed");
     assert.match(
       html,
-      /id="kpi-attention"[\s\S]*<div class="kpi-value">1<\/div>/,
+      /id="dashboard-kpi-attention"[\s\S]*<span class="dashboard-kpi-value">1<\/span>/,
       "expected attention KPI to show the overdue task in its main value",
     );
     assert.match(
       html,
-      /id="kpi-attention"[\s\S]*期限超過 1 件/,
-      "expected attention KPI to keep overdue count visible in the note text",
+      /id="dashboard-kpi-attention"[\s\S]*<span class="dashboard-kpi-note">1<\/span>/,
+      "expected attention KPI to keep overdue context visible in the compact chip note",
     );
   });
 
@@ -982,6 +983,65 @@ suite("Extension Test Suite", () => {
     assert.ok(
       !html.includes('class="ai-result" id="notes-extract-result"'),
       "expected support rail to drop notes candidate card rendering",
+    );
+  });
+
+  test("dashboard webview keeps compact header KPI and date contracts for the listboard shell", () => {
+    const html = renderDashboardWebviewHtml();
+
+    assert.ok(html.includes('id="dashboard-header-right"'), "expected dedicated header right container");
+    assert.ok(html.includes('id="dashboard-date-label"'), "expected current local date label in header");
+    assert.ok(
+      html.includes('id="dashboard-weekday-marker"'),
+      "expected compact weekday marker container in header",
+    );
+    assert.ok(
+      html.includes('id="dashboard-kpi-open"') && html.includes('>Open<'),
+      "expected Open KPI chip label",
+    );
+    assert.ok(
+      html.includes('id="dashboard-kpi-attention"') && html.includes('>Attention<'),
+      "expected Attention KPI chip label",
+    );
+    assert.ok(
+      html.includes('id="dashboard-kpi-done"') && html.includes('>Done %<'),
+      "expected Done % KPI chip label",
+    );
+    assert.ok(
+      html.includes('data-kpi-filter="all"'),
+      "expected Open KPI chip to map to All filter",
+    );
+    assert.ok(
+      html.includes('data-kpi-filter="attention"'),
+      "expected Attention KPI chip to map to Attention filter",
+    );
+    assert.ok(
+      html.includes('data-kpi-filter="done"'),
+      "expected Done % KPI chip to map to Done filter",
+    );
+    assert.ok(
+      html.includes('document.querySelectorAll("[data-kpi-filter]")'),
+      "expected KPI chip interactions to be wired in browser script",
+    );
+    assert.ok(html.includes('id="btn-refresh"'), "expected refresh action in header");
+    assert.ok(
+      html.includes('function formatDashboardHeaderDate(dateString)') &&
+        html.includes('function formatDashboardWeekdayMarker(dateString)'),
+      "expected rerender-driven date formatting helpers for header label and weekday",
+    );
+    assert.ok(
+      html.includes('function syncHeaderDate()') && html.includes('syncHeaderDate();'),
+      "expected header date to refresh during rerender without a timer",
+    );
+    assert.ok(
+      html.includes('.dashboard-kpi-value {') && html.includes('font-variant-numeric: tabular-nums;'),
+      "expected KPI numbers to use tabular alignment",
+    );
+    assert.ok(
+      html.includes('.header-right {') &&
+        html.includes('flex-wrap: wrap;') &&
+        html.includes('justify-content: flex-end;'),
+      "expected header right area to wrap into two rows when needed",
     );
   });
 
