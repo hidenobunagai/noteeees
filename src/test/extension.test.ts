@@ -1235,6 +1235,80 @@ suite("Extension Test Suite", () => {
     );
   });
 
+  test("dashboard webview keeps a compact analytics strip with zero-data visuals", () => {
+    const html = renderDashboardWebviewHtml();
+
+    assert.ok(
+      html.includes('id="analytics-strip"') &&
+        html.includes('class="week-chart week-chart-compact"') &&
+        html.includes('class="category-list category-list-compact"'),
+      "expected analytics strip to keep compact chart and bar-list containers",
+    );
+    assert.ok(
+      html.includes('class="week-day-bars"') &&
+        html.includes('data-zero="') &&
+        html.includes('class="week-bar week-bar-open') &&
+        html.includes('class="week-bar week-bar-done'),
+      "expected next 7 days to keep mini bars rendered even when a value is zero",
+    );
+    assert.ok(
+      html.includes('class="category-track"') &&
+        html.includes('class="category-fill') &&
+        html.includes('data-empty="') &&
+        html.includes('min-width: 10px;'),
+      "expected category balance rows to keep fixed-height zero-value bars instead of disappearing",
+    );
+    assert.ok(
+      html.includes('.week-chart-compact {') &&
+        html.includes('height: 108px;') &&
+        html.includes('.category-list-compact {'),
+      "expected analytics strip CSS to stay visually compact",
+    );
+  });
+
+  test("dashboard list view model uses final compact empty-state messaging", () => {
+    const noTasksAtAll = buildDashboardListViewModel([], "all", "");
+    assert.strictEqual(
+      noTasksAtAll.emptyMessage,
+      "No tasks yet||Use Quick Add or AI Extract to create your first task.",
+    );
+
+    const noAttention = buildDashboardListViewModel([], "attention", "");
+    assert.strictEqual(
+      noAttention.emptyMessage,
+      "Nothing urgent right now||Attention items from Overdue, Today, and Upcoming will appear here.",
+    );
+
+    const noCandidates = buildDashboardListViewModel([], "candidate", "");
+    assert.strictEqual(
+      noCandidates.emptyMessage,
+      "No candidates yet||Extraction results from Moments or Notes will appear here.",
+    );
+  });
+
+  test("dashboard webview renders final compact empty-state copy for All, Attention, and Candidate", () => {
+    const html = renderDashboardWebviewHtml();
+
+    assert.ok(
+      html.includes('function renderEmptyState(message) {') &&
+        html.includes('class="empty-state-title"') &&
+        html.includes('class="empty-state-body"'),
+      "expected empty states to render compact structured messaging",
+    );
+    assert.ok(
+      html.includes('"No tasks yet||Use Quick Add or AI Extract to create your first task."'),
+      "expected All empty state to direct users to Quick Add or AI Extract",
+    );
+    assert.ok(
+      html.includes('"Nothing urgent right now||Attention items from Overdue, Today, and Upcoming will appear here."'),
+      "expected Attention empty state to explain there is nothing urgent",
+    );
+    assert.ok(
+      html.includes('"No candidates yet||Extraction results from Moments or Notes will appear here."'),
+      "expected Candidate empty state to explain where extracted candidates appear",
+    );
+  });
+
   test("addExtractedTask does not create a duplicate saved task when identity already exists", () => {
     const harness = createDashboardPanelTestHarness();
 
@@ -2027,6 +2101,10 @@ suite("Extension Test Suite", () => {
         { title: "Candidates", kinds: ["candidate", "candidate"] },
         { title: "Overdue", kinds: ["task"] },
         { title: "Today", kinds: ["task"] },
+        { title: "Upcoming", kinds: [] },
+        { title: "Scheduled", kinds: [] },
+        { title: "Backlog", kinds: [] },
+        { title: "Done", kinds: [] },
       ],
     );
   });
@@ -2234,7 +2312,10 @@ suite("Extension Test Suite", () => {
 
     const emptyAll = buildDashboardListViewModel([], "all", "");
     assert.deepStrictEqual(emptyAll.sections, []);
-    assert.strictEqual(emptyAll.emptyMessage, "No tasks yet");
+    assert.strictEqual(
+      emptyAll.emptyMessage,
+      "No tasks yet||Use Quick Add or AI Extract to create your first task.",
+    );
   });
 
   test("dashboard list view model keeps matching All sections during partial search and hides non-matching ones", () => {
@@ -2352,7 +2433,10 @@ suite("Extension Test Suite", () => {
     );
 
     const noCandidateRows = buildDashboardListViewModel([], "candidate", "");
-    assert.strictEqual(noCandidateRows.emptyMessage, "No candidates yet");
+    assert.strictEqual(
+      noCandidateRows.emptyMessage,
+      "No candidates yet||Extraction results from Moments or Notes will appear here.",
+    );
 
     const noSearchResults = buildDashboardListViewModel(candidates, "candidate", "missing");
     assert.strictEqual(noSearchResults.emptyMessage, "No search results");
@@ -2361,7 +2445,10 @@ suite("Extension Test Suite", () => {
     assert.strictEqual(noItemsInFilter.emptyMessage, "No items in this filter");
 
     const noCandidateRowsWithSearch = buildDashboardListViewModel([], "candidate", "missing");
-    assert.strictEqual(noCandidateRowsWithSearch.emptyMessage, "No candidates yet");
+    assert.strictEqual(
+      noCandidateRowsWithSearch.emptyMessage,
+      "No candidates yet||Extraction results from Moments or Notes will appear here.",
+    );
 
     const noItemsInFilterWithSearch = buildDashboardListViewModel([], "today", "missing");
     assert.strictEqual(noItemsInFilterWithSearch.emptyMessage, "No items in this filter");

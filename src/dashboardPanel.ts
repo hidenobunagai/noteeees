@@ -112,6 +112,21 @@ export interface DashboardListViewModel {
   emptyMessage: string | null;
 }
 
+const DASHBOARD_EMPTY_MESSAGE_SEPARATOR = "||";
+
+function buildDashboardEmptyMessage(filter: DashboardListFilter): string {
+  switch (filter) {
+    case "all":
+      return `No tasks yet${DASHBOARD_EMPTY_MESSAGE_SEPARATOR}Use Quick Add or AI Extract to create your first task.`;
+    case "attention":
+      return `Nothing urgent right now${DASHBOARD_EMPTY_MESSAGE_SEPARATOR}Attention items from Overdue, Today, and Upcoming will appear here.`;
+    case "candidate":
+      return `No candidates yet${DASHBOARD_EMPTY_MESSAGE_SEPARATOR}Extraction results from Moments or Notes will appear here.`;
+    default:
+      return "No items in this filter";
+  }
+}
+
 export interface DashboardCandidateStateMigration {
   candidateTasks: DashboardCandidateView[];
   candidateOrderSeed: number;
@@ -688,7 +703,7 @@ export function buildDashboardListViewModel(
     }
 
     if (!normalizedSearch && filteredItems.length === 0) {
-      return { sections: [], emptyMessage: "No tasks yet" };
+      return { sections: [], emptyMessage: buildDashboardEmptyMessage("all") };
     }
 
     const sections: DashboardListSectionView[] = [];
@@ -716,15 +731,14 @@ export function buildDashboardListViewModel(
   }
 
   if (filteredItems.length === 0) {
-    if (filter === "candidate") {
-      return { sections: [], emptyMessage: "No candidates yet" };
-    }
-
-    return { sections: [], emptyMessage: "No items in this filter" };
+    return { sections: [], emptyMessage: buildDashboardEmptyMessage(filter) };
   }
 
   if (visibleItems.length === 0) {
-    return { sections: [], emptyMessage: normalizedSearch ? "No search results" : "No items in this filter" };
+    return {
+      sections: [],
+      emptyMessage: normalizedSearch ? "No search results" : buildDashboardEmptyMessage(filter),
+    };
   }
 
   const title =
@@ -1513,9 +1527,9 @@ export class DashboardPanel {
         const label = `${Number.parseInt(month, 10)}/${Number.parseInt(dateOfMonth, 10)}`;
         const title = `${day.date} · open ${day.open} · done ${day.done}`;
         return `<div class="week-day${isToday ? " is-today" : ""}" title="${escAttr(title)}">
-  <div class="week-day-bars">
-    ${day.open > 0 ? `<div class="week-bar week-bar-open" style="height:${openHeight}%"></div>` : ""}
-    ${day.done > 0 ? `<div class="week-bar week-bar-done" style="height:${doneHeight}%"></div>` : ""}
+  <div class="week-day-bars" data-zero="${total === 0}">
+    <div class="week-bar week-bar-open${day.open === 0 ? " is-zero" : ""}" style="height:${openHeight}%"></div>
+    <div class="week-bar week-bar-done${day.done === 0 ? " is-zero" : ""}" style="height:${doneHeight}%"></div>
   </div>
   <div class="week-day-label">
     <span>${escHtml(day.label)}</span>
@@ -1551,7 +1565,7 @@ export class DashboardPanel {
   <div class="category-label"><span class="category-icon">${escHtml(categoryIcons[key])}</span>${escHtml(
           categoryLabels[key],
         )}</div>
-  <div class="category-track"><div class="category-fill" style="width:${width}%"></div></div>
+  <div class="category-track" data-empty="${count === 0}"><div class="category-fill${count === 0 ? " is-zero" : ""}" style="width:${width}%"></div></div>
   <div class="category-count">${count}</div>
 </div>`;
       })
@@ -1601,7 +1615,7 @@ export class DashboardPanel {
   .page {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 10px;
     max-width: 1320px;
     margin: 0 auto;
   }
@@ -1755,20 +1769,20 @@ export class DashboardPanel {
   .dashboard-toolbar {
     display: flex;
     flex-direction: column;
-    gap: 10px;
-    padding: 10px 12px;
+    gap: 8px;
+    padding: 9px 12px;
   }
 
   .dashboard-action-bar {
     display: grid;
     grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
-    gap: 12px;
-    padding: 12px;
+    gap: 10px;
+    padding: 10px 12px;
   }
 
   .action-panel {
     min-width: 0;
-    padding: 12px;
+    padding: 10px 12px;
     border-radius: var(--radius-sm);
     border: 1px solid color-mix(in srgb, var(--border) 68%, transparent);
     background: color-mix(in srgb, var(--surface) 38%, transparent);
@@ -1778,11 +1792,11 @@ export class DashboardPanel {
   .action-panel-ai-extract {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 10px;
   }
 
   .list-surface {
-    padding: 12px;
+    padding: 10px 12px;
   }
 
   .filter-row {
@@ -1856,7 +1870,7 @@ export class DashboardPanel {
   .task-section {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 8px;
   }
 
   .task-section-header {
@@ -1883,7 +1897,7 @@ export class DashboardPanel {
   .task-items {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 6px;
   }
 
   .task-row {
@@ -2303,24 +2317,45 @@ export class DashboardPanel {
   .empty-state {
     border: 1px dashed var(--border);
     border-radius: var(--radius-sm);
-    padding: 18px;
+    padding: 14px 16px;
     color: var(--muted);
     text-align: center;
+    max-width: 420px;
+    margin: 4px auto;
+  }
+
+  .empty-state-title {
+    display: block;
+    color: var(--text);
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+
+  .empty-state-body {
+    margin: 0;
+    font-size: 12px;
+    line-height: 1.45;
   }
 
   .analytics-strip {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(260px, 320px);
-    gap: 12px;
+    gap: 10px;
     align-items: start;
-    padding: 10px 12px;
+    padding: 8px 10px;
   }
 
-  .week-chart {
+  .analytics-panel {
+    padding: 8px 10px;
+  }
+
+  .week-chart,
+  .week-chart-compact {
     display: flex;
-    gap: 10px;
+    gap: 8px;
     align-items: stretch;
-    height: 150px;
+    height: 108px;
   }
 
   .week-day {
@@ -2328,7 +2363,7 @@ export class DashboardPanel {
     display: flex;
     flex-direction: column;
     justify-content: flex-end;
-    gap: 8px;
+    gap: 6px;
   }
 
   .week-day-bars {
@@ -2337,10 +2372,14 @@ export class DashboardPanel {
     flex-direction: column;
     justify-content: flex-end;
     gap: 3px;
-    padding: 6px;
+    padding: 5px;
     border-radius: var(--radius-sm);
     background: color-mix(in srgb, var(--surface) 88%, var(--bg));
     border: 1px solid var(--border);
+  }
+
+  .week-day-bars[data-zero="true"] {
+    opacity: 0.88;
   }
 
   .week-day.is-today .week-day-bars {
@@ -2352,6 +2391,10 @@ export class DashboardPanel {
     width: 100%;
     border-radius: 999px;
     min-height: 6px;
+  }
+
+  .week-bar.is-zero {
+    opacity: 0.38;
   }
 
   .week-bar-open {
@@ -2381,7 +2424,7 @@ export class DashboardPanel {
     display: flex;
     justify-content: flex-end;
     gap: 10px;
-    margin-top: 12px;
+    margin-top: 8px;
     color: var(--muted);
     font-size: 12px;
   }
@@ -2395,10 +2438,11 @@ export class DashboardPanel {
     vertical-align: middle;
   }
 
-  .category-list {
+  .category-list,
+  .category-list-compact {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 8px;
   }
 
   .category-row {
@@ -2438,8 +2482,13 @@ export class DashboardPanel {
 
   .category-fill {
     height: 100%;
+    min-width: 10px;
     border-radius: 999px;
     background: color-mix(in srgb, var(--accent) 70%, transparent);
+  }
+
+  .category-fill.is-zero {
+    opacity: 0.35;
   }
 
   .category-count {
@@ -2663,7 +2712,7 @@ ${buildDashboardExtractSectionHtml(data.today)}
             <h3>Next 7 days</h3>
           </div>
         </div>
-        <div class="week-chart">${weekBarsHtml}</div>
+        <div class="week-chart week-chart-compact">${weekBarsHtml}</div>
         <div class="chart-legend">
           <span><span class="legend-dot" style="background:color-mix(in srgb, var(--success) 60%, transparent)"></span>Done</span>
           <span><span class="legend-dot" style="background:color-mix(in srgb, var(--accent) 55%, transparent)"></span>Open</span>
@@ -2677,7 +2726,7 @@ ${buildDashboardExtractSectionHtml(data.today)}
             <h3>Category balance</h3>
           </div>
         </div>
-        <div class="category-list">${categoryHtml}</div>
+        <div class="category-list category-list-compact">${categoryHtml}</div>
       </section>
     </section>
   </div>
@@ -3016,6 +3065,19 @@ ${buildDashboardExtractSectionHtml(data.today)}
     }
 
     function buildDashboardListViewModel(items, filter, search) {
+      function buildDashboardEmptyMessage(filter) {
+        switch (filter) {
+          case "all":
+            return "No tasks yet||Use Quick Add or AI Extract to create your first task.";
+          case "attention":
+            return "Nothing urgent right now||Attention items from Overdue, Today, and Upcoming will appear here.";
+          case "candidate":
+            return "No candidates yet||Extraction results from Moments or Notes will appear here.";
+          default:
+            return "No items in this filter";
+        }
+      }
+
       const normalizedSearch = String(search || "").trim();
       const filteredItems = items.filter(function (item) {
         return matchesDashboardListItemFilter(item, filter);
@@ -3029,7 +3091,7 @@ ${buildDashboardExtractSectionHtml(data.today)}
         }
 
         if (!normalizedSearch && filteredItems.length === 0) {
-          return { sections: [], emptyMessage: "No tasks yet" };
+          return { sections: [], emptyMessage: buildDashboardEmptyMessage("all") };
         }
 
         const sections = [];
@@ -3055,14 +3117,14 @@ ${buildDashboardExtractSectionHtml(data.today)}
       if (filteredItems.length === 0) {
         return {
           sections: [],
-          emptyMessage: filter === "candidate" ? "No candidates yet" : "No items in this filter",
+          emptyMessage: buildDashboardEmptyMessage(filter),
         };
       }
 
       if (visibleItems.length === 0) {
         return {
           sections: [],
-          emptyMessage: normalizedSearch ? "No search results" : "No items in this filter",
+          emptyMessage: normalizedSearch ? "No search results" : buildDashboardEmptyMessage(filter),
         };
       }
 
@@ -3242,10 +3304,20 @@ ${buildDashboardExtractSectionHtml(data.today)}
       '</article>';
     }
 
+    function renderEmptyState(message) {
+      const parts = String(message || "").split("||");
+      const title = parts[0] || "";
+      const body = parts[1] || "";
+      return '<div class="empty-state">' +
+        '<strong class="empty-state-title">' + esc(title) + '</strong>' +
+        (body ? '<p class="empty-state-body">' + esc(body) + '</p>' : '') +
+      '</div>';
+    }
+
     function renderTasks() {
       const viewModel = getListViewModel();
       if (viewModel.emptyMessage) {
-        taskList.innerHTML = '<div class="empty-state">' + esc(viewModel.emptyMessage) + '</div>';
+        taskList.innerHTML = renderEmptyState(viewModel.emptyMessage);
         return;
       }
 
