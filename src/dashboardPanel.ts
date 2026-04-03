@@ -2440,7 +2440,7 @@ export class DashboardPanel {
     font-size: 12px;
   }
 
-  @media (max-width: 1000px) {
+  @media (width < 1000px) {
     .dashboard-action-bar {
       grid-template-columns: 1fr;
     }

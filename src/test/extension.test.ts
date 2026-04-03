@@ -1077,7 +1077,7 @@ suite("Extension Test Suite", () => {
       "expected desktop action bar to use an explicit 60/40 split",
     );
     assert.ok(
-      html.includes('@media (max-width: 1000px) {') &&
+      html.includes('@media (width < 1000px) {') &&
         html.includes('.dashboard-action-bar {\n      grid-template-columns: 1fr;'),
       "expected action bar to stack vertically below 1000px",
     );
@@ -1118,6 +1118,20 @@ suite("Extension Test Suite", () => {
       "expected duplicate candidates to remain blocked with Already exists",
     );
     assert.ok(!html.includes('id="support-rail"'), "expected extract controls to stay out of a right rail");
+  });
+
+  test("dashboard action bar stacks only below 1000px", () => {
+    const html = renderDashboardWebviewHtml();
+
+    assert.ok(
+      html.includes('@media (width < 1000px) {') &&
+        html.includes('.dashboard-action-bar {\n      grid-template-columns: 1fr;'),
+      "expected action bar stacking rule to start only below 1000px",
+    );
+    assert.ok(
+      !html.includes('@media (max-width: 1000px) {\n    .dashboard-action-bar {'),
+      "expected action bar not to stack at exactly 1000px",
+    );
   });
 
   test("addExtractedTask does not create a duplicate saved task when identity already exists", () => {
