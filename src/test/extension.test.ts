@@ -198,6 +198,68 @@ function renderDashboardWebviewHtml(): string {
   }
 }
 
+function createDashboardPanelTestHarness(): {
+  notesDir: string;
+  panel: DashboardPanel;
+  cleanup: () => void;
+} {
+  const notesDir = fs.mkdtempSync(path.join(os.tmpdir(), "noteeees-dashboard-"));
+  const webview: Pick<
+    vscode.Webview,
+    "cspSource" | "html" | "options" | "asWebviewUri" | "onDidReceiveMessage" | "postMessage"
+  > = {
+    cspSource: "vscode-webview-resource://test",
+    html: "",
+    options: {},
+    asWebviewUri(uri: vscode.Uri): vscode.Uri {
+      return uri;
+    },
+    onDidReceiveMessage<T>(_listener: (e: T) => unknown): vscode.Disposable {
+      return new vscode.Disposable(() => undefined);
+    },
+    postMessage(): Thenable<boolean> {
+      return Promise.resolve(true);
+    },
+  };
+
+  const panelStub = {
+    webview,
+    onDidDispose(_listener: () => void): vscode.Disposable {
+      return new vscode.Disposable(() => undefined);
+    },
+    reveal(): void {
+      return;
+    },
+    dispose(): void {
+      return;
+    },
+  } satisfies Pick<vscode.WebviewPanel, "webview" | "onDidDispose" | "reveal" | "dispose">;
+
+  const DashboardPanelCtor = DashboardPanel as unknown as {
+    new (
+      panel: vscode.WebviewPanel,
+      getNotesDir: () => string | undefined,
+      extensionUri: vscode.Uri,
+      stateStore: vscode.Memento,
+    ): DashboardPanel;
+  };
+
+  const panel = new DashboardPanelCtor(
+    panelStub as vscode.WebviewPanel,
+    () => notesDir,
+    vscode.Uri.file(notesDir),
+    createMementoStub(),
+  );
+
+  return {
+    notesDir,
+    panel,
+    cleanup() {
+      fs.rmSync(notesDir, { recursive: true, force: true });
+    },
+  };
+}
+
 suite("Extension Test Suite", () => {
   vscode.window.showInformationMessage("Start all tests.");
 
@@ -572,6 +634,33 @@ suite("Extension Test Suite", () => {
       html.includes("state.notesExtractedTasks = message.tasks || [];\n        state.notesAddedExtractedKeys = [];\n        persistState();\n        renderNotesExtractResult();"),
       "expected notesExtractResult handler to persist state before rendering",
     );
+  });
+
+  test("addExtractedTask does not create a duplicate saved task when identity already exists", () => {
+    const harness = createDashboardPanelTestHarness();
+
+    try {
+      const inboxPath = path.join(harness.notesDir, "tasks", "inbox.md");
+      fs.mkdirSync(path.dirname(inboxPath), { recursive: true });
+      fs.writeFileSync(
+        inboxPath,
+        "---\ntype: tasks\n---\n\n- [ ] Send report @2026-03-30\n",
+        "utf8",
+      );
+
+      (harness.panel as unknown as { _handleMessage(message: Record<string, unknown>): void })._handleMessage({
+        command: "addExtractedTask",
+        text: "Send report",
+        dueDate: "2026-03-31",
+        targetDate: null,
+      });
+
+      const contents = fs.readFileSync(inboxPath, "utf8");
+      const taskLines = contents.split("\n").filter((line) => line.startsWith("- [ ] "));
+      assert.deepStrictEqual(taskLines, ["- [ ] Send report @2026-03-30"]);
+    } finally {
+      harness.cleanup();
+    }
   });
 
   test("pinned Moments resolve against the latest feed entries", () => {

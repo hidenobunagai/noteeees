@@ -817,7 +817,11 @@ export class DashboardPanel {
           dueDate?: string | null;
           targetDate?: string | null;
         };
-        void this._createTask(text, normalizeOptionalDate(targetDate), normalizeOptionalDate(dueDate));
+        void this._addExtractedTask(
+          text,
+          normalizeOptionalDate(targetDate),
+          normalizeOptionalDate(dueDate),
+        );
         return;
       }
 
@@ -967,6 +971,35 @@ export class DashboardPanel {
     );
 
     this._update();
+  }
+
+  private _hasExistingExtractedTask(notesDir: string, text: string): boolean {
+    const targetKey = normalizeExtractedTaskIdentity(text);
+    if (!targetKey) {
+      return false;
+    }
+
+    return collectTasksFromNotes(notesDir).some(
+      (task) => normalizeExtractedTaskIdentity(task.text) === targetKey,
+    );
+  }
+
+  private async _addExtractedTask(
+    text: string,
+    targetDate: string | null,
+    dueDate: string | null,
+  ): Promise<void> {
+    const notesDir = this._getNotesDir();
+    if (!notesDir) {
+      return;
+    }
+
+    if (this._hasExistingExtractedTask(notesDir, text)) {
+      this._update();
+      return;
+    }
+
+    await this._createTask(text, targetDate, dueDate);
   }
 
   private async _openFile(filePath: string, lineIndex: number): Promise<void> {
