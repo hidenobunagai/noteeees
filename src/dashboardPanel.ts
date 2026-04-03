@@ -101,7 +101,7 @@ export interface DashboardCandidateView extends DashboardCandidateTask {
 export type DashboardListItem = DashboardTaskView | DashboardCandidateView;
 
 export interface DashboardListSectionView {
-  key: DashboardTaskSection | "candidates";
+  key: DashboardListFilter | "candidates";
   title: string;
   items: DashboardListItem[];
 }
@@ -681,25 +681,36 @@ export function buildDashboardListViewModel(
   const normalizedSearch = search.trim();
   const filteredItems = items.filter((item) => matchesDashboardListItemFilter(item, filter));
   const visibleItems = filteredItems.filter((item) => matchesDashboardListItemSearch(item, search));
-  const sections: DashboardListSectionView[] = [];
-
-  const candidateItems = visibleItems.filter(
-    (item): item is DashboardCandidateView => item.kind === "candidate",
-  );
-  if (candidateItems.length > 0) {
-    sections.push({ key: "candidates", title: "Candidates", items: candidateItems });
-  }
-
-  for (const section of Object.keys(SECTION_ORDER) as DashboardTaskSection[]) {
-    const taskItems = visibleItems.filter(
-      (item): item is DashboardTaskView => item.kind === "task" && item.section === section,
-    );
-    if (taskItems.length > 0) {
-      sections.push({ key: section, title: section[0].toUpperCase() + section.slice(1), items: taskItems });
+  if (filter === "all") {
+    if (normalizedSearch && visibleItems.length === 0) {
+      return { sections: [], emptyMessage: "No search results" };
     }
-  }
 
-  if (sections.length > 0) {
+    if (!normalizedSearch && filteredItems.length === 0) {
+      return { sections: [], emptyMessage: "No tasks yet" };
+    }
+
+    const sections: DashboardListSectionView[] = [];
+    const candidateItems = visibleItems.filter(
+      (item): item is DashboardCandidateView => item.kind === "candidate",
+    );
+    if (!normalizedSearch || candidateItems.length > 0) {
+      sections.push({ key: "candidates", title: "Candidates", items: candidateItems });
+    }
+
+    for (const section of Object.keys(SECTION_ORDER) as DashboardTaskSection[]) {
+      const taskItems = visibleItems.filter(
+        (item): item is DashboardTaskView => item.kind === "task" && item.section === section,
+      );
+      if (!normalizedSearch || taskItems.length > 0) {
+        sections.push({
+          key: section,
+          title: section[0].toUpperCase() + section.slice(1),
+          items: taskItems,
+        });
+      }
+    }
+
     return { sections, emptyMessage: null };
   }
 
@@ -711,15 +722,21 @@ export function buildDashboardListViewModel(
     return { sections: [], emptyMessage: "No items in this filter" };
   }
 
-  if (normalizedSearch) {
-    return { sections: [], emptyMessage: "No search results" };
+  if (visibleItems.length === 0) {
+    return { sections: [], emptyMessage: normalizedSearch ? "No search results" : "No items in this filter" };
   }
 
-  if (filter === "candidate") {
-    return { sections: [], emptyMessage: "No candidates yet" };
-  }
+  const title =
+    filter === "attention"
+      ? "Attention"
+      : filter === "candidate"
+        ? "Candidate"
+        : filter[0].toUpperCase() + filter.slice(1);
 
-  return { sections: [], emptyMessage: "No items in this filter" };
+  return {
+    sections: [{ key: filter, title, items: visibleItems }],
+    emptyMessage: null,
+  };
 }
 
 export function migrateDashboardCandidateState(savedState: {
@@ -2657,7 +2674,7 @@ ${buildDashboardExtractSectionHtml(data.today)}
     const migratedCandidates = migrateLegacyCandidateState(savedState);
 
     const state = {
-      filter: savedState.filter === "focus" ? "attention" : (savedState.filter || "attention"),
+      filter: savedState.filter === "focus" ? "attention" : (savedState.filter || "all"),
       search: savedState.search || "",
       targetDate: savedState.targetDate || "",
       composerText: savedState.composerText || "",
@@ -2869,25 +2886,32 @@ ${buildDashboardExtractSectionHtml(data.today)}
       const visibleItems = filteredItems.filter(function (item) {
         return matchesDashboardListItemSearch(item, search);
       });
-      const sections = [];
-
-      const candidateItems = visibleItems.filter(function (item) {
-        return item.kind === "candidate";
-      });
-      if (candidateItems.length > 0) {
-        sections.push({ key: "candidates", title: "Candidates", items: candidateItems });
-      }
-
-      sectionOrder.forEach(function (section) {
-        const taskItems = visibleItems.filter(function (item) {
-          return item.kind === "task" && item.section === section;
-        });
-        if (taskItems.length > 0) {
-          sections.push({ key: section, title: sectionTitles[section], items: taskItems });
+      if (filter === "all") {
+        if (normalizedSearch && visibleItems.length === 0) {
+          return { sections: [], emptyMessage: "No search results" };
         }
-      });
 
-      if (sections.length > 0) {
+        if (!normalizedSearch && filteredItems.length === 0) {
+          return { sections: [], emptyMessage: "No tasks yet" };
+        }
+
+        const sections = [];
+        const candidateItems = visibleItems.filter(function (item) {
+          return item.kind === "candidate";
+        });
+        if (!normalizedSearch || candidateItems.length > 0) {
+          sections.push({ key: "candidates", title: "Candidates", items: candidateItems });
+        }
+
+        sectionOrder.forEach(function (section) {
+          const taskItems = visibleItems.filter(function (item) {
+            return item.kind === "task" && item.section === section;
+          });
+          if (!normalizedSearch || taskItems.length > 0) {
+            sections.push({ key: section, title: sectionTitles[section], items: taskItems });
+          }
+        });
+
         return { sections: sections, emptyMessage: null };
       }
 
@@ -2898,15 +2922,23 @@ ${buildDashboardExtractSectionHtml(data.today)}
         };
       }
 
-      if (normalizedSearch) {
-        return { sections: [], emptyMessage: "No search results" };
+      if (visibleItems.length === 0) {
+        return {
+          sections: [],
+          emptyMessage: normalizedSearch ? "No search results" : "No items in this filter",
+        };
       }
 
-      if (filter === "candidate") {
-        return { sections: [], emptyMessage: "No candidates yet" };
-      }
+      const title = filter === "attention"
+        ? "Attention"
+        : filter === "candidate"
+          ? "Candidate"
+          : sectionTitles[filter] || (filter.charAt(0).toUpperCase() + filter.slice(1));
 
-      return { sections: [], emptyMessage: "No items in this filter" };
+      return {
+        sections: [{ key: filter, title: title, items: visibleItems }],
+        emptyMessage: null,
+      };
     }
 
     function getVisibleCandidates() {

@@ -724,6 +724,32 @@ suite("Extension Test Suite", () => {
     );
   });
 
+  test("dashboard webview defaults the listboard filter to All and renders the full chip set", () => {
+    const html = renderDashboardWebviewHtml();
+
+    assert.ok(
+      html.includes('filter: savedState.filter === "focus" ? "attention" : (savedState.filter || "all")'),
+      "expected dashboard state to default to the All filter",
+    );
+
+    for (const filterId of [
+      "all",
+      "attention",
+      "candidate",
+      "overdue",
+      "today",
+      "upcoming",
+      "scheduled",
+      "backlog",
+      "done",
+    ]) {
+      assert.ok(
+        html.includes(`{ id: "${filterId}", label:`),
+        `expected ${filterId} filter chip definition in the dashboard toolbar`,
+      );
+    }
+  });
+
   test("dashboard webview switches to Candidate after extraction and tracks locally added candidate keys", () => {
     const html = renderDashboardWebviewHtml();
 
@@ -1699,6 +1725,298 @@ suite("Extension Test Suite", () => {
         { title: "Today", kinds: ["task"] },
       ],
     );
+  });
+
+  test("dashboard list view model keeps All sectioned and non-All filters flat in listboard order", () => {
+    const savedTasks = buildDashboardTaskViews(
+      [
+        {
+          id: "tasks/2026-03-26.md:1",
+          filePath: "/tmp/notes/tasks/2026-03-26.md",
+          lineIndex: 1,
+          text: "Overdue saved",
+          done: false,
+          date: "2026-03-26",
+          dueDate: "2026-03-26",
+          tags: ["#work"],
+        },
+        {
+          id: "tasks/2026-03-27.md:2",
+          filePath: "/tmp/notes/tasks/2026-03-27.md",
+          lineIndex: 2,
+          text: "Today saved",
+          done: false,
+          date: "2026-03-27",
+          dueDate: "2026-03-27",
+          tags: ["#admin"],
+        },
+        {
+          id: "tasks/2026-03-29.md:3",
+          filePath: "/tmp/notes/tasks/2026-03-29.md",
+          lineIndex: 3,
+          text: "Upcoming saved",
+          done: false,
+          date: "2026-03-29",
+          dueDate: "2026-03-29",
+          tags: [],
+        },
+        {
+          id: "tasks/2026-04-10.md:4",
+          filePath: "/tmp/notes/tasks/2026-04-10.md",
+          lineIndex: 4,
+          text: "Scheduled saved",
+          done: false,
+          date: "2026-04-10",
+          dueDate: "2026-04-10",
+          tags: [],
+        },
+        {
+          id: "tasks/inbox.md:5",
+          filePath: "/tmp/notes/tasks/inbox.md",
+          lineIndex: 5,
+          text: "Backlog saved",
+          done: false,
+          date: null,
+          dueDate: null,
+          tags: [],
+        },
+        {
+          id: "tasks/2026-03-20.md:6",
+          filePath: "/tmp/notes/tasks/2026-03-20.md",
+          lineIndex: 6,
+          text: "Done saved",
+          done: true,
+          date: "2026-03-20",
+          dueDate: null,
+          tags: [],
+        },
+      ],
+      "2026-03-27",
+    );
+    const candidates = buildDashboardCandidateViews([
+      {
+        kind: "candidate",
+        text: "Candidate first",
+        dueDate: null,
+        category: "work",
+        priority: "medium",
+        timeEstimateMin: 15,
+        source: "moments",
+        sourceLabel: "Moments",
+        existsAlready: false,
+      },
+    ]);
+    const items = buildDashboardListItems(savedTasks, candidates);
+
+    const allView = buildDashboardListViewModel(items, "all", "");
+    assert.deepStrictEqual(
+      allView.sections.map((section) => section.title),
+      ["Candidates", "Overdue", "Today", "Upcoming", "Scheduled", "Backlog", "Done"],
+    );
+
+    const attentionView = buildDashboardListViewModel(items, "attention", "");
+    assert.deepStrictEqual(attentionView.sections.map((section) => section.title), ["Attention"]);
+    assert.deepStrictEqual(
+      attentionView.sections[0].items.map((item) => item.text),
+      ["Overdue saved", "Today saved", "Upcoming saved"],
+    );
+
+    const candidateView = buildDashboardListViewModel(items, "candidate", "");
+    assert.deepStrictEqual(candidateView.sections.map((section) => section.title), ["Candidate"]);
+    assert.deepStrictEqual(candidateView.sections[0].items.map((item) => item.text), ["Candidate first"]);
+
+    const todayView = buildDashboardListViewModel(items, "today", "");
+    assert.deepStrictEqual(todayView.sections.map((section) => section.title), ["Today"]);
+    assert.deepStrictEqual(todayView.sections[0].items.map((item) => item.text), ["Today saved"]);
+  });
+
+  test("dashboard list view model preserves active-view order when searching across saved tasks and candidates", () => {
+    const savedTasks = buildDashboardTaskViews(
+      [
+        {
+          id: "tasks/2026-03-26.md:1",
+          filePath: "/tmp/notes/tasks/2026-03-26.md",
+          lineIndex: 1,
+          text: "Alpha overdue",
+          done: false,
+          date: "2026-03-26",
+          dueDate: "2026-03-26",
+          tags: [],
+        },
+        {
+          id: "tasks/2026-03-27.md:2",
+          filePath: "/tmp/notes/tasks/2026-03-27.md",
+          lineIndex: 2,
+          text: "Alpha today",
+          done: false,
+          date: "2026-03-27",
+          dueDate: "2026-03-27",
+          tags: [],
+        },
+      ],
+      "2026-03-27",
+    );
+    const candidates = buildDashboardCandidateViews([
+      {
+        kind: "candidate",
+        text: "Alpha candidate",
+        dueDate: null,
+        category: "work",
+        priority: "medium",
+        timeEstimateMin: 15,
+        source: "moments",
+        sourceLabel: "Moments",
+        existsAlready: false,
+      },
+    ]);
+
+    const allSearch = buildDashboardListViewModel(
+      buildDashboardListItems(savedTasks, candidates),
+      "all",
+      "alpha",
+    );
+
+    assert.deepStrictEqual(
+      allSearch.sections.map((section) => ({
+        title: section.title,
+        items: section.items.map((item) => item.text),
+      })),
+      [
+        { title: "Candidates", items: ["Alpha candidate"] },
+        { title: "Overdue", items: ["Alpha overdue"] },
+        { title: "Today", items: ["Alpha today"] },
+      ],
+    );
+  });
+
+  test("dashboard list view model keeps zero-count All sections visible and uses compact empty states", () => {
+    const savedTasks = buildDashboardTaskViews(
+      [
+        {
+          id: "tasks/2026-03-27.md:1",
+          filePath: "/tmp/notes/tasks/2026-03-27.md",
+          lineIndex: 1,
+          text: "Today saved",
+          done: false,
+          date: "2026-03-27",
+          dueDate: "2026-03-27",
+          tags: [],
+        },
+      ],
+      "2026-03-27",
+    );
+    const items = buildDashboardListItems(savedTasks, []);
+
+    const allView = buildDashboardListViewModel(items, "all", "");
+    assert.deepStrictEqual(
+      allView.sections.map((section) => ({ title: section.title, count: section.items.length })),
+      [
+        { title: "Candidates", count: 0 },
+        { title: "Overdue", count: 0 },
+        { title: "Today", count: 1 },
+        { title: "Upcoming", count: 0 },
+        { title: "Scheduled", count: 0 },
+        { title: "Backlog", count: 0 },
+        { title: "Done", count: 0 },
+      ],
+    );
+    assert.strictEqual(allView.emptyMessage, null);
+
+    const emptyAll = buildDashboardListViewModel([], "all", "");
+    assert.deepStrictEqual(emptyAll.sections, []);
+    assert.strictEqual(emptyAll.emptyMessage, "No tasks yet");
+  });
+
+  test("dashboard list view model keeps matching All sections during partial search and hides non-matching ones", () => {
+    const savedTasks = buildDashboardTaskViews(
+      [
+        {
+          id: "tasks/2026-03-26.md:1",
+          filePath: "/tmp/notes/tasks/2026-03-26.md",
+          lineIndex: 1,
+          text: "Ops overdue alpha",
+          done: false,
+          date: "2026-03-26",
+          dueDate: "2026-03-26",
+          tags: [],
+        },
+        {
+          id: "tasks/2026-03-27.md:2",
+          filePath: "/tmp/notes/tasks/2026-03-27.md",
+          lineIndex: 2,
+          text: "Today beta",
+          done: false,
+          date: "2026-03-27",
+          dueDate: "2026-03-27",
+          tags: [],
+        },
+        {
+          id: "tasks/inbox.md:3",
+          filePath: "/tmp/notes/tasks/inbox.md",
+          lineIndex: 3,
+          text: "Ops backlog gamma",
+          done: false,
+          date: null,
+          dueDate: null,
+          tags: [],
+        },
+      ],
+      "2026-03-27",
+    );
+    const candidates = buildDashboardCandidateViews([
+      {
+        kind: "candidate",
+        text: "Ops candidate alpha",
+        dueDate: null,
+        category: "work",
+        priority: "medium",
+        timeEstimateMin: 15,
+        source: "moments",
+        sourceLabel: "Moments",
+        existsAlready: false,
+      },
+    ]);
+
+    const viewModel = buildDashboardListViewModel(
+      buildDashboardListItems(savedTasks, candidates),
+      "all",
+      "ops",
+    );
+
+    assert.deepStrictEqual(
+      viewModel.sections.map((section) => ({
+        title: section.title,
+        items: section.items.map((item) => item.text),
+      })),
+      [
+        { title: "Candidates", items: ["Ops candidate alpha"] },
+        { title: "Overdue", items: ["Ops overdue alpha"] },
+        { title: "Backlog", items: ["Ops backlog gamma"] },
+      ],
+    );
+    assert.strictEqual(viewModel.emptyMessage, null);
+  });
+
+  test("dashboard list view model shows only No search results for empty All search results", () => {
+    const savedTasks = buildDashboardTaskViews(
+      [
+        {
+          id: "tasks/2026-03-27.md:1",
+          filePath: "/tmp/notes/tasks/2026-03-27.md",
+          lineIndex: 1,
+          text: "Today saved",
+          done: false,
+          date: "2026-03-27",
+          dueDate: "2026-03-27",
+          tags: [],
+        },
+      ],
+      "2026-03-27",
+    );
+
+    const viewModel = buildDashboardListViewModel(buildDashboardListItems(savedTasks, []), "all", "missing");
+    assert.deepStrictEqual(viewModel.sections, []);
+    assert.strictEqual(viewModel.emptyMessage, "No search results");
   });
 
   test("dashboard list view model keeps candidate filter and candidate-specific empty states distinct", () => {
