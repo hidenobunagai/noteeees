@@ -3220,9 +3220,8 @@ ${buildDashboardExtractSectionHtml(data.today)}
             '<div class="task-row-candidate-actions">' +
               '<span class="badge task-row-label">Candidate</span>' +
               '<button type="button" class="text-btn" data-action="dismiss-candidate" data-index="' + index + '">Dismiss</button>' +
-              (canAdd
-                ? '<button type="button" class="text-btn" data-action="add-candidate" data-index="' + index + '">Add</button>'
-                : '<span class="badge is-danger">Already exists</span>') +
+              '<button type="button" class="text-btn' + (canAdd ? '' : ' is-danger') + '"' + (canAdd ? '' : ' disabled') + ' data-action="add-candidate" data-index="' + index + '">Add</button>' +
+              (canAdd ? '' : '<span class="badge is-danger">Already exists</span>') +
             '</div>' +
           '</div>' +
           renderCandidateMeta(task) +

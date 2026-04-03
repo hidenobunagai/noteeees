@@ -1180,8 +1180,12 @@ suite("Extension Test Suite", () => {
     );
     assert.ok(
       html.includes('>Already exists</span>') &&
-        html.includes('data-action="dismiss-candidate"'),
-      "expected duplicate candidate rows to show Already exists while still allowing Dismiss",
+        html.includes('data-action="dismiss-candidate"') &&
+        html.includes('data-action="add-candidate"') &&
+        html.includes(' data-index="') &&
+        html.includes(' disabled') &&
+        html.includes('>Add</button>'),
+      "expected duplicate candidate rows to keep Dismiss, keep Add visible but disabled, and still communicate Already exists",
     );
   });
 
