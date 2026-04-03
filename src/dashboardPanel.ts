@@ -2370,6 +2370,14 @@ ${buildDashboardExtractSectionHtml(data.today)}
       return normalizeTaskIdentity(task.text);
     }
 
+    function canAddDashboardCandidate(task, existingTaskKeys) {
+      if (existingTaskKeys && existingTaskKeys.has(extractedTaskKey(task))) {
+        return false;
+      }
+
+      return !task.existsAlready;
+    }
+
     function normalizeTaskIdentity(text) {
       return String(text || "")
         .replace(/\s*(?:📅|due:|@)(\d{4}-\d{2}-\d{2})\b/g, "")
@@ -2993,6 +3001,7 @@ ${buildDashboardExtractSectionHtml(data.today)}
       if (message.type === "extractResult") {
         state.extractedTasks = message.tasks || [];
         state.addedExtractedKeys = [];
+        persistState();
         renderAiResult();
         return;
       }
@@ -3006,6 +3015,7 @@ ${buildDashboardExtractSectionHtml(data.today)}
       if (message.type === "notesExtractResult") {
         state.notesExtractedTasks = message.tasks || [];
         state.notesAddedExtractedKeys = [];
+        persistState();
         renderNotesExtractResult();
       }
     });

@@ -548,6 +548,32 @@ suite("Extension Test Suite", () => {
     );
   });
 
+  test("dashboard webview defines a browser-side candidate add guard", () => {
+    const html = renderDashboardWebviewHtml();
+
+    assert.ok(
+      html.includes("function canAddDashboardCandidate(task, existingTaskKeys)"),
+      "expected dashboard script to define canAddDashboardCandidate in browser scope",
+    );
+    assert.ok(
+      html.includes("return !task.existsAlready;"),
+      "expected browser-side guard to preserve the snapshot fallback logic",
+    );
+  });
+
+  test("dashboard webview persists extracted results immediately on message receipt", () => {
+    const html = renderDashboardWebviewHtml();
+
+    assert.ok(
+      html.includes("state.extractedTasks = message.tasks || [];\n        state.addedExtractedKeys = [];\n        persistState();\n        renderAiResult();"),
+      "expected extractResult handler to persist state before rendering",
+    );
+    assert.ok(
+      html.includes("state.notesExtractedTasks = message.tasks || [];\n        state.notesAddedExtractedKeys = [];\n        persistState();\n        renderNotesExtractResult();"),
+      "expected notesExtractResult handler to persist state before rendering",
+    );
+  });
+
   test("pinned Moments resolve against the latest feed entries", () => {
     const resolved = resolvePinnedEntries(
       [
