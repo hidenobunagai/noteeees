@@ -1134,6 +1134,86 @@ suite("Extension Test Suite", () => {
     );
   });
 
+  test("dashboard webview keeps saved-row interaction rules in dense listboard rows", () => {
+    const html = renderDashboardWebviewHtml();
+
+    assert.ok(
+      html.includes('class="task-row-toggle"') &&
+        html.includes('data-action="toggle"') &&
+        !html.includes('data-action="toggle" data-file='),
+      "expected the checkbox toggle to remain the only done-toggle control",
+    );
+    assert.ok(
+      html.includes('class="task-row-title"') &&
+        html.includes('data-action="open"') &&
+        !html.includes('class="task-row-title" data-action="edit"'),
+      "expected the task title to remain the Open control",
+    );
+    assert.ok(
+      html.includes('class="task-row-secondary-actions"') &&
+        html.includes('task-row:hover .task-row-secondary-actions') &&
+        html.includes('task-row:focus-within .task-row-secondary-actions') &&
+        html.includes('>Edit</button>') &&
+        html.includes('>Open</button>') &&
+        html.includes('>Delete</button>'),
+      "expected Edit, Open, and Delete to stay as secondary actions revealed by hover or focus-within",
+    );
+    assert.ok(
+      html.includes('task-row-saved') &&
+        html.includes('tabindex="-1"') &&
+        html.includes('class="task-row-toggle-entry"') &&
+        html.includes('class="task-row-title-entry"'),
+      "expected checkbox and title entry points to reveal secondary actions for keyboard users",
+    );
+  });
+
+  test("dashboard webview renders candidate rows in the dedicated Candidates section with duplicate handling", () => {
+    const html = renderDashboardWebviewHtml();
+
+    assert.ok(
+      html.includes("Candidates") &&
+        html.includes('section.key === "candidates"') &&
+        html.includes('function renderCandidateItem(task, index)') &&
+        html.includes('task-row-candidate') &&
+        html.includes('badge task-row-label">Candidate</span>'),
+      "expected candidate rows to render in the dedicated Candidates section under All",
+    );
+    assert.ok(
+      html.includes('>Already exists</span>') &&
+        html.includes('data-action="dismiss-candidate"'),
+      "expected duplicate candidate rows to show Already exists while still allowing Dismiss",
+    );
+  });
+
+  test("dashboard webview keeps dense metadata priority for saved and candidate rows", () => {
+    const html = renderDashboardWebviewHtml();
+
+    assert.ok(html.includes('class="task-row-meta task-row-meta-saved"'), "expected saved-task metadata container");
+    assert.ok(
+      html.indexOf('task-row-meta-date') < html.indexOf('task-row-meta-tag') &&
+        html.indexOf('task-row-meta-tag') < html.indexOf('task-row-meta-source-saved'),
+      "expected saved-task rows to keep date and due metadata before tags before source",
+    );
+    assert.ok(html.includes('task-row-meta-due'), "expected saved-task due metadata class");
+    assert.ok(html.includes('class="task-row-meta task-row-meta-candidate"'), "expected candidate metadata container");
+    assert.ok(
+      html.indexOf('task-row-meta-candidate-due') < html.indexOf('task-row-meta-category') &&
+        html.indexOf('task-row-meta-category') < html.indexOf('task-row-meta-source-candidate'),
+      "expected candidate rows to keep due/date before category or priority before source",
+    );
+    assert.ok(html.includes('task-row-meta-priority'), "expected candidate priority metadata class");
+    assert.ok(
+      html.includes('.task-row-meta {') &&
+        html.includes('flex-wrap: nowrap;') &&
+        html.includes('overflow: hidden;') &&
+        html.includes('.task-row-meta-source {') &&
+        html.includes('min-width: 0;') &&
+        html.includes('text-overflow: ellipsis;') &&
+        html.includes('white-space: nowrap;'),
+      "expected source metadata to truncate first without uncontrolled wrapping that destroys density",
+    );
+  });
+
   test("addExtractedTask does not create a duplicate saved task when identity already exists", () => {
     const harness = createDashboardPanelTestHarness();
 

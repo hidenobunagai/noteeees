@@ -1883,51 +1883,56 @@ export class DashboardPanel {
   .task-items {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 8px;
   }
 
-  .task-item {
+  .task-row {
     display: flex;
     align-items: flex-start;
-    gap: 12px;
-    padding: 14px;
+    gap: 10px;
+    padding: 10px 12px;
     border-radius: var(--radius-sm);
-    border: 1px solid var(--border);
-    background: color-mix(in srgb, var(--surface) 92%, var(--bg));
+    border: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
+    background: color-mix(in srgb, var(--surface) 90%, var(--bg));
+    min-width: 0;
   }
 
-  .task-item.is-overdue {
+  .task-row.task-row-saved.is-overdue {
     border-color: color-mix(in srgb, var(--danger) 35%, var(--border));
   }
 
-  .task-item.is-today {
+  .task-row.task-row-saved.is-today {
     border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
   }
 
-  .task-item.is-done {
+  .task-row.task-row-saved.is-done {
     opacity: 0.76;
   }
 
-  .task-item.is-candidate {
-    background: color-mix(in srgb, var(--surface) 86%, var(--bg));
+  .task-row.task-row-candidate {
+    background: color-mix(in srgb, var(--surface) 84%, var(--bg));
   }
 
-  .task-item.is-candidate-blocked {
+  .task-row.task-row-candidate.is-candidate-blocked {
     opacity: 0.8;
   }
 
-  .task-check {
+  .task-row-toggle-entry,
+  .task-row-leading {
     position: relative;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 18px;
-    height: 18px;
-    margin-top: 2px;
     flex-shrink: 0;
+    margin-top: 2px;
   }
 
-  .task-check input {
+  .task-row-toggle-entry {
+    width: 18px;
+    height: 18px;
+  }
+
+  .task-row-toggle {
     appearance: none;
     -webkit-appearance: none;
     width: 18px;
@@ -1939,12 +1944,12 @@ export class DashboardPanel {
     cursor: pointer;
   }
 
-  .task-check input:checked {
+  .task-row-toggle:checked {
     background: color-mix(in srgb, var(--success) 16%, transparent);
     border-color: color-mix(in srgb, var(--success) 55%, var(--border));
   }
 
-  .task-check input:checked::after {
+  .task-row-toggle:checked::after {
     content: "";
     position: absolute;
     inset: 4px;
@@ -1952,49 +1957,73 @@ export class DashboardPanel {
     clip-path: polygon(14% 52%, 0 67%, 39% 100%, 100% 22%, 84% 8%, 39% 68%);
   }
 
-  .task-body {
+  .task-row-body {
     flex: 1;
     min-width: 0;
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 6px;
   }
 
-  .task-head {
+  .task-row-main {
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
-    gap: 12px;
+    gap: 10px;
+    min-width: 0;
   }
 
-  .task-title {
+  .task-row-title-entry {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .task-row-title {
     margin: 0;
     border: none;
     padding: 0;
     background: transparent;
     color: var(--text);
     text-align: left;
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 600;
+    line-height: 1.35;
     cursor: pointer;
     min-width: 0;
+    width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
-  .task-title:hover {
+  .task-row-title:hover {
     color: var(--accent);
   }
 
-  .task-item.is-done .task-title {
+  .task-row.task-row-saved.is-done .task-row-title {
     color: var(--muted);
     text-decoration: line-through;
   }
 
-  .task-actions {
-    display: flex;
+  .task-row-secondary-actions,
+  .task-row-candidate-actions {
+    display: inline-flex;
     align-items: center;
     gap: 8px;
-    flex-wrap: wrap;
     justify-content: flex-end;
+    flex-shrink: 0;
+  }
+
+  .task-row-secondary-actions {
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 120ms ease-out;
+  }
+
+  .task-row:hover .task-row-secondary-actions,
+  .task-row:focus-within .task-row-secondary-actions {
+    opacity: 1;
+    pointer-events: auto;
   }
 
   .link-btn,
@@ -2049,10 +2078,29 @@ export class DashboardPanel {
     color: var(--danger);
   }
 
-  .task-meta {
+  .task-row-meta {
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     gap: 8px;
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+
+  .task-row-meta-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+    flex-shrink: 0;
+  }
+
+  .task-row-meta-source {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1 1 auto;
   }
 
   .badge {
@@ -2478,12 +2526,13 @@ export class DashboardPanel {
       display: none;
     }
 
-    .task-head,
+    .task-row-main,
     .extract-head {
       flex-direction: column;
     }
 
-    .task-actions {
+    .task-row-secondary-actions,
+    .task-row-candidate-actions {
       justify-content: flex-start;
     }
 
@@ -3073,34 +3122,39 @@ ${buildDashboardExtractSectionHtml(data.today)}
 
     function renderTaskMeta(task) {
       const badges = [];
-      badges.push('<span class="badge">' + esc(task.relativePath) + "</span>");
       if (task.date) {
-        badges.push('<span class="badge">' + esc(formatDateLabel(task.date)) + "</span>");
+        badges.push('<span class="badge task-row-meta-item task-row-meta-date">' + esc(formatDateLabel(task.date)) + "</span>");
       }
       if (task.dueDate) {
         const dueClass = task.section === "overdue" ? " is-danger" : task.section === "today" ? " is-warning" : " is-accent";
-        badges.push('<span class="badge' + dueClass + '">Due ' + esc(formatDateLabel(task.dueDate)) + "</span>");
+        badges.push('<span class="badge task-row-meta-item task-row-meta-due' + dueClass + '">Due ' + esc(formatDateLabel(task.dueDate)) + "</span>");
       }
       for (const tag of task.tags || []) {
-        badges.push('<span class="badge is-accent">' + esc(tag) + "</span>");
+        badges.push('<span class="badge is-accent task-row-meta-item task-row-meta-tag">' + esc(tag) + "</span>");
       }
-      return badges.join("");
+      badges.push('<span class="badge task-row-meta-item task-row-meta-source task-row-meta-source-saved">' + esc(task.relativePath) + "</span>");
+      return '<div class="task-row-meta task-row-meta-saved">' + badges.join("") + "</div>";
     }
 
     function renderCandidateMeta(task) {
-      const badges = [
-        '<span class="badge">' + esc(task.sourceLabel || "Unknown") + "</span>",
-        '<span class="badge">' + esc(task.category) + "</span>",
-      ];
+      const badges = [];
       if (task.dueDate) {
-        badges.push('<span class="badge is-accent">Due ' + esc(formatDateLabel(task.dueDate)) + "</span>");
+        badges.push('<span class="badge is-accent task-row-meta-item task-row-meta-candidate-due">Due ' + esc(formatDateLabel(task.dueDate)) + "</span>");
       }
-      return badges.join("");
+      if (task.category) {
+        badges.push('<span class="badge task-row-meta-item task-row-meta-category">' + esc(task.category) + "</span>");
+      }
+      if (task.priority) {
+        badges.push('<span class="badge task-row-meta-item task-row-meta-priority">' + esc(task.priority) + "</span>");
+      }
+      badges.push('<span class="badge task-row-meta-item task-row-meta-source task-row-meta-source-candidate">' + esc(task.sourceLabel || "Unknown") + "</span>");
+      return '<div class="task-row-meta task-row-meta-candidate">' + badges.join("") + "</div>";
     }
 
     function renderTaskItem(task) {
       const itemClasses = [
-        "task-item",
+        "task-row",
+        "task-row-saved",
         task.done ? "is-done" : "",
         task.section === "overdue" ? "is-overdue" : "",
         task.section === "today" ? "is-today" : "",
@@ -3109,9 +3163,9 @@ ${buildDashboardExtractSectionHtml(data.today)}
         .join(" ");
 
       if (state.editingId === task.id) {
-        return '<article class="' + itemClasses + '" data-task-id="' + esc(task.id) + '">' +
-          '<label class="task-check"><input type="checkbox" data-action="toggle" data-task-id="' + esc(task.id) + '"' + (task.done ? " checked" : "") + "></label>" +
-          '<div class="task-body">' +
+        return '<article class="' + itemClasses + '" data-task-id="' + esc(task.id) + '" tabindex="-1">' +
+          '<label class="task-row-toggle-entry"><input class="task-row-toggle" type="checkbox" data-action="toggle" data-task-id="' + esc(task.id) + '"' + (task.done ? " checked" : "") + "></label>" +
+          '<div class="task-row-body">' +
             '<div class="task-edit">' +
               '<label class="field">' +
                 "<span>Task</span>" +
@@ -3137,39 +3191,41 @@ ${buildDashboardExtractSectionHtml(data.today)}
         "</article>";
       }
 
-      return '<article class="' + itemClasses + '" data-task-id="' + esc(task.id) + '">' +
-        '<label class="task-check"><input type="checkbox" data-action="toggle" data-task-id="' + esc(task.id) + '"' + (task.done ? " checked" : "") + "></label>" +
-        '<div class="task-body">' +
-          '<div class="task-head">' +
-            '<button type="button" class="task-title" data-action="open" data-file="' + esc(task.filePath) + '" data-line="' + task.lineIndex + '">' + esc(task.text) + "</button>" +
-            '<div class="task-actions">' +
+      return '<article class="' + itemClasses + '" data-task-id="' + esc(task.id) + '" tabindex="-1">' +
+        '<label class="task-row-toggle-entry"><input class="task-row-toggle" type="checkbox" data-action="toggle" data-task-id="' + esc(task.id) + '"' + (task.done ? " checked" : "") + "></label>" +
+        '<div class="task-row-body">' +
+          '<div class="task-row-main">' +
+            '<div class="task-row-title-entry"><button type="button" class="task-row-title" data-action="open" data-file="' + esc(task.filePath) + '" data-line="' + task.lineIndex + '">' + esc(task.text) + "</button></div>" +
+            '<div class="task-row-secondary-actions">' +
               '<button type="button" class="text-btn" data-action="edit" data-task-id="' + esc(task.id) + '">Edit</button>' +
               '<button type="button" class="text-btn" data-action="open" data-file="' + esc(task.filePath) + '" data-line="' + task.lineIndex + '">Open</button>' +
               '<button type="button" class="text-btn is-danger" data-action="delete" data-task-id="' + esc(task.id) + '">Delete</button>' +
             "</div>" +
           "</div>" +
-          '<div class="task-meta">' + renderTaskMeta(task) + "</div>" +
+          renderTaskMeta(task) +
         "</div>" +
       "</article>";
     }
 
     function renderCandidateItem(task, index) {
       const canAdd = canAddDashboardCandidate(task, getExistingTaskKeys());
-      const itemClasses = ["task-item", "is-candidate", task.existsAlready ? "is-candidate-blocked" : ""]
+      const itemClasses = ["task-row", "task-row-candidate", task.existsAlready ? "is-candidate-blocked" : ""]
         .filter(Boolean)
         .join(" ");
       return '<article class="' + itemClasses + '">' +
-        '<label class="task-check"><span class="badge">AI</span></label>' +
-        '<div class="task-body">' +
-          '<div class="task-head">' +
-            '<div class="task-title">' + esc(task.text) + '</div>' +
-            '<div class="task-actions">' +
-              '<span class="badge">Candidate</span>' +
+        '<div class="task-row-leading"><span class="badge task-row-label">AI</span></div>' +
+        '<div class="task-row-body">' +
+          '<div class="task-row-main">' +
+            '<div class="task-row-title-entry"><div class="task-row-title">' + esc(task.text) + '</div></div>' +
+            '<div class="task-row-candidate-actions">' +
+              '<span class="badge task-row-label">Candidate</span>' +
               '<button type="button" class="text-btn" data-action="dismiss-candidate" data-index="' + index + '">Dismiss</button>' +
-              '<button type="button" class="text-btn' + (canAdd ? '' : ' is-danger') + '"' + (canAdd ? '' : ' disabled') + ' data-action="add-candidate" data-index="' + index + '">' + (canAdd ? 'Add' : 'Already exists') + '</button>' +
+              (canAdd
+                ? '<button type="button" class="text-btn" data-action="add-candidate" data-index="' + index + '">Add</button>'
+                : '<span class="badge is-danger">Already exists</span>') +
             '</div>' +
           '</div>' +
-          '<div class="task-meta">' + renderCandidateMeta(task) + '</div>' +
+          renderCandidateMeta(task) +
         '</div>' +
       '</article>';
     }
