@@ -6,6 +6,12 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-04-03
+
+### Changed
+- **Task Dashboard redesign**: Rebuilt the dashboard as a denser command-center workspace with a compact header, KPI strip, unified task/candidate list, and analytics moved into a supporting lower band for faster scanning.
+- **AI candidate intake**: Moments and Notes candidates now live directly in the main list with a dedicated `Candidate` filter, shared duplicate handling, and rollback-safe add behavior when saving fails.
+
 ## [0.4.13] - 2026-04-02
 
 ### Changed
