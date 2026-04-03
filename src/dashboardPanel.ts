@@ -3251,6 +3251,7 @@ ${buildDashboardExtractSectionHtml(data.today)}
     document.querySelectorAll("[data-kpi-filter]").forEach(function (chip) {
       chip.addEventListener("click", function () {
         state.filter = chip.dataset.kpiFilter;
+        persistState();
         rerender();
       });
     });

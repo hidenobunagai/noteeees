@@ -1023,6 +1023,10 @@ suite("Extension Test Suite", () => {
       html.includes('document.querySelectorAll("[data-kpi-filter]")'),
       "expected KPI chip interactions to be wired in browser script",
     );
+    assert.ok(
+      html.includes('state.filter = chip.dataset.kpiFilter;\n        persistState();\n        rerender();'),
+      "expected KPI chip interactions to persist filter state before rerendering like toolbar filters",
+    );
     assert.ok(html.includes('id="btn-refresh"'), "expected refresh action in header");
     assert.ok(
       !html.includes('>Listboard<'),
