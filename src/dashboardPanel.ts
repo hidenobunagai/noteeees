@@ -2000,6 +2000,14 @@ export class DashboardPanel {
     color: var(--accent);
   }
 
+  .task-row-candidate .task-row-title {
+    cursor: default;
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
   .task-row.task-row-saved.is-done .task-row-title {
     color: var(--muted);
     text-decoration: line-through;

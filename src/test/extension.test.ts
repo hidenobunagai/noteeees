@@ -1187,6 +1187,19 @@ suite("Extension Test Suite", () => {
         html.includes('>Add</button>'),
       "expected duplicate candidate rows to keep Dismiss, keep Add visible but disabled, and still communicate Already exists",
     );
+    assert.ok(
+      html.includes('.task-row-candidate .task-row-title {') &&
+        html.includes('white-space: normal;') &&
+        html.includes('-webkit-line-clamp: 2;') &&
+        html.includes('display: -webkit-box;'),
+      "expected candidate row titles to stay readable with a compact two-line clamp",
+    );
+    assert.ok(
+      html.includes('.task-row-candidate .task-row-title {') &&
+        html.includes('cursor: default;') &&
+        !html.includes('.task-row-candidate .task-row-title:hover {'),
+      "expected non-interactive candidate titles to avoid clickable affordance while saved-task titles stay open controls",
+    );
   });
 
   test("dashboard webview keeps dense metadata priority for saved and candidate rows", () => {
