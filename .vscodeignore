@@ -7,6 +7,7 @@ AGENTS.md
 .vscode/
 .vscode-test/
 .vscode-test.mjs
+.worktrees/
 
 # Build tooling
 node_modules/

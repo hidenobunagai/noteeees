@@ -6,6 +6,11 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-04-03
+
+### Fixed
+- **Extension packaging**: Excluded local `.worktrees/` directories from the published VSIX so marketplace releases no longer ship temporary development worktrees or their extra weight.
+
 ## [0.5.0] - 2026-04-03
 
 ### Changed
