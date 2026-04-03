@@ -108,6 +108,7 @@ export interface DashboardListSectionView {
 
 export interface DashboardListViewModel {
   sections: DashboardListSectionView[];
+  flatItems?: DashboardListItem[];
   emptyMessage: string | null;
 }
 
@@ -734,7 +735,8 @@ export function buildDashboardListViewModel(
         : filter[0].toUpperCase() + filter.slice(1);
 
   return {
-    sections: [{ key: filter, title, items: visibleItems }],
+    sections: [],
+    flatItems: visibleItems,
     emptyMessage: null,
   };
 }
@@ -2936,7 +2938,8 @@ ${buildDashboardExtractSectionHtml(data.today)}
           : sectionTitles[filter] || (filter.charAt(0).toUpperCase() + filter.slice(1));
 
       return {
-        sections: [{ key: filter, title: title, items: visibleItems }],
+        sections: [],
+        flatItems: visibleItems,
         emptyMessage: null,
       };
     }
@@ -3106,6 +3109,21 @@ ${buildDashboardExtractSectionHtml(data.today)}
       }
 
       const visibleCandidates = getVisibleCandidates();
+      if (viewModel.flatItems && viewModel.flatItems.length > 0) {
+        taskList.innerHTML = viewModel.flatItems
+          .map(function (item) {
+            if (item.kind === "candidate") {
+              const index = visibleCandidates.findIndex(function (candidate) {
+                return candidate.order === item.order;
+              });
+              return renderCandidateItem(item, index);
+            }
+            return renderTaskItem(item);
+          })
+          .join("");
+        return;
+      }
+
       const html = viewModel.sections
         .map(function (section) {
           const subtitle = section.key === "candidates"

@@ -724,6 +724,15 @@ suite("Extension Test Suite", () => {
     );
   });
 
+  test("dashboard webview uses a flat list render path for non-All Task 1 listboard views", () => {
+    const html = renderDashboardWebviewHtml();
+
+    assert.ok(
+      html.includes("if (viewModel.flatItems && viewModel.flatItems.length > 0)"),
+      "expected non-All views to use a flat-item render path without section headers",
+    );
+  });
+
   test("dashboard webview defaults the listboard filter to All and renders the full chip set", () => {
     const html = renderDashboardWebviewHtml();
 
@@ -1860,19 +1869,25 @@ suite("Extension Test Suite", () => {
     );
 
     const attentionView = buildDashboardListViewModel(items, "attention", "");
-    assert.deepStrictEqual(attentionView.sections.map((section) => section.title), ["Attention"]);
+    assert.deepStrictEqual(attentionView.sections, []);
     assert.deepStrictEqual(
-      attentionView.sections[0].items.map((item) => item.text),
+      (attentionView as { flatItems?: DashboardListItem[] }).flatItems?.map((item) => item.text),
       ["Overdue saved", "Today saved", "Upcoming saved"],
     );
 
     const candidateView = buildDashboardListViewModel(items, "candidate", "");
-    assert.deepStrictEqual(candidateView.sections.map((section) => section.title), ["Candidate"]);
-    assert.deepStrictEqual(candidateView.sections[0].items.map((item) => item.text), ["Candidate first"]);
+    assert.deepStrictEqual(candidateView.sections, []);
+    assert.deepStrictEqual(
+      (candidateView as { flatItems?: DashboardListItem[] }).flatItems?.map((item) => item.text),
+      ["Candidate first"],
+    );
 
     const todayView = buildDashboardListViewModel(items, "today", "");
-    assert.deepStrictEqual(todayView.sections.map((section) => section.title), ["Today"]);
-    assert.deepStrictEqual(todayView.sections[0].items.map((item) => item.text), ["Today saved"]);
+    assert.deepStrictEqual(todayView.sections, []);
+    assert.deepStrictEqual(
+      (todayView as { flatItems?: DashboardListItem[] }).flatItems?.map((item) => item.text),
+      ["Today saved"],
+    );
   });
 
   test("dashboard list view model preserves active-view order when searching across saved tasks and candidates", () => {
@@ -2080,9 +2095,10 @@ suite("Extension Test Suite", () => {
     ]);
 
     const candidateOnly = buildDashboardListViewModel(candidates, "candidate", "");
+    assert.deepStrictEqual(candidateOnly.sections, []);
     assert.deepStrictEqual(
-      candidateOnly.sections.map((section: { title: string }) => section.title),
-      ["Candidate"],
+      (candidateOnly as { flatItems?: DashboardListItem[] }).flatItems?.map((item) => item.text),
+      ["Candidate first"],
     );
 
     const noCandidateRows = buildDashboardListViewModel([], "candidate", "");
