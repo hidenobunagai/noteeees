@@ -3570,7 +3570,9 @@ ${buildDashboardExtractSectionHtml(data.today)}
       }
 
       candidateBlock.style.display = "";
-      state.candidateBlockShown = true;
+      if (!state.candidateBlockShown) {
+        state.candidateBlockShown = true;
+      }
 
       if (!hasCandidates) {
         candidateItems.innerHTML = '<div class="empty-state">' +
