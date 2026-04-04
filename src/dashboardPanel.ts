@@ -2217,7 +2217,7 @@ export class DashboardPanel {
     pointer-events: auto;
   }
 
-  .task-row-more-menu { display: none; }
+  .task-row-more-menu { display: none; position: relative; }
   .task-row-more-btn {
     border-radius: 999px;
     border: 1px solid var(--border);
@@ -4081,9 +4081,10 @@ ${buildDashboardExtractSectionHtml(data.today)}
     document.addEventListener("click", function (event) {
       const moreBtn = event.target.closest("[data-action='more']");
       if (!moreBtn) {
-        document.querySelectorAll(".task-row-more-dropdown.is-open").forEach(function (d) {
-          d.classList.remove("is-open");
-        });
+        const openDropdown = document.querySelector(".task-row-more-dropdown.is-open");
+        if (openDropdown) {
+          openDropdown.classList.remove("is-open");
+        }
       }
     });
 

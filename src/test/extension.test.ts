@@ -1213,8 +1213,8 @@ suite("Extension Test Suite", () => {
 
     // More menu is hidden at desktop widths
     assert.ok(
-      html.includes('.task-row-more-menu { display: none; }') ||
-        html.includes('.task-row-more-menu{display:none}'),
+      html.includes('.task-row-more-menu { display: none; position: relative; }') ||
+        html.includes('.task-row-more-menu{display:none;position:relative}'),
       "expected More menu to be hidden at desktop widths",
     );
 
