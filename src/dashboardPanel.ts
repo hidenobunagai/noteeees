@@ -77,6 +77,7 @@ export type DashboardTaskSection =
   | "upcoming"
   | "scheduled"
   | "backlog"
+  | "unsorted"
   | "done";
 
 export type DashboardListFilter =
@@ -230,7 +231,8 @@ const SECTION_ORDER: Record<DashboardTaskSection, number> = {
   upcoming: 2,
   scheduled: 3,
   backlog: 4,
-  done: 5,
+  unsorted: 5,
+  done: 6,
 };
 const ATTENTION_SECTIONS = new Set<DashboardTaskSection>(["overdue", "today", "upcoming"]);
 
@@ -813,7 +815,7 @@ export function buildDashboardListViewModel(
       );
       if (!normalizedSearch || taskItems.length > 0) {
         sections.push({
-          key: simplifiedSection as DashboardListFilter,
+          key: simplifiedSection,
           title: simplifiedSectionTitles[simplifiedSection],
           items: taskItems,
         });
@@ -955,6 +957,7 @@ function buildSectionCounts(tasks: DashboardTaskView[]): Record<DashboardTaskSec
     upcoming: 0,
     scheduled: 0,
     backlog: 0,
+    unsorted: 0,
     done: 0,
   };
 
