@@ -1334,25 +1334,25 @@ suite("Extension Test Suite", () => {
     const noTasksAtAll = buildDashboardListViewModel([], "all", "");
     assert.strictEqual(
       noTasksAtAll.emptyMessage,
-      "No tasks yet||Use Quick Add or AI Extract to create your first task.",
+      "No tasks yet||Use Add Task or AI Extract to create your first task.",
     );
 
     const noToday = buildDashboardListViewModel([], "today", "");
     assert.strictEqual(
       noToday.emptyMessage,
-      "No items in this filter",
+      "Nothing scheduled for today",
     );
 
     const noPlanned = buildDashboardListViewModel([], "planned", "");
     assert.strictEqual(
       noPlanned.emptyMessage,
-      "No items in this filter",
+      "No planned tasks",
     );
 
     const noDone = buildDashboardListViewModel([], "done", "");
     assert.strictEqual(
       noDone.emptyMessage,
-      "No items in this filter",
+      "No completed tasks",
     );
   });
 
@@ -1366,8 +1366,33 @@ suite("Extension Test Suite", () => {
       "expected empty states to render compact structured messaging",
     );
     assert.ok(
-      html.includes('"No tasks yet||Use Quick Add or AI Extract to create your first task."'),
-      "expected All empty state to direct users to Quick Add or AI Extract",
+      html.includes('"No tasks yet||Use Add Task or AI Extract to create your first task."'),
+      "expected All empty state to direct users to Add Task or AI Extract",
+    );
+  });
+
+  test("dashboard webview renders simplified empty-state messages for all filters", () => {
+    const html = renderDashboardWebviewHtml();
+
+    assert.ok(
+      html.includes('"Nothing scheduled for today"'),
+      "expected Today empty state to show a positive nothing-scheduled message",
+    );
+    assert.ok(
+      html.includes('"No planned tasks"'),
+      "expected Planned empty state to show no planned tasks message",
+    );
+    assert.ok(
+      html.includes('"No completed tasks"'),
+      "expected Done empty state to show no completed tasks message",
+    );
+    assert.ok(
+      html.includes('"No matching tasks"'),
+      "expected search empty state to show no matching tasks message",
+    );
+    assert.ok(
+      html.includes("No candidates yet"),
+      "expected candidate empty state to show no candidates yet message",
     );
   });
 
@@ -2430,7 +2455,7 @@ suite("Extension Test Suite", () => {
     assert.deepStrictEqual(emptyAll.sections, []);
     assert.strictEqual(
       emptyAll.emptyMessage,
-      "No tasks yet||Use Quick Add or AI Extract to create your first task.",
+      "No tasks yet||Use Add Task or AI Extract to create your first task.",
     );
   });
 
@@ -2503,7 +2528,7 @@ suite("Extension Test Suite", () => {
     assert.strictEqual(viewModel.emptyMessage, null);
   });
 
-  test("dashboard list view model shows only No search results for empty All search results", () => {
+  test("dashboard list view model shows only No matching tasks for empty All search results", () => {
     const savedTasks = buildDashboardTaskViews(
       [
         {
@@ -2522,36 +2547,42 @@ suite("Extension Test Suite", () => {
 
     const viewModel = buildDashboardListViewModel(buildDashboardListItems(savedTasks, []), "all", "missing");
     assert.deepStrictEqual(viewModel.sections, []);
-    assert.strictEqual(viewModel.emptyMessage, "No search results");
+    assert.strictEqual(viewModel.emptyMessage, "No matching tasks");
   });
 
   test("dashboard list view model shows correct empty states for simplified filters", () => {
-    const candidates = buildDashboardCandidateViews([
-      {
-        kind: "candidate",
-        text: "Candidate first",
-        dueDate: "2026-03-30",
-        category: "work",
-        priority: "medium",
-        timeEstimateMin: 15,
-        source: "notes",
-        sourceLabel: "projects/plan.md",
-        existsAlready: false,
-      },
-    ]);
-
     const todayOnly = buildDashboardListViewModel([], "today", "");
     assert.deepStrictEqual(todayOnly.sections, []);
-    assert.strictEqual(todayOnly.emptyMessage, "No items in this filter");
+    assert.strictEqual(todayOnly.emptyMessage, "Nothing scheduled for today");
 
-    const noItemsInFilter = buildDashboardListViewModel([], "today", "");
-    assert.strictEqual(noItemsInFilter.emptyMessage, "No items in this filter");
+    const plannedOnly = buildDashboardListViewModel([], "planned", "");
+    assert.deepStrictEqual(plannedOnly.sections, []);
+    assert.strictEqual(plannedOnly.emptyMessage, "No planned tasks");
 
-    const noSearchResults = buildDashboardListViewModel([], "today", "missing");
-    assert.strictEqual(noSearchResults.emptyMessage, "No items in this filter");
+    const doneOnly = buildDashboardListViewModel([], "done", "");
+    assert.deepStrictEqual(doneOnly.sections, []);
+    assert.strictEqual(doneOnly.emptyMessage, "No completed tasks");
 
-    const noItemsInFilterWithSearch = buildDashboardListViewModel([], "today", "missing");
-    assert.strictEqual(noItemsInFilterWithSearch.emptyMessage, "No items in this filter");
+    const todaySearchEmpty = buildDashboardListViewModel([], "today", "missing");
+    assert.strictEqual(todaySearchEmpty.emptyMessage, "Nothing scheduled for today");
+
+    const allWithItemsNoMatch = buildDashboardListViewModel(
+      buildDashboardListItems(buildDashboardTaskViews([
+        {
+          id: "tasks/2026-03-27.md:1",
+          filePath: "/tmp/notes/tasks/2026-03-27.md",
+          lineIndex: 1,
+          text: "Something saved",
+          done: false,
+          date: "2026-03-27",
+          dueDate: "2026-03-27",
+          tags: [],
+        },
+      ], "2026-03-27"), []),
+      "all",
+      "missing",
+    );
+    assert.strictEqual(allWithItemsNoMatch.emptyMessage, "No matching tasks");
   });
 
   test("extractTasksFromTextWithStatus reports when no Copilot chat model is available", async () => {

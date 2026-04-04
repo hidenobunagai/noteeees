@@ -120,7 +120,13 @@ const DASHBOARD_EMPTY_MESSAGE_SEPARATOR = "||";
 function buildDashboardEmptyMessage(filter: DashboardListFilter): string {
   switch (filter) {
     case "all":
-      return `No tasks yet${DASHBOARD_EMPTY_MESSAGE_SEPARATOR}Use Quick Add or AI Extract to create your first task.`;
+      return `No tasks yet${DASHBOARD_EMPTY_MESSAGE_SEPARATOR}Use Add Task or AI Extract to create your first task.`;
+    case "today":
+      return "Nothing scheduled for today";
+    case "planned":
+      return "No planned tasks";
+    case "done":
+      return "No completed tasks";
     default:
       return "No items in this filter";
   }
@@ -783,7 +789,7 @@ export function buildDashboardListViewModel(
   const visibleItems = filteredItems.filter((item) => matchesDashboardListItemSearch(item, search));
   if (filter === "all") {
     if (normalizedSearch && visibleItems.length === 0) {
-      return { sections: [], emptyMessage: "No search results" };
+      return { sections: [], emptyMessage: "No matching tasks" };
     }
 
     if (!normalizedSearch && filteredItems.length === 0) {
@@ -834,7 +840,7 @@ export function buildDashboardListViewModel(
   if (visibleItems.length === 0) {
     return {
       sections: [],
-      emptyMessage: normalizedSearch ? "No search results" : buildDashboardEmptyMessage(filter),
+      emptyMessage: normalizedSearch ? "No matching tasks" : buildDashboardEmptyMessage(filter),
     };
   }
 
@@ -3394,7 +3400,13 @@ ${buildDashboardExtractSectionHtml(data.today)}
       function buildDashboardEmptyMessage(filter) {
         switch (filter) {
           case "all":
-            return "No tasks yet||Use Quick Add or AI Extract to create your first task.";
+            return "No tasks yet||Use Add Task or AI Extract to create your first task.";
+          case "today":
+            return "Nothing scheduled for today";
+          case "planned":
+            return "No planned tasks";
+          case "done":
+            return "No completed tasks";
           default:
             return "No items in this filter";
         }
@@ -3409,7 +3421,7 @@ ${buildDashboardExtractSectionHtml(data.today)}
       });
       if (filter === "all") {
         if (normalizedSearch && visibleItems.length === 0) {
-          return { sections: [], emptyMessage: "No search results" };
+          return { sections: [], emptyMessage: "No matching tasks" };
         }
 
         if (!normalizedSearch && filteredItems.length === 0) {
@@ -3455,7 +3467,7 @@ ${buildDashboardExtractSectionHtml(data.today)}
       if (visibleItems.length === 0) {
         return {
           sections: [],
-          emptyMessage: normalizedSearch ? "No search results" : buildDashboardEmptyMessage(filter),
+          emptyMessage: normalizedSearch ? "No matching tasks" : buildDashboardEmptyMessage(filter),
         };
       }
 
@@ -3681,8 +3693,8 @@ ${buildDashboardExtractSectionHtml(data.today)}
 
       if (!hasCandidates) {
         html += '<div class="empty-state">' +
-          '<strong class="empty-state-title">No candidates</strong>' +
-          '<p class="empty-state-body">Run AI Extract to find task candidates.</p>' +
+          '<strong class="empty-state-title">No candidates yet</strong>' +
+          '<p class="empty-state-body">Use AI Extract or From Notes to find task candidates from your Moments and notes.</p>' +
         '</div>';
         candidateItems.innerHTML = html;
         return;
