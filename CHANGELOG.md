@@ -6,6 +6,12 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.6.3] - 2026-04-04
+
+### Fixed
+- **Task Dashboard actions**: Fixed a webview inline-script syntax error that prevented the dashboard from finishing initialization, which could make `Add Task`, `Extract`, `Refresh`, and other click actions appear completely inert.
+- **Dashboard regression coverage**: Added a parseability test for the generated dashboard webview script so future template changes cannot silently ship another initialization-breaking script error.
+
 ## [0.6.2] - 2026-04-04
 
 ### Fixed
