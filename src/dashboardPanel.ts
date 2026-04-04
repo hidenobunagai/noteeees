@@ -1815,22 +1815,18 @@ export class DashboardPanel {
     gap: 8px;
   }
 
-  .dashboard-kpi-chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    min-height: 32px;
-    padding: 0 10px;
-    border-radius: 999px;
-    border: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
-    background: color-mix(in srgb, var(--surface) 68%, transparent);
-    color: var(--text);
-    cursor: pointer;
-  }
-
-  .dashboard-kpi-chip:hover {
-    border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
-  }
+   .dashboard-kpi-chip {
+     display: inline-flex;
+     align-items: center;
+     gap: 8px;
+     min-height: 32px;
+     padding: 0 10px;
+     border-radius: 999px;
+     border: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
+     background: color-mix(in srgb, var(--surface) 68%, transparent);
+     color: var(--text);
+     cursor: default;
+   }
 
   .dashboard-kpi-label {
     color: var(--muted);
