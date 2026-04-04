@@ -1922,6 +1922,20 @@ export class DashboardPanel {
     padding: 10px 12px;
   }
 
+  .candidate-block {
+    min-width: 0;
+    border: 1px solid color-mix(in srgb, var(--border) 78%, transparent);
+    border-radius: var(--radius-sm);
+    background: color-mix(in srgb, var(--surface) 56%, transparent);
+    padding: 10px 12px;
+  }
+
+  .candidate-items {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
   .filter-row {
     display: flex;
     flex-wrap: wrap;
@@ -2816,6 +2830,17 @@ ${buildDashboardExtractSectionHtml(data.today)}
       </section>
     </section>
 
+    <section class="candidate-block" id="candidate-block" style="display:none;">
+      <div class="card-header">
+        <div>
+          <div class="eyebrow">Candidates</div>
+          <h2>Extracted tasks</h2>
+          <p>AI が抽出したタスク候補です。追加するか非表示にします。</p>
+        </div>
+      </div>
+      <div class="candidate-items" id="candidate-items"></div>
+    </section>
+
     <section class="list-surface">
       <div class="card-header">
         <div>
@@ -3057,6 +3082,7 @@ ${buildDashboardExtractSectionHtml(data.today)}
       notesToDate: savedState.notesToDate || dashboardData.today,
       notesAiStatus: savedState.notesAiStatus || "",
       notesAiStatusType: savedState.notesAiStatusType || "idle",
+      candidateBlockShown: savedState.candidateBlockShown || false,
     };
 
     const simplifiedSectionOrder = ["today", "planned", "unsorted", "done"];
@@ -3117,6 +3143,7 @@ ${buildDashboardExtractSectionHtml(data.today)}
         notesToDate: state.notesToDate,
         notesAiStatus: state.notesAiStatus,
         notesAiStatusType: state.notesAiStatusType,
+        candidateBlockShown: state.candidateBlockShown,
       });
     }
 
@@ -3395,7 +3422,9 @@ ${buildDashboardExtractSectionHtml(data.today)}
     }
 
     function getListViewModel() {
-      const listItems = (dashboardData.tasks || []).concat(getVisibleCandidates());
+      const listItems = (dashboardData.tasks || []).filter(function (item) {
+        return item.kind === "task";
+      });
       return buildDashboardListViewModel(listItems, state.filter, state.search);
     }
 
@@ -3524,6 +3553,40 @@ ${buildDashboardExtractSectionHtml(data.today)}
       '</article>';
     }
 
+    function renderCandidateBlock() {
+      const candidateBlock = document.getElementById("candidate-block");
+      const candidateItems = document.getElementById("candidate-items");
+      if (!candidateBlock || !candidateItems) {
+        return;
+      }
+
+      const visibleCandidates = getVisibleCandidates();
+      const hasCandidates = visibleCandidates.length > 0;
+      const shouldShow = state.candidateBlockShown || hasCandidates;
+
+      if (!shouldShow) {
+        candidateBlock.style.display = "none";
+        return;
+      }
+
+      candidateBlock.style.display = "";
+      state.candidateBlockShown = true;
+
+      if (!hasCandidates) {
+        candidateItems.innerHTML = '<div class="empty-state">' +
+          '<strong class="empty-state-title">No candidates</strong>' +
+          '<p class="empty-state-body">Run AI Extract to find task candidates.</p>' +
+        '</div>';
+        return;
+      }
+
+      candidateItems.innerHTML = visibleCandidates
+        .map(function (task, index) {
+          return renderCandidateItem(task, index);
+        })
+        .join("");
+    }
+
     function renderEmptyState(message) {
       const parts = String(message || "").split("||");
       const title = parts[0] || "";
@@ -3621,6 +3684,7 @@ ${buildDashboardExtractSectionHtml(data.today)}
       persistState();
       renderFilters();
       renderTasks();
+      renderCandidateBlock();
       updateComposerPreview();
       syncHeaderDate();
     }
@@ -3887,6 +3951,7 @@ ${buildDashboardExtractSectionHtml(data.today)}
 
       if (message.type === "extractResult") {
         state.filter = "all";
+        state.candidateBlockShown = true;
         mergeCandidateBatch("moments", message.tasks || []);
         persistState();
         rerender();
@@ -3926,6 +3991,7 @@ ${buildDashboardExtractSectionHtml(data.today)}
 
       if (message.type === "notesExtractResult") {
         state.filter = "all";
+        state.candidateBlockShown = true;
         mergeCandidateBatch("notes", message.tasks || []);
         persistState();
         rerender();

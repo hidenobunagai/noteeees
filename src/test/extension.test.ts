@@ -815,12 +815,14 @@ suite("Extension Test Suite", () => {
       "expected browser-side existing task keys to include locally added candidates",
     );
     assert.ok(
-      html.includes('state.filter = "all";\n        mergeCandidateBatch("moments", message.tasks || []);'),
-      "expected moments extraction results to switch the UI to All",
+      html.includes('state.candidateBlockShown = true;') &&
+        html.includes('mergeCandidateBatch("moments", message.tasks || []);'),
+      "expected moments extraction results to switch the UI to All and show candidate block",
     );
     assert.ok(
-      html.includes('state.filter = "all";\n        mergeCandidateBatch("notes", message.tasks || []);'),
-      "expected notes extraction results to switch the UI to All",
+      html.includes('state.candidateBlockShown = true;') &&
+        html.includes('mergeCandidateBatch("notes", message.tasks || []);'),
+      "expected notes extraction results to switch the UI to All and show candidate block",
     );
     assert.ok(
       html.includes("function handleDismissExtractedAction(actionEl) {") &&
@@ -1011,6 +1013,21 @@ suite("Extension Test Suite", () => {
       !html.includes('class="ai-result" id="notes-extract-result"'),
       "expected support rail to drop notes candidate card rendering",
     );
+  });
+
+  test("dashboard webview renders an inline candidate block below Extract", () => {
+    const html = renderDashboardWebviewHtml();
+
+    assert.ok(html.includes('id="candidate-block"'), "expected dedicated candidate block container");
+    assert.ok(html.includes('id="dashboard-main-list"'), "expected main list container");
+
+    const extractIdx = html.indexOf('id="dashboard-action-bar"');
+    const candidateIdx = html.indexOf('id="candidate-block"');
+    const listIdx = html.indexOf('id="dashboard-main-list"');
+    assert.ok(extractIdx >= 0, "expected extract action bar marker");
+    assert.ok(candidateIdx >= 0, "expected candidate block marker");
+    assert.ok(listIdx >= 0, "expected main list marker");
+    assert.ok(extractIdx < candidateIdx && candidateIdx < listIdx, "expected candidate block between extract and main list");
   });
 
   test("dashboard webview keeps compact header KPI and date contracts for the listboard shell", () => {
