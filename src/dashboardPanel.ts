@@ -2846,21 +2846,31 @@ ${buildDashboardExtractSectionHtml(data.today)}
 
     function sanitizeBrowserTaskText(text) {
       return String(text || "")
-        .replace(/\r\n/g, "\n")
-        .split(/\r?\n/)
+        .replaceAll(String.fromCharCode(13) + String.fromCharCode(10), String.fromCharCode(10))
+        .split(String.fromCharCode(10))
         .map(function (line) {
           return line.trim();
         })
         .filter(Boolean)
         .join(" / ")
-        .replace(/\s+/g, " ")
+        .split(/\s+/)
+        .filter(Boolean)
+        .join(" ")
         .trim();
     }
 
     function normalizedCandidateIdentity(text) {
       return sanitizeBrowserTaskText(text)
-        .replace(/\s*(?:📅|due:|@)(\d{4}-\d{2}-\d{2})\b/g, "")
-        .replace(/\s{2,}/g, " ")
+        .split(" ")
+        .filter(function (part) {
+          if (!(part.startsWith("📅") || part.startsWith("due:") || part.startsWith("@"))) {
+            return true;
+          }
+
+          const datePart = part.startsWith("due:") ? part.slice(4) : part.slice(1);
+          return !(datePart.length === 10 && datePart[4] === "-" && datePart[7] === "-");
+        })
+        .join(" ")
         .trim()
         .normalize("NFKC")
         .toLowerCase();
@@ -2880,7 +2890,7 @@ ${buildDashboardExtractSectionHtml(data.today)}
         kind: "candidate",
         text: text,
         dueDate:
-          typeof task.dueDate === "string" && /^\d{4}-\d{2}-\d{2}$/.test(task.dueDate)
+          typeof task.dueDate === "string" && task.dueDate.length === 10 && task.dueDate[4] === "-" && task.dueDate[7] === "-"
             ? task.dueDate
             : null,
         category: typeof task.category === "string" && task.category.trim().length > 0 ? task.category : "other",
@@ -3074,8 +3084,13 @@ ${buildDashboardExtractSectionHtml(data.today)}
     const aiStatus = document.getElementById("ai-status");
     const notesFromDateInput = document.getElementById("notes-from-date");
     const notesToDateInput = document.getElementById("notes-to-date");
+    const notesStatus = document.getElementById("notes-extract-status");
     const dashboardDateLabel = document.getElementById("dashboard-date-label");
     const dashboardWeekdayMarker = document.getElementById("dashboard-weekday-marker");
+
+    if (!taskSearchInput || !filterRow || !taskList || !newTaskText || !newTaskTargetDate || !newTaskDueDate || !composerTargetPreview || !aiSourceDateInput || !aiStatus || !notesFromDateInput || !notesToDateInput || !notesStatus || !dashboardDateLabel || !dashboardWeekdayMarker) {
+      throw new Error("Task Dashboard failed to initialize required webview controls.");
+    }
 
     function persistState() {
       vscode.setState({
@@ -3100,10 +3115,10 @@ ${buildDashboardExtractSectionHtml(data.today)}
 
     function esc(value) {
       return String(value)
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;");
+        .replace(new RegExp("&", "g"), "&amp;")
+        .replace(new RegExp("<", "g"), "&lt;")
+        .replace(new RegExp(">", "g"), "&gt;")
+        .replace(new RegExp('"', "g"), "&quot;");
     }
 
     function formatDateLabel(date) {
@@ -3574,7 +3589,6 @@ ${buildDashboardExtractSectionHtml(data.today)}
       state.notesAiStatus = message || "";
       persistState();
 
-      const notesStatus = document.getElementById("notes-extract-status");
       notesStatus.className = "status-line" + (type === "error" ? " is-error" : "");
       notesStatus.textContent = state.notesAiStatus;
     }

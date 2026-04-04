@@ -1329,6 +1329,29 @@ suite("Extension Test Suite", () => {
     );
   });
 
+  test("dashboard webview script keeps interactive controls wired after initial render", () => {
+    const html = renderDashboardWebviewHtml();
+
+    const scriptMatch = html.match(/<script nonce="[^"]+">([\s\S]*)<\/script>/);
+    assert.ok(scriptMatch, "expected dashboard webview to include an inline script block");
+
+    const script = scriptMatch?.[1] || "";
+    assert.doesNotThrow(
+      () => new Function("acquireVsCodeApi", "document", "window", script),
+      "expected dashboard webview script to stay parseable for runtime initialization",
+    );
+    assert.ok(
+      script.includes('document.getElementById("btn-create-task").addEventListener("click", function () {') &&
+        script.includes('document.getElementById("btn-ai-extract").addEventListener("click", function () {') &&
+        script.includes('document.getElementById("btn-extract-notes").addEventListener("click", function () {'),
+      "expected dashboard webview script to keep all primary button handlers registered",
+    );
+    assert.ok(
+      script.includes('throw new Error("Task Dashboard failed to initialize required webview controls.");'),
+      "expected dashboard webview script to fail loudly when required controls are missing",
+    );
+  });
+
   test("addExtractedTask does not create a duplicate saved task when identity already exists", () => {
     const harness = createDashboardPanelTestHarness();
 
