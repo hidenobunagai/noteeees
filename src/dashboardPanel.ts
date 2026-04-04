@@ -51,6 +51,7 @@ export interface DashboardCandidateTask {
   source: "moments" | "notes";
   sourceLabel: string;
   existsAlready: boolean;
+  extractRunAt?: string;
 }
 
 export interface ExtractedTaskFilterResult {
@@ -160,6 +161,7 @@ function normalizeDashboardCandidateTask(value: unknown): DashboardCandidateTask
           ? "Notes"
           : "Moments",
     existsAlready: Boolean(task.existsAlready),
+    extractRunAt: typeof task.extractRunAt === "string" ? task.extractRunAt : undefined,
   };
 }
 
@@ -2986,6 +2988,7 @@ ${buildDashboardExtractSectionHtml(data.today)}
               ...normalizedTask,
               order: typeof task.order === "number" ? task.order : undefined,
               added: Boolean(task.added),
+              extractRunAt: typeof task.extractRunAt === "string" ? task.extractRunAt : undefined,
               extractionIndex:
                 typeof task.extractionIndex === "number"
                   ? task.extractionIndex
@@ -3395,6 +3398,11 @@ ${buildDashboardExtractSectionHtml(data.today)}
           return !task.added;
         })
         .sort(function (a, b) {
+          const aRunAt = a.extractRunAt || "";
+          const bRunAt = b.extractRunAt || "";
+          if (aRunAt !== bRunAt) {
+            return bRunAt.localeCompare(aRunAt);
+          }
           return (a.order || 0) - (b.order || 0);
         });
     }
@@ -3403,6 +3411,7 @@ ${buildDashboardExtractSectionHtml(data.today)}
       const retained = (state.candidateTasks || []).filter(function (task) {
         return task.source !== source;
       });
+      const extractRunAt = new Date().toISOString();
       const merged = (tasks || []).map(function (task) {
         return {
           kind: "candidate",
@@ -3411,6 +3420,7 @@ ${buildDashboardExtractSectionHtml(data.today)}
           existsAlready: Boolean(task.existsAlready),
           order: state.candidateOrderSeed++,
           added: false,
+          extractRunAt: extractRunAt,
           ...task,
         };
       });

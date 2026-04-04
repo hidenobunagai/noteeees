@@ -2969,4 +2969,128 @@ suite("Extension Test Suite", () => {
     assert.ok(items[0].detail?.includes("Latest: Alpha"));
     assert.ok(items[0].detail?.includes("projects/alpha.md"));
   });
+
+  // ---------------------------------------------------------------------------
+  // Candidate persistence tests (Task 4)
+  // ---------------------------------------------------------------------------
+
+  test("dashboard webview persists candidateTasks with extractRunAt timestamps", () => {
+    const html = renderDashboardWebviewHtml();
+
+    assert.ok(
+      html.includes("extractRunAt"),
+      "expected persisted candidate state to include extractRunAt timestamp",
+    );
+  });
+
+  test("dashboard webview restores unresolved candidates with extractRunAt on reopen", () => {
+    const extractRunAt = "2026-04-01T10:00:00.000Z";
+    const html = renderDashboardWebviewHtml(
+      undefined,
+      createMementoStubWithValues({
+        candidateTasks: [
+          {
+            kind: "candidate",
+            text: "Persisted candidate",
+            dueDate: null,
+            category: "work",
+            priority: "medium",
+            timeEstimateMin: 15,
+            source: "moments",
+            sourceLabel: "Moments",
+            existsAlready: false,
+            order: 0,
+            added: false,
+            extractRunAt,
+          },
+        ],
+        candidateOrderSeed: 1,
+        addedCandidateKeys: [],
+      }),
+    );
+
+    const scriptMatch = html.match(/<script nonce="[^"]+">([\s\S]*)<\/script>/);
+    assert.ok(scriptMatch, "expected dashboard webview to include an inline script block");
+    const script = scriptMatch?.[1] || "";
+
+    assert.ok(
+      script.includes("extractRunAt"),
+      "expected browser script to handle extractRunAt when restoring persisted candidates",
+    );
+    assert.ok(
+      script.includes("savedState.candidateTasks"),
+      "expected browser script to restore candidateTasks from saved state",
+    );
+  });
+
+  test("dashboard webview preserves stored display order when restoring persisted candidates", () => {
+    const html = renderDashboardWebviewHtml(
+      undefined,
+      createMementoStubWithValues({
+        candidateTasks: [
+          {
+            kind: "candidate",
+            text: "First candidate",
+            dueDate: null,
+            category: "work",
+            priority: "medium",
+            timeEstimateMin: 15,
+            source: "moments",
+            sourceLabel: "Moments",
+            existsAlready: false,
+            order: 5,
+            added: false,
+            extractRunAt: "2026-04-01T10:00:00.000Z",
+          },
+          {
+            kind: "candidate",
+            text: "Second candidate",
+            dueDate: null,
+            category: "admin",
+            priority: "low",
+            timeEstimateMin: 10,
+            source: "notes",
+            sourceLabel: "projects/plan.md",
+            existsAlready: false,
+            order: 3,
+            added: false,
+            extractRunAt: "2026-04-01T09:00:00.000Z",
+          },
+        ],
+        candidateOrderSeed: 6,
+        addedCandidateKeys: [],
+      }),
+    );
+
+    const scriptMatch = html.match(/<script nonce="[^"]+">([\s\S]*)<\/script>/);
+    assert.ok(scriptMatch, "expected dashboard webview to include an inline script block");
+    const script = scriptMatch?.[1] || "";
+
+    assert.ok(
+      script.includes("bRunAt.localeCompare(aRunAt)"),
+      "expected getVisibleCandidates to sort by extractRunAt desc for cross-batch ordering",
+    );
+  });
+
+  // ---------------------------------------------------------------------------
+  // Re-extract rules tests (Task 4)
+  // ---------------------------------------------------------------------------
+
+  test("dashboard webview script defines mergeCandidateBatch with extractRunAt ordering", () => {
+    const html = renderDashboardWebviewHtml();
+
+    assert.ok(
+      html.includes("extractRunAt"),
+      "expected mergeCandidateBatch to set extractRunAt on merged candidates",
+    );
+  });
+
+  test("dashboard webview getVisibleCandidates sorts by extractRunAt desc then order", () => {
+    const html = renderDashboardWebviewHtml();
+
+    assert.ok(
+      html.includes("extractRunAt"),
+      "expected getVisibleCandidates to sort by extractRunAt for cross-batch ordering",
+    );
+  });
 });
