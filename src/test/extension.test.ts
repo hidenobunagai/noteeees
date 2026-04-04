@@ -764,13 +764,8 @@ suite("Extension Test Suite", () => {
 
     for (const filterId of [
       "all",
-      "attention",
-      "candidate",
-      "overdue",
       "today",
-      "upcoming",
-      "scheduled",
-      "backlog",
+      "planned",
       "done",
     ]) {
       assert.ok(
@@ -780,7 +775,35 @@ suite("Extension Test Suite", () => {
     }
   });
 
-  test("dashboard webview switches to Candidate after extraction and tracks locally added candidate keys", () => {
+  test("simplified filter set is exactly All/Today/Planned/Done", () => {
+    const html = renderDashboardWebviewHtml();
+
+    assert.ok(html.includes('{ id: "all", label: "All"'), "expected All filter chip");
+    assert.ok(html.includes('{ id: "today", label: "Today"'), "expected Today filter chip");
+    assert.ok(html.includes('{ id: "planned", label: "Planned"'), "expected Planned filter chip");
+    assert.ok(html.includes('{ id: "done", label: "Done"'), "expected Done filter chip");
+    assert.ok(!html.includes('{ id: "attention", label:'), "expected no Attention filter in simplified UI");
+    assert.ok(!html.includes('{ id: "candidate", label:'), "expected no Candidate filter in simplified UI");
+    assert.ok(!html.includes('{ id: "overdue", label:'), "expected no Overdue filter in simplified UI");
+    assert.ok(!html.includes('{ id: "upcoming", label:'), "expected no Upcoming filter in simplified UI");
+    assert.ok(!html.includes('{ id: "scheduled", label:'), "expected no Scheduled filter in simplified UI");
+    assert.ok(!html.includes('{ id: "backlog", label:'), "expected no Backlog filter in simplified UI");
+  });
+
+  test("simplified section model under All renders Today/Planned/Unsorted/Done", () => {
+    const html = renderDashboardWebviewHtml();
+
+    assert.ok(html.includes('today: "Today"'), "expected Today section title mapping");
+    assert.ok(html.includes('planned: "Planned"'), "expected Planned section title mapping");
+    assert.ok(html.includes('unsorted: "Unsorted"'), "expected Unsorted section title mapping");
+    assert.ok(html.includes('done: "Done"'), "expected Done section title mapping");
+    assert.ok(!html.includes('overdue: "Overdue"'), "expected no Overdue section in simplified model");
+    assert.ok(!html.includes('upcoming: "Upcoming"'), "expected no Upcoming section in simplified model");
+    assert.ok(!html.includes('scheduled: "Scheduled"'), "expected no Scheduled section in simplified model");
+    assert.ok(!html.includes('backlog: "Backlog"'), "expected no Backlog section in simplified model");
+  });
+
+  test("dashboard webview switches to All after extraction and tracks locally added candidate keys", () => {
     const html = renderDashboardWebviewHtml();
 
     assert.ok(
@@ -792,12 +815,12 @@ suite("Extension Test Suite", () => {
       "expected browser-side existing task keys to include locally added candidates",
     );
     assert.ok(
-      html.includes('state.filter = "candidate";\n        mergeCandidateBatch("moments", message.tasks || []);'),
-      "expected moments extraction results to switch the UI to Candidate",
+      html.includes('state.filter = "all";\n        mergeCandidateBatch("moments", message.tasks || []);'),
+      "expected moments extraction results to switch the UI to All",
     );
     assert.ok(
-      html.includes('state.filter = "candidate";\n        mergeCandidateBatch("notes", message.tasks || []);'),
-      "expected notes extraction results to switch the UI to Candidate",
+      html.includes('state.filter = "all";\n        mergeCandidateBatch("notes", message.tasks || []);'),
+      "expected notes extraction results to switch the UI to All",
     );
     assert.ok(
       html.includes("function handleDismissExtractedAction(actionEl) {") &&
@@ -810,8 +833,8 @@ suite("Extension Test Suite", () => {
     const html = renderDashboardWebviewHtml();
 
     assert.ok(
-      html.includes('const subtitle = section.key === "candidates"') &&
-        html.includes('? sectionDescriptions[section.key]') &&
+      html.includes('const subtitle = state.filter === "all"') &&
+        html.includes('? simplifiedSectionDescriptions[section.key]') &&
         html.includes(': "filtered items";'),
       "expected flat filter subtitles to fall back to a defined label instead of undefined",
     );
@@ -821,13 +844,9 @@ suite("Extension Test Suite", () => {
     const html = renderDashboardWebviewHtml();
 
     assert.ok(
-      html.includes('state.filter === "all" && section.key !== "candidates"') &&
-        html.includes('? sectionDescriptions[section.key]'),
+      html.includes('state.filter === "all"') &&
+        html.includes('? simplifiedSectionDescriptions[section.key]'),
       "expected grouped All sections to keep their specific section description text",
-    );
-    assert.ok(
-      html.includes('? "extracted suggestions"'),
-      "expected candidate sections to keep the extracted suggestions subtitle",
     );
   });
 
@@ -981,13 +1000,9 @@ suite("Extension Test Suite", () => {
     );
   });
 
-  test("dashboard webview renders candidate filter in the main toolbar and keeps the support rail free of candidate cards", () => {
+  test("dashboard webview keeps the support rail free of candidate cards", () => {
     const html = renderDashboardWebviewHtml();
 
-    assert.ok(
-      html.includes('{ id: "candidate", label: "Candidate", count:'),
-      "expected Candidate filter chip definition in the main toolbar",
-    );
     assert.ok(
       !html.includes('class="ai-result" id="ai-result"'),
       "expected support rail to drop moments candidate card rendering",
@@ -1184,16 +1199,14 @@ suite("Extension Test Suite", () => {
     );
   });
 
-  test("dashboard webview renders candidate rows in the dedicated Candidates section with duplicate handling", () => {
+  test("dashboard webview renders candidate rows with duplicate handling", () => {
     const html = renderDashboardWebviewHtml();
 
     assert.ok(
-      html.includes("Candidates") &&
-        html.includes('section.key === "candidates"') &&
-        html.includes('function renderCandidateItem(task, index)') &&
+      html.includes('function renderCandidateItem(task, index)') &&
         html.includes('task-row-candidate') &&
         html.includes('badge task-row-label">Candidate</span>'),
-      "expected candidate rows to render in the dedicated Candidates section under All",
+      "expected candidate rows to render with proper styling",
     );
     assert.ok(
       html.includes('>Already exists</span>') &&
@@ -1285,26 +1298,26 @@ suite("Extension Test Suite", () => {
       "No tasks yet||Use Quick Add or AI Extract to create your first task.",
     );
 
-    const noAttention = buildDashboardListViewModel([], "attention", "");
+    const noToday = buildDashboardListViewModel([], "today", "");
     assert.strictEqual(
-      noAttention.emptyMessage,
-      "Nothing urgent right now||Attention items from Overdue, Today, and Upcoming will appear here.",
+      noToday.emptyMessage,
+      "No items in this filter",
     );
 
-    const legacyFocusEmpty = buildDashboardListViewModel([], "focus", "");
+    const noPlanned = buildDashboardListViewModel([], "planned", "");
     assert.strictEqual(
-      legacyFocusEmpty.emptyMessage,
-      "Nothing urgent right now||Attention items from Overdue, Today, and Upcoming will appear here.",
+      noPlanned.emptyMessage,
+      "No items in this filter",
     );
 
-    const noCandidates = buildDashboardListViewModel([], "candidate", "");
+    const noDone = buildDashboardListViewModel([], "done", "");
     assert.strictEqual(
-      noCandidates.emptyMessage,
-      "No candidates yet||Extraction results from Moments or Notes will appear here. Saved tasks stay visible in other filters.",
+      noDone.emptyMessage,
+      "No items in this filter",
     );
   });
 
-  test("dashboard webview renders final compact empty-state copy for All, Attention, and Candidate", () => {
+  test("dashboard webview renders final compact empty-state copy for All", () => {
     const html = renderDashboardWebviewHtml();
 
     assert.ok(
@@ -1316,16 +1329,6 @@ suite("Extension Test Suite", () => {
     assert.ok(
       html.includes('"No tasks yet||Use Quick Add or AI Extract to create your first task."'),
       "expected All empty state to direct users to Quick Add or AI Extract",
-    );
-    assert.ok(
-      html.includes('"Nothing urgent right now||Attention items from Overdue, Today, and Upcoming will appear here."'),
-      "expected Attention empty state to explain there is nothing urgent",
-    );
-    assert.ok(
-      html.includes(
-        '"No candidates yet||Extraction results from Moments or Notes will appear here. Saved tasks stay visible in other filters."',
-      ),
-      "expected Candidate empty state to explain where extracted candidates appear",
     );
   });
 
@@ -1957,7 +1960,7 @@ suite("Extension Test Suite", () => {
     );
   });
 
-  test("candidate filter routes candidate and saved task rows correctly", () => {
+  test("simplified filter routes saved task rows correctly", () => {
     const savedTasks = buildDashboardTaskViews(
       [
         {
@@ -2021,11 +2024,11 @@ suite("Extension Test Suite", () => {
     const visibleAll = listItems.filter((item: DashboardListItem) =>
       matchesDashboardListItemFilter(item, "all"),
     );
-    const visibleCandidates = listItems.filter((item: DashboardListItem) =>
-      matchesDashboardListItemFilter(item, "candidate"),
+    const visibleToday = listItems.filter((item: DashboardListItem) =>
+      matchesDashboardListItemFilter(item, "today"),
     );
-    const visibleAttention = listItems.filter((item: DashboardListItem) =>
-      matchesDashboardListItemFilter(item, "attention"),
+    const visibleDone = listItems.filter((item: DashboardListItem) =>
+      matchesDashboardListItemFilter(item, "done"),
     );
 
     assert.deepStrictEqual(
@@ -2033,8 +2036,12 @@ suite("Extension Test Suite", () => {
       ["Overdue saved", "Today saved", "Done saved", "Candidate first", "Candidate second"],
     );
     assert.deepStrictEqual(
-      visibleCandidates.map((item) => item.text),
-      ["Candidate first", "Candidate second"],
+      visibleToday.map((item) => item.text),
+      ["Overdue saved", "Today saved"],
+    );
+    assert.deepStrictEqual(
+      visibleDone.map((item) => item.text),
+      ["Done saved"],
     );
 
     for (const filter of ["overdue", "today", "upcoming", "scheduled", "backlog", "done"] as const) {
@@ -2046,14 +2053,9 @@ suite("Extension Test Suite", () => {
         false,
       );
     }
-
-    assert.deepStrictEqual(
-      visibleAttention.map((item) => item.text),
-      ["Overdue saved", "Today saved"],
-    );
   });
 
-  test("candidate filter counts candidate rows only", () => {
+  test("simplified filter counts saved task rows only", () => {
     const savedTasks = buildDashboardTaskViews(
       [
         {
@@ -2096,12 +2098,12 @@ suite("Extension Test Suite", () => {
 
     const listItems = buildDashboardListItems(savedTasks, candidateViews);
 
-    assert.strictEqual(countDashboardListItemsForFilter(listItems, "candidate"), 2);
+    assert.strictEqual(countDashboardListItemsForFilter(listItems, "today"), 1);
     assert.strictEqual(countDashboardListItemsForFilter(listItems, "all"), 3);
-    assert.strictEqual(countDashboardListItemsForFilter(listItems, "attention"), 1);
+    assert.strictEqual(countDashboardListItemsForFilter(listItems, "done"), 0);
   });
 
-  test("dashboard list view model shows a dedicated Candidates section before saved-task sections", () => {
+  test("dashboard list view model shows simplified sections under All", () => {
     const savedTasks = buildDashboardTaskViews(
       [
         {
@@ -2164,12 +2166,9 @@ suite("Extension Test Suite", () => {
         kinds: section.items.map((item: DashboardListItem) => item.kind),
       })),
       [
-        { title: "Candidates", kinds: ["candidate", "candidate"] },
-        { title: "Overdue", kinds: ["task"] },
-        { title: "Today", kinds: ["task"] },
-        { title: "Upcoming", kinds: [] },
-        { title: "Scheduled", kinds: [] },
-        { title: "Backlog", kinds: [] },
+        { title: "Today", kinds: ["task", "task"] },
+        { title: "Planned", kinds: [] },
+        { title: "Unsorted", kinds: [] },
         { title: "Done", kinds: [] },
       ],
     );
@@ -2259,28 +2258,28 @@ suite("Extension Test Suite", () => {
     const allView = buildDashboardListViewModel(items, "all", "");
     assert.deepStrictEqual(
       allView.sections.map((section) => section.title),
-      ["Candidates", "Overdue", "Today", "Upcoming", "Scheduled", "Backlog", "Done"],
-    );
-
-    const attentionView = buildDashboardListViewModel(items, "attention", "");
-    assert.deepStrictEqual(attentionView.sections, []);
-    assert.deepStrictEqual(
-      (attentionView as { flatItems?: DashboardListItem[] }).flatItems?.map((item) => item.text),
-      ["Overdue saved", "Today saved", "Upcoming saved"],
-    );
-
-    const candidateView = buildDashboardListViewModel(items, "candidate", "");
-    assert.deepStrictEqual(candidateView.sections, []);
-    assert.deepStrictEqual(
-      (candidateView as { flatItems?: DashboardListItem[] }).flatItems?.map((item) => item.text),
-      ["Candidate first"],
+      ["Today", "Planned", "Unsorted", "Done"],
     );
 
     const todayView = buildDashboardListViewModel(items, "today", "");
     assert.deepStrictEqual(todayView.sections, []);
     assert.deepStrictEqual(
       (todayView as { flatItems?: DashboardListItem[] }).flatItems?.map((item) => item.text),
-      ["Today saved"],
+      ["Overdue saved", "Today saved"],
+    );
+
+    const plannedView = buildDashboardListViewModel(items, "planned", "");
+    assert.deepStrictEqual(plannedView.sections, []);
+    assert.deepStrictEqual(
+      (plannedView as { flatItems?: DashboardListItem[] }).flatItems?.map((item) => item.text),
+      ["Upcoming saved", "Scheduled saved"],
+    );
+
+    const doneView = buildDashboardListViewModel(items, "done", "");
+    assert.deepStrictEqual(doneView.sections, []);
+    assert.deepStrictEqual(
+      (doneView as { flatItems?: DashboardListItem[] }).flatItems?.map((item) => item.text),
+      ["Done saved"],
     );
   });
 
@@ -2336,9 +2335,7 @@ suite("Extension Test Suite", () => {
         items: section.items.map((item) => item.text),
       })),
       [
-        { title: "Candidates", items: ["Alpha candidate"] },
-        { title: "Overdue", items: ["Alpha overdue"] },
-        { title: "Today", items: ["Alpha today"] },
+        { title: "Today", items: ["Alpha overdue", "Alpha today"] },
       ],
     );
   });
@@ -2365,12 +2362,9 @@ suite("Extension Test Suite", () => {
     assert.deepStrictEqual(
       allView.sections.map((section) => ({ title: section.title, count: section.items.length })),
       [
-        { title: "Candidates", count: 0 },
-        { title: "Overdue", count: 0 },
         { title: "Today", count: 1 },
-        { title: "Upcoming", count: 0 },
-        { title: "Scheduled", count: 0 },
-        { title: "Backlog", count: 0 },
+        { title: "Planned", count: 0 },
+        { title: "Unsorted", count: 0 },
         { title: "Done", count: 0 },
       ],
     );
@@ -2446,9 +2440,8 @@ suite("Extension Test Suite", () => {
         items: section.items.map((item) => item.text),
       })),
       [
-        { title: "Candidates", items: ["Ops candidate alpha"] },
-        { title: "Overdue", items: ["Ops overdue alpha"] },
-        { title: "Backlog", items: ["Ops backlog gamma"] },
+        { title: "Today", items: ["Ops overdue alpha"] },
+        { title: "Unsorted", items: ["Ops backlog gamma"] },
       ],
     );
     assert.strictEqual(viewModel.emptyMessage, null);
@@ -2476,7 +2469,7 @@ suite("Extension Test Suite", () => {
     assert.strictEqual(viewModel.emptyMessage, "No search results");
   });
 
-  test("dashboard list view model keeps candidate filter and candidate-specific empty states distinct", () => {
+  test("dashboard list view model shows correct empty states for simplified filters", () => {
     const candidates = buildDashboardCandidateViews([
       {
         kind: "candidate",
@@ -2491,30 +2484,15 @@ suite("Extension Test Suite", () => {
       },
     ]);
 
-    const candidateOnly = buildDashboardListViewModel(candidates, "candidate", "");
-    assert.deepStrictEqual(candidateOnly.sections, []);
-    assert.deepStrictEqual(
-      (candidateOnly as { flatItems?: DashboardListItem[] }).flatItems?.map((item) => item.text),
-      ["Candidate first"],
-    );
-
-    const noCandidateRows = buildDashboardListViewModel([], "candidate", "");
-    assert.strictEqual(
-      noCandidateRows.emptyMessage,
-      "No candidates yet||Extraction results from Moments or Notes will appear here. Saved tasks stay visible in other filters.",
-    );
-
-    const noSearchResults = buildDashboardListViewModel(candidates, "candidate", "missing");
-    assert.strictEqual(noSearchResults.emptyMessage, "No search results");
+    const todayOnly = buildDashboardListViewModel([], "today", "");
+    assert.deepStrictEqual(todayOnly.sections, []);
+    assert.strictEqual(todayOnly.emptyMessage, "No items in this filter");
 
     const noItemsInFilter = buildDashboardListViewModel([], "today", "");
     assert.strictEqual(noItemsInFilter.emptyMessage, "No items in this filter");
 
-    const noCandidateRowsWithSearch = buildDashboardListViewModel([], "candidate", "missing");
-    assert.strictEqual(
-      noCandidateRowsWithSearch.emptyMessage,
-      "No candidates yet||Extraction results from Moments or Notes will appear here. Saved tasks stay visible in other filters.",
-    );
+    const noSearchResults = buildDashboardListViewModel([], "today", "missing");
+    assert.strictEqual(noSearchResults.emptyMessage, "No items in this filter");
 
     const noItemsInFilterWithSearch = buildDashboardListViewModel([], "today", "missing");
     assert.strictEqual(noItemsInFilterWithSearch.emptyMessage, "No items in this filter");

@@ -80,10 +80,10 @@ export type DashboardTaskSection =
   | "done";
 
 export type DashboardListFilter =
-  | "attention"
   | "all"
-  | "candidate"
-  | "focus"
+  | "today"
+  | "planned"
+  | "done"
   | DashboardTaskSection;
 
 export interface DashboardTaskView extends DashTask {
@@ -119,11 +119,6 @@ function buildDashboardEmptyMessage(filter: DashboardListFilter): string {
   switch (filter) {
     case "all":
       return `No tasks yet${DASHBOARD_EMPTY_MESSAGE_SEPARATOR}Use Quick Add or AI Extract to create your first task.`;
-    case "attention":
-    case "focus":
-      return `Nothing urgent right now${DASHBOARD_EMPTY_MESSAGE_SEPARATOR}Attention items from Overdue, Today, and Upcoming will appear here.`;
-    case "candidate":
-      return `No candidates yet${DASHBOARD_EMPTY_MESSAGE_SEPARATOR}Extraction results from Moments or Notes will appear here. Saved tasks stay visible in other filters.`;
     default:
       return "No items in this filter";
   }
@@ -725,16 +720,20 @@ export function matchesDashboardListItemFilter(
     return true;
   }
 
-  if (filter === "candidate") {
-    return item.kind === "candidate";
-  }
-
   if (item.kind === "candidate") {
     return false;
   }
 
-  if (filter === "attention" || filter === "focus") {
-    return ATTENTION_SECTIONS.has(item.section);
+  if (filter === "today") {
+    return item.section === "overdue" || item.section === "today";
+  }
+
+  if (filter === "planned") {
+    return item.section === "upcoming" || item.section === "scheduled";
+  }
+
+  if (filter === "done") {
+    return item.section === "done";
   }
 
   return item.section === filter;
@@ -788,21 +787,34 @@ export function buildDashboardListViewModel(
     }
 
     const sections: DashboardListSectionView[] = [];
-    const candidateItems = visibleItems.filter(
-      (item): item is DashboardCandidateView => item.kind === "candidate",
-    );
-    if (!normalizedSearch || candidateItems.length > 0) {
-      sections.push({ key: "candidates", title: "Candidates", items: candidateItems });
-    }
 
-    for (const section of Object.keys(SECTION_ORDER) as DashboardTaskSection[]) {
+    const simplifiedSectionOrder: Array<"today" | "planned" | "unsorted" | "done"> = ["today", "planned", "unsorted", "done"];
+    const simplifiedSectionTitles: Record<string, string> = {
+      today: "Today",
+      planned: "Planned",
+      unsorted: "Unsorted",
+      done: "Done",
+    };
+
+    for (const simplifiedSection of simplifiedSectionOrder) {
+      let internalSections: DashboardTaskSection[];
+      if (simplifiedSection === "today") {
+        internalSections = ["overdue", "today"];
+      } else if (simplifiedSection === "planned") {
+        internalSections = ["upcoming", "scheduled"];
+      } else if (simplifiedSection === "unsorted") {
+        internalSections = ["backlog"];
+      } else {
+        internalSections = ["done"];
+      }
+
       const taskItems = visibleItems.filter(
-        (item): item is DashboardTaskView => item.kind === "task" && item.section === section,
+        (item): item is DashboardTaskView => item.kind === "task" && internalSections.includes(item.section),
       );
       if (!normalizedSearch || taskItems.length > 0) {
         sections.push({
-          key: section,
-          title: section[0].toUpperCase() + section.slice(1),
+          key: simplifiedSection as DashboardListFilter,
+          title: simplifiedSectionTitles[simplifiedSection],
           items: taskItems,
         });
       }
@@ -822,12 +834,13 @@ export function buildDashboardListViewModel(
     };
   }
 
-  const title =
-    filter === "attention"
-      ? "Attention"
-      : filter === "candidate"
-        ? "Candidate"
-        : filter[0].toUpperCase() + filter.slice(1);
+  const simplifiedSectionTitles: Record<string, string> = {
+    today: "Today",
+    planned: "Planned",
+    unsorted: "Unsorted",
+    done: "Done",
+  };
+  const title = simplifiedSectionTitles[filter] || filter[0].toUpperCase() + filter.slice(1);
 
   return {
     sections: [],
@@ -3043,33 +3056,24 @@ ${buildDashboardExtractSectionHtml(data.today)}
       notesAiStatusType: savedState.notesAiStatusType || "idle",
     };
 
-    const sectionTitles = {
-      overdue: "Overdue",
+    const simplifiedSectionOrder = ["today", "planned", "unsorted", "done"];
+    const simplifiedSectionTitles = {
       today: "Today",
-      upcoming: "Upcoming",
-      scheduled: "Scheduled",
-      backlog: "Backlog",
+      planned: "Planned",
+      unsorted: "Unsorted",
       done: "Done",
     };
-    const sectionDescriptions = {
-      overdue: "過去日付または期限超過",
-      today: "今日着手するタスク",
-      upcoming: "7日以内に近づくタスク",
-      scheduled: "先の予定に置いているタスク",
-      backlog: "inbox や日付なしの棚卸し待ち",
+    const simplifiedSectionDescriptions = {
+      today: "今日と期限超過",
+      planned: "7日以内と先の予定",
+      unsorted: "inbox や日付なしの棚卸し待ち",
       done: "完了済み",
     };
-    const sectionOrder = ["overdue", "today", "upcoming", "scheduled", "backlog", "done"];
 
     const filterDefinitions = [
-      { id: "attention", label: "Attention", count: dashboardData.sectionCounts.overdue + dashboardData.sectionCounts.today + dashboardData.sectionCounts.upcoming },
       { id: "all", label: "All", count: dashboardData.tasks.length },
-      { id: "candidate", label: "Candidate", count: state.candidateTasks.filter(function (task) { return !task.added; }).length },
-      { id: "overdue", label: "Overdue", count: dashboardData.sectionCounts.overdue },
-      { id: "today", label: "Today", count: dashboardData.sectionCounts.today },
-      { id: "upcoming", label: "Upcoming", count: dashboardData.sectionCounts.upcoming },
-      { id: "scheduled", label: "Scheduled", count: dashboardData.sectionCounts.scheduled },
-      { id: "backlog", label: "Backlog", count: dashboardData.sectionCounts.backlog },
+      { id: "today", label: "Today", count: dashboardData.sectionCounts.overdue + dashboardData.sectionCounts.today },
+      { id: "planned", label: "Planned", count: dashboardData.sectionCounts.upcoming + dashboardData.sectionCounts.scheduled },
       { id: "done", label: "Done", count: dashboardData.sectionCounts.done },
     ];
 
@@ -3233,16 +3237,20 @@ ${buildDashboardExtractSectionHtml(data.today)}
         return true;
       }
 
-      if (filter === "candidate") {
-        return item.kind === "candidate";
-      }
-
       if (item.kind === "candidate") {
         return false;
       }
 
-      if (filter === "attention" || filter === "focus") {
-        return item.section === "overdue" || item.section === "today" || item.section === "upcoming";
+      if (filter === "today") {
+        return item.section === "overdue" || item.section === "today";
+      }
+
+      if (filter === "planned") {
+        return item.section === "upcoming" || item.section === "scheduled";
+      }
+
+      if (filter === "done") {
+        return item.section === "done";
       }
 
       return item.section === filter;
@@ -3275,11 +3283,6 @@ ${buildDashboardExtractSectionHtml(data.today)}
         switch (filter) {
           case "all":
             return "No tasks yet||Use Quick Add or AI Extract to create your first task.";
-          case "attention":
-          case "focus":
-            return "Nothing urgent right now||Attention items from Overdue, Today, and Upcoming will appear here.";
-          case "candidate":
-            return "No candidates yet||Extraction results from Moments or Notes will appear here. Saved tasks stay visible in other filters.";
           default:
             return "No items in this filter";
         }
@@ -3302,19 +3305,28 @@ ${buildDashboardExtractSectionHtml(data.today)}
         }
 
         const sections = [];
-        const candidateItems = visibleItems.filter(function (item) {
-          return item.kind === "candidate";
-        });
-        if (!normalizedSearch || candidateItems.length > 0) {
-          sections.push({ key: "candidates", title: "Candidates", items: candidateItems });
-        }
 
-        sectionOrder.forEach(function (section) {
+        simplifiedSectionOrder.forEach(function (simplifiedSection) {
+          let internalSections;
+          if (simplifiedSection === "today") {
+            internalSections = ["overdue", "today"];
+          } else if (simplifiedSection === "planned") {
+            internalSections = ["upcoming", "scheduled"];
+          } else if (simplifiedSection === "unsorted") {
+            internalSections = ["backlog"];
+          } else {
+            internalSections = ["done"];
+          }
+
           const taskItems = visibleItems.filter(function (item) {
-            return item.kind === "task" && item.section === section;
+            return item.kind === "task" && internalSections.includes(item.section);
           });
           if (!normalizedSearch || taskItems.length > 0) {
-            sections.push({ key: section, title: sectionTitles[section], items: taskItems });
+            sections.push({
+              key: simplifiedSection,
+              title: simplifiedSectionTitles[simplifiedSection],
+              items: taskItems,
+            });
           }
         });
 
@@ -3335,11 +3347,7 @@ ${buildDashboardExtractSectionHtml(data.today)}
         };
       }
 
-      const title = filter === "attention"
-        ? "Attention"
-        : filter === "candidate"
-          ? "Candidate"
-          : sectionTitles[filter] || (filter.charAt(0).toUpperCase() + filter.slice(1));
+      const title = simplifiedSectionTitles[filter] || (filter.charAt(0).toUpperCase() + filter.slice(1));
 
       return {
         sections: [],
@@ -3389,8 +3397,10 @@ ${buildDashboardExtractSectionHtml(data.today)}
     }
 
     function renderFilters() {
-      filterDefinitions[1].count = dashboardData.tasks.length + getVisibleCandidates().length;
-      filterDefinitions[2].count = getVisibleCandidates().length;
+      filterDefinitions[0].count = dashboardData.tasks.length + getVisibleCandidates().length;
+      filterDefinitions[1].count = dashboardData.sectionCounts.overdue + dashboardData.sectionCounts.today;
+      filterDefinitions[2].count = dashboardData.sectionCounts.upcoming + dashboardData.sectionCounts.scheduled;
+      filterDefinitions[3].count = dashboardData.sectionCounts.done;
       filterRow.innerHTML = filterDefinitions
         .map(function (filter) {
           const activeClass = filter.id === state.filter ? " is-active" : "";
@@ -3546,11 +3556,9 @@ ${buildDashboardExtractSectionHtml(data.today)}
 
       const html = viewModel.sections
         .map(function (section) {
-          const subtitle = section.key === "candidates"
-            ? "extracted suggestions"
-            : state.filter === "all" && section.key !== "candidates"
-              ? sectionDescriptions[section.key]
-              : "filtered items";
+          const subtitle = state.filter === "all"
+            ? simplifiedSectionDescriptions[section.key]
+            : "filtered items";
           const items = section.items
             .map(function (item) {
               if (item.kind === "candidate") {
@@ -3647,7 +3655,7 @@ ${buildDashboardExtractSectionHtml(data.today)}
       state.aiStatusType = "idle";
       if (state.filter !== "all") {
         const hasDate = state.targetDate || state.composerDueDate;
-        state.filter = hasDate ? "all" : "backlog";
+        state.filter = hasDate ? "all" : "unsorted";
       }
       persistState();
       vscode.postMessage({
@@ -3875,7 +3883,7 @@ ${buildDashboardExtractSectionHtml(data.today)}
       }
 
       if (message.type === "extractResult") {
-        state.filter = "candidate";
+        state.filter = "all";
         mergeCandidateBatch("moments", message.tasks || []);
         persistState();
         rerender();
@@ -3914,7 +3922,7 @@ ${buildDashboardExtractSectionHtml(data.today)}
       }
 
       if (message.type === "notesExtractResult") {
-        state.filter = "candidate";
+        state.filter = "all";
         mergeCandidateBatch("notes", message.tasks || []);
         persistState();
         rerender();
