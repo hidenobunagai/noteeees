@@ -964,7 +964,7 @@ suite("Extension Test Suite", () => {
     assert.ok(listIndex < analyticsIndex, "expected analytics strip below the main list");
   });
 
-  test("dashboard webview removes the old hero-first shell while surfacing overdue context in attention KPI", () => {
+  test("dashboard webview removes the old hero-first shell and attention KPI chip", () => {
     const html = renderDashboardWebviewHtml((notesDir) => {
       const overdueDate = new Date();
       overdueDate.setDate(overdueDate.getDate() - 1);
@@ -977,16 +977,8 @@ suite("Extension Test Suite", () => {
     assert.ok(!html.includes('<section class="hero">'), "expected old hero block to be removed");
     assert.ok(!html.includes('class="summary-card is-warning"'), "expected old overdue KPI card to be removed");
     assert.ok(!html.includes('<div class="summary-label">Overdue</div>'), "expected overdue KPI label to be removed");
-    assert.match(
-      html,
-      /id="dashboard-kpi-attention"[\s\S]*<span class="dashboard-kpi-value">1<\/span>/,
-      "expected attention KPI to show the overdue task in its main value",
-    );
-    assert.match(
-      html,
-      /id="dashboard-kpi-attention"[\s\S]*<span class="dashboard-kpi-note">1<\/span>/,
-      "expected attention KPI to keep overdue context visible in the compact chip note",
-    );
+    assert.ok(!html.includes('id="dashboard-kpi-attention"'), "expected attention KPI chip to be removed");
+    assert.ok(!html.includes('>Attention<'), "expected Attention label to be removed from header");
   });
 
   test("dashboard webview persists extracted results immediately on message receipt", () => {
@@ -1030,6 +1022,16 @@ suite("Extension Test Suite", () => {
     assert.ok(extractIdx < candidateIdx && candidateIdx < listIdx, "expected candidate block between extract and main list");
   });
 
+  test("dashboard webview renders non-interactive header KPI chips", () => {
+    const html = renderDashboardWebviewHtml();
+
+    assert.ok(html.includes('id="dashboard-kpi-open"'), "expected Open KPI chip");
+    assert.ok(html.includes('id="dashboard-kpi-today"'), "expected Today KPI chip");
+    assert.ok(html.includes('id="dashboard-kpi-done"'), "expected Done % KPI chip");
+    assert.ok(!html.includes('data-kpi-filter='), "expected no data-kpi-filter attributes on chips");
+    assert.ok(!html.includes('document.querySelectorAll("[data-kpi-filter]")'), "expected no KPI filter click wiring");
+  });
+
   test("dashboard webview keeps compact header KPI and date contracts for the listboard shell", () => {
     const html = renderDashboardWebviewHtml();
 
@@ -1044,32 +1046,20 @@ suite("Extension Test Suite", () => {
       "expected Open KPI chip label",
     );
     assert.ok(
-      html.includes('id="dashboard-kpi-attention"') && html.includes('>Attention<'),
-      "expected Attention KPI chip label",
+      html.includes('id="dashboard-kpi-today"') && html.includes('>Today<'),
+      "expected Today KPI chip label",
     );
     assert.ok(
       html.includes('id="dashboard-kpi-done"') && html.includes('>Done %<'),
       "expected Done % KPI chip label",
     );
     assert.ok(
-      html.includes('data-kpi-filter="all"'),
-      "expected Open KPI chip to map to All filter",
+      !html.includes('data-kpi-filter='),
+      "expected no data-kpi-filter attributes on header chips",
     );
     assert.ok(
-      html.includes('data-kpi-filter="attention"'),
-      "expected Attention KPI chip to map to Attention filter",
-    );
-    assert.ok(
-      html.includes('data-kpi-filter="done"'),
-      "expected Done % KPI chip to map to Done filter",
-    );
-    assert.ok(
-      html.includes('document.querySelectorAll("[data-kpi-filter]")'),
-      "expected KPI chip interactions to be wired in browser script",
-    );
-    assert.ok(
-      html.includes('state.filter = chip.dataset.kpiFilter;\n        persistState();\n        rerender();'),
-      "expected KPI chip interactions to persist filter state before rerendering like toolbar filters",
+      !html.includes('document.querySelectorAll("[data-kpi-filter]")'),
+      "expected no KPI filter click wiring in browser script",
     );
     assert.ok(html.includes('id="btn-refresh"'), "expected refresh action in header");
     assert.ok(

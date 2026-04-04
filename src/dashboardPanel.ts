@@ -2760,19 +2760,19 @@ export class DashboardPanel {
           <span class="dashboard-weekday-marker" id="dashboard-weekday-marker"></span>
         </div>
         <div class="dashboard-kpi-row">
-          <button class="dashboard-kpi-chip" id="dashboard-kpi-open" type="button" data-kpi-filter="all">
+          <span class="dashboard-kpi-chip" id="dashboard-kpi-open">
             <span class="dashboard-kpi-label">Open</span>
             <span class="dashboard-kpi-value">${data.summary.totalOpen}</span>
-          </button>
-          <button class="dashboard-kpi-chip" id="dashboard-kpi-attention" type="button" data-kpi-filter="attention">
-            <span class="dashboard-kpi-label">Attention</span>
+          </span>
+          <span class="dashboard-kpi-chip" id="dashboard-kpi-today">
+            <span class="dashboard-kpi-label">Today</span>
             <span class="dashboard-kpi-value">${data.summary.attentionCount}</span>
             <span class="dashboard-kpi-note">${data.summary.overdueCount}</span>
-          </button>
-          <button class="dashboard-kpi-chip" id="dashboard-kpi-done" type="button" data-kpi-filter="done">
+          </span>
+          <span class="dashboard-kpi-chip" id="dashboard-kpi-done">
             <span class="dashboard-kpi-label">Done %</span>
             <span class="dashboard-kpi-value">${data.summary.completionRate}%</span>
-          </button>
+          </span>
         </div>
         <button class="btn" id="btn-refresh" type="button">Refresh</button>
       </div>
@@ -3693,14 +3693,6 @@ ${buildDashboardExtractSectionHtml(data.today)}
 
     document.getElementById("btn-refresh").addEventListener("click", function () {
       vscode.postMessage({ command: "refresh" });
-    });
-
-    document.querySelectorAll("[data-kpi-filter]").forEach(function (chip) {
-      chip.addEventListener("click", function () {
-        state.filter = chip.dataset.kpiFilter;
-        persistState();
-        rerender();
-      });
     });
 
     document.getElementById("btn-clear-task").addEventListener("click", function () {
