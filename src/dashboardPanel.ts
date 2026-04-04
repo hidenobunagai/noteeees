@@ -1934,6 +1934,40 @@ export class DashboardPanel {
     gap: 6px;
   }
 
+  .candidate-block-error {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 8px 12px;
+    border-radius: var(--radius-sm);
+    background: var(--vscode-inputValidation-errorBackground, rgba(255, 0, 0, 0.1));
+    color: var(--vscode-errorForeground, var(--text));
+    font-size: 12px;
+    line-height: 1.4;
+  }
+
+  .candidate-block-error-text {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .candidate-block-error-dismiss {
+    flex-shrink: 0;
+    background: none;
+    border: none;
+    color: inherit;
+    opacity: 0.6;
+    cursor: pointer;
+    font-size: 14px;
+    padding: 2px 4px;
+    line-height: 1;
+  }
+
+  .candidate-block-error-dismiss:hover {
+    opacity: 1;
+  }
+
   .filter-row {
     display: flex;
     flex-wrap: wrap;
@@ -3584,7 +3618,10 @@ ${buildDashboardExtractSectionHtml(data.today)}
 
       let html = "";
       if (state.candidateBlockError) {
-        html += '<div class="candidate-block-error">' + esc(state.candidateBlockError) + '</div>';
+        html += '<div class="candidate-block-error">' +
+          '<span class="candidate-block-error-text">' + esc(state.candidateBlockError) + '</span>' +
+          '<button type="button" class="candidate-block-error-dismiss" data-action="dismiss-candidate-error" aria-label="Dismiss error">&times;</button>' +
+          '</div>';
       }
 
       if (!hasCandidates) {
@@ -3603,6 +3640,21 @@ ${buildDashboardExtractSectionHtml(data.today)}
         .join("");
 
       candidateItems.innerHTML = html;
+    }
+
+    var candidateBlockEl = document.getElementById("candidate-block");
+    if (candidateBlockEl) {
+      candidateBlockEl.addEventListener("click", function (event) {
+        var actionEl = event.target.closest("[data-action]");
+        if (!actionEl) {
+          return;
+        }
+        if (actionEl.dataset.action === "dismiss-candidate-error") {
+          state.candidateBlockError = "";
+          persistState();
+          rerender();
+        }
+      });
     }
 
     function renderEmptyState(message) {
