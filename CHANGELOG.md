@@ -6,6 +6,12 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.6.2] - 2026-04-04
+
+### Fixed
+- **Task Dashboard extract feedback**: When `From Moments` cannot use GitHub Copilot Chat or the extraction request fails, the dashboard now shows an explicit status message instead of silently ending with no visible candidates.
+- **Candidate empty-state clarity**: The `Candidate` view now explains that saved tasks remain available in other filters, which reduces the confusion when `OPEN` counts remain non-zero while no extracted candidates are visible.
+
 ## [0.6.1] - 2026-04-04
 
 ### Fixed
