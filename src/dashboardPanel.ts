@@ -3420,8 +3420,8 @@ ${buildDashboardExtractSectionHtml(data.today)}
           existsAlready: Boolean(task.existsAlready),
           order: state.candidateOrderSeed++,
           added: false,
-          extractRunAt: extractRunAt,
           ...task,
+          extractRunAt: extractRunAt,
         };
       });
       state.candidateTasks = retained.concat(merged);
