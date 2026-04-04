@@ -2217,6 +2217,50 @@ export class DashboardPanel {
     pointer-events: auto;
   }
 
+  .task-row-more-menu { display: none; }
+  .task-row-more-btn {
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--text);
+    cursor: pointer;
+    padding: 8px 12px;
+  }
+  .task-row-more-dropdown {
+    display: none;
+    position: absolute;
+    right: 0;
+    top: 100%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    z-index: 10;
+    min-width: 120px;
+  }
+  .task-row-more-dropdown.is-open {
+    display: block;
+  }
+  .task-row-more-dropdown button {
+    display: block;
+    width: 100%;
+    border: none;
+    background: transparent;
+    color: var(--text);
+    padding: 8px 12px;
+    text-align: left;
+    cursor: pointer;
+  }
+  .task-row-more-dropdown button:hover {
+    background: color-mix(in srgb, var(--accent) 12%, transparent);
+  }
+  .task-row-more-dropdown button.is-danger {
+    color: var(--danger, #e54d42);
+  }
+  .task-row-more-dropdown button.is-danger:hover {
+    background: color-mix(in srgb, var(--danger, #e54d42) 12%, transparent);
+  }
+
   .link-btn,
   .text-btn,
   .btn {
@@ -2763,8 +2807,11 @@ export class DashboardPanel {
     }
 
     .task-row-secondary-actions {
-      opacity: 1;
-      pointer-events: auto;
+      display: none;
+    }
+
+    .task-row-more-menu {
+      display: block;
     }
 
     .dashboard-toolbar,
@@ -3567,6 +3614,14 @@ ${buildDashboardExtractSectionHtml(data.today)}
               '<button type="button" class="text-btn" data-action="open" data-file="' + esc(task.filePath) + '" data-line="' + task.lineIndex + '">Open</button>' +
               '<button type="button" class="text-btn is-danger" data-action="delete" data-task-id="' + esc(task.id) + '">Delete</button>' +
             "</div>" +
+            '<div class="task-row-more-menu">' +
+              '<button type="button" class="task-row-more-btn" data-action="more" data-task-id="' + esc(task.id) + '">More</button>' +
+              '<div class="task-row-more-dropdown" data-more-dropdown="' + esc(task.id) + '">' +
+                '<button type="button" data-action="edit" data-task-id="' + esc(task.id) + '">Edit</button>' +
+                '<button type="button" data-action="open" data-file="' + esc(task.filePath) + '" data-line="' + task.lineIndex + '">Open</button>' +
+                '<button type="button" class="is-danger" data-action="delete" data-task-id="' + esc(task.id) + '">Delete</button>' +
+              "</div>" +
+            "</div>" +
           "</div>" +
           renderTaskMeta(task) +
         "</div>" +
@@ -3980,6 +4035,25 @@ ${buildDashboardExtractSectionHtml(data.today)}
         return;
       }
 
+      if (action === "more") {
+        const taskId = actionEl.dataset.taskId;
+        if (!taskId) {
+          return;
+        }
+        const dropdown = document.querySelector('[data-more-dropdown="' + taskId + '"]');
+        if (!dropdown) {
+          return;
+        }
+        const isOpen = dropdown.classList.contains("is-open");
+        document.querySelectorAll(".task-row-more-dropdown.is-open").forEach(function (d) {
+          d.classList.remove("is-open");
+        });
+        if (!isOpen) {
+          dropdown.classList.add("is-open");
+        }
+        return;
+      }
+
       if (action === "add-extracted" || action === "add-candidate") {
         handleAddExtractedAction(actionEl);
         return;
@@ -4002,6 +4076,15 @@ ${buildDashboardExtractSectionHtml(data.today)}
         taskId: checkbox.dataset.taskId,
         done: checkbox.checked,
       });
+    });
+
+    document.addEventListener("click", function (event) {
+      const moreBtn = event.target.closest("[data-action='more']");
+      if (!moreBtn) {
+        document.querySelectorAll(".task-row-more-dropdown.is-open").forEach(function (d) {
+          d.classList.remove("is-open");
+        });
+      }
     });
 
     window.addEventListener("message", function (event) {

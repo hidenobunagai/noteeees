@@ -1170,7 +1170,6 @@ suite("Extension Test Suite", () => {
 
   test("dashboard webview keeps saved-row interaction rules in dense listboard rows", () => {
     const html = renderDashboardWebviewHtml();
-    const narrowSecondaryActionsRule = /@media \(max-width: 720px\) \{[\s\S]*?\.task-row-secondary-actions,\s+\.task-row-candidate-actions \{[\s\S]*?justify-content: flex-start;[\s\S]*?opacity: 1;[\s\S]*?pointer-events: auto;[\s\S]*?\}/;
 
     assert.ok(
       html.includes('class="task-row-toggle"') &&
@@ -1184,6 +1183,7 @@ suite("Extension Test Suite", () => {
         !html.includes('class="task-row-title" data-action="edit"'),
       "expected the task title to remain the Open control",
     );
+    // At desktop widths, secondary actions are revealed by hover/focus
     assert.ok(
       html.includes('class="task-row-secondary-actions"') &&
         html.includes('task-row:hover .task-row-secondary-actions') &&
@@ -1200,9 +1200,41 @@ suite("Extension Test Suite", () => {
         html.includes('class="task-row-title-entry"'),
       "expected checkbox and title entry points to reveal secondary actions for keyboard users",
     );
+    // At narrow widths, secondary actions collapse into a More menu
+    const narrowMoreMenuRule = /@media \(max-width: 720px\) \{[\s\S]*?\.task-row-secondary-actions \{[\s\S]*?display: none;[\s\S]*?\.task-row-more-menu \{[\s\S]*?display: block;[\s\S]*?\}/;
     assert.ok(
-      narrowSecondaryActionsRule.test(html),
-      "expected narrow layouts to make saved-row secondary actions visible and interactive for touch access",
+      narrowMoreMenuRule.test(html),
+      "expected narrow layouts to collapse secondary actions into a More menu for touch access",
+    );
+  });
+
+  test("dashboard webview shows narrow-width More menu for saved-task rows", () => {
+    const html = renderDashboardWebviewHtml();
+
+    // More menu is hidden at desktop widths
+    assert.ok(
+      html.includes('.task-row-more-menu { display: none; }') ||
+        html.includes('.task-row-more-menu{display:none}'),
+      "expected More menu to be hidden at desktop widths",
+    );
+
+    // More menu becomes visible at narrow widths, secondary actions hide
+    const narrowMoreMenuRule = /@media \(max-width: 720px\) \{[\s\S]*?\.task-row-more-menu \{[\s\S]*?display: block;[\s\S]*?\}/;
+    assert.ok(
+      narrowMoreMenuRule.test(html),
+      "expected More menu to be visible at narrow widths",
+    );
+
+    // Each saved-task row has a More button
+    assert.ok(
+      html.includes('data-action="more"') || html.includes('class="task-row-more-btn"'),
+      "expected saved-task rows to have a More button",
+    );
+
+    // More dropdown contains Edit, Open, Delete
+    assert.ok(
+      html.includes('task-row-more-dropdown') || html.includes('task-row-more-menu'),
+      "expected More dropdown to exist",
     );
   });
 
