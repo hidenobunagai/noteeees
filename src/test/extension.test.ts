@@ -26,6 +26,7 @@ import {
   createNotesWatcherPattern,
   resolveNotesDirectory,
 } from "../extension";
+import type { ExtractedTask } from "../aiTaskProcessor";
 import {
   appendMoment,
   collectMomentsFeed,
@@ -901,6 +902,17 @@ suite("Extension Test Suite", () => {
     assert.ok(
       html.includes("addedCandidateKeys: Array.isArray(savedState.addedCandidateKeys)"),
       "expected migrated candidate keys to seed unified local duplicate tracking",
+    );
+  });
+
+  test("dashboard webview browser migration guards malformed persisted candidates", () => {
+    const html = renderDashboardWebviewHtml();
+
+    assert.ok(
+      html.includes("function normalizeStoredCandidateTask(") &&
+        html.includes('if (!task || typeof task !== "object") {') &&
+        html.includes('const text = sanitizeBrowserTaskText(typeof task.text === "string" ? task.text : "");'),
+      "expected browser-side candidate migration to ignore malformed persisted candidate entries before initial render",
     );
   });
 
@@ -1812,6 +1824,29 @@ suite("Extension Test Suite", () => {
     assert.strictEqual(result.hiddenDuplicates, 1);
   });
 
+  test("filterExtractedTasksForDisplay ignores malformed extracted entries instead of throwing", () => {
+    const extracted = [
+      null,
+      {},
+      {
+        text: "   ",
+      },
+      {
+        text: "Plan retro",
+        category: "work",
+        priority: "medium",
+        timeEstimateMin: 25,
+        dueDate: null,
+      },
+    ] as unknown as ExtractedTask[];
+
+    const result = filterExtractedTasksForDisplay(extracted, [], [], "2026-03-27");
+
+    assert.deepStrictEqual(result.visibleTasks.map((task) => task.text), ["Plan retro"]);
+    assert.strictEqual(result.hiddenDismissed, 0);
+    assert.strictEqual(result.hiddenDuplicates, 0);
+  });
+
   test("canAddDashboardCandidate rejects already-existing candidates", () => {
     assert.strictEqual(
       canAddDashboardCandidate({
@@ -2559,6 +2594,71 @@ suite("Extension Test Suite", () => {
     });
 
     assert.strictEqual(migrated.candidateOrderSeed, 8);
+  });
+
+  test("migrateDashboardCandidateState ignores malformed stored candidates", () => {
+    const addedKey = normalizeExtractedTaskIdentity("Keep me");
+    const migrated = migrateDashboardCandidateState({
+      candidateTasks: [
+        null,
+        {
+          kind: "candidate",
+          text: "   ",
+          source: "moments",
+          sourceLabel: "Moments",
+        },
+        {
+          kind: "candidate",
+          text: "Keep me",
+          dueDate: "2026-03-30",
+          category: "work",
+          priority: "medium",
+          timeEstimateMin: 15,
+          source: "moments",
+          sourceLabel: "Moments",
+          existsAlready: false,
+          order: 7,
+          extractionIndex: 3,
+        },
+      ],
+      addedCandidateKeys: [addedKey, 42, null],
+    });
+
+    assert.strictEqual(migrated.candidateTasks.length, 1);
+    assert.strictEqual(migrated.candidateTasks[0].text, "Keep me");
+    assert.strictEqual(migrated.candidateTasks[0].order, 7);
+    assert.strictEqual(migrated.candidateTasks[0].extractionIndex, 3);
+    assert.deepStrictEqual(migrated.addedCandidateKeys, [addedKey]);
+    assert.strictEqual(migrated.candidateOrderSeed, 8);
+  });
+
+  test("migrateDashboardCandidateState preserves legacy notes candidate source metadata", () => {
+    const migrated = migrateDashboardCandidateState({
+      notesExtractedTasks: [
+        {
+          text: "Review meeting notes",
+          dueDate: null,
+          category: "work",
+          priority: "medium",
+          timeEstimateMin: 20,
+          sourceNote: "projects/retro.md",
+        },
+        {
+          text: "Share summary",
+          dueDate: null,
+          category: "work",
+          priority: "low",
+          timeEstimateMin: 10,
+          sourceLabel: "projects/plan.md",
+        },
+      ],
+    });
+
+    assert.strictEqual(migrated.candidateTasks.length, 2);
+    assert.strictEqual(migrated.candidateTasks[0].source, "notes");
+    assert.strictEqual(migrated.candidateTasks[0].sourceLabel, "projects/retro.md");
+    assert.strictEqual(migrated.candidateTasks[1].source, "notes");
+    assert.strictEqual(migrated.candidateTasks[1].sourceLabel, "projects/plan.md");
   });
 
   test("dashboard task file resolver supports inbox and dated files", () => {

@@ -134,6 +134,68 @@ export interface DashboardCandidateStateMigration {
   addedCandidateKeys: string[];
 }
 
+function normalizeDashboardCandidateTask(value: unknown): DashboardCandidateTask | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const task = value as Partial<DashboardCandidateTask>;
+  const text = sanitizeTaskInputText(typeof task.text === "string" ? task.text : "");
+  if (!text) {
+    return null;
+  }
+
+  return {
+    kind: "candidate",
+    text,
+    dueDate: normalizeOptionalDate(task.dueDate),
+    category: typeof task.category === "string" && task.category.trim().length > 0 ? task.category : "other",
+    priority: typeof task.priority === "string" && task.priority.trim().length > 0 ? task.priority : "medium",
+    timeEstimateMin:
+      typeof task.timeEstimateMin === "number" && Number.isFinite(task.timeEstimateMin)
+        ? task.timeEstimateMin
+        : 0,
+    source: task.source === "notes" ? "notes" : "moments",
+    sourceLabel:
+      typeof task.sourceLabel === "string" && task.sourceLabel.trim().length > 0
+        ? task.sourceLabel
+        : task.source === "notes"
+          ? "Notes"
+          : "Moments",
+    existsAlready: Boolean(task.existsAlready),
+  };
+}
+
+function normalizeDashboardCandidateTaskForSource(
+  value: unknown,
+  fallbackSource: DashboardCandidateTask["source"],
+): DashboardCandidateTask | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const task = value as Partial<DashboardCandidateTask> & { sourceNote?: unknown };
+  const normalizedTask = normalizeDashboardCandidateTask(task);
+  if (!normalizedTask) {
+    return null;
+  }
+
+  const legacySourceLabel =
+    typeof task.sourceLabel === "string" && task.sourceLabel.trim().length > 0
+      ? task.sourceLabel
+      : typeof task.sourceNote === "string" && task.sourceNote.trim().length > 0
+        ? task.sourceNote
+        : fallbackSource === "notes"
+          ? "Notes"
+          : "Moments";
+
+  return {
+    ...normalizedTask,
+    source: fallbackSource,
+    sourceLabel: legacySourceLabel,
+  };
+}
+
 interface DashboardCandidateAddAck {
   requestId: string | null;
   status: "added" | "exists";
@@ -377,7 +439,12 @@ export function filterExtractedTasksForDisplay(
   let hiddenDuplicates = 0;
 
   for (const task of extractedTasks) {
-    const key = normalizeExtractedTaskIdentity(task.text);
+    const normalizedTask = normalizeDashboardCandidateTask(task);
+    if (!normalizedTask) {
+      continue;
+    }
+
+    const key = normalizeExtractedTaskIdentity(normalizedTask.text);
     if (!key) {
       hiddenDuplicates++;
       continue;
@@ -394,15 +461,15 @@ export function filterExtractedTasksForDisplay(
       continue;
     }
 
-    const isNotesTask = "sourceNote" in task;
+    const isNotesTask = typeof task === "object" && task !== null && "sourceNote" in task;
     const source = isNotesTask ? "notes" : "moments";
     visibleTasks.push({
       kind: "candidate",
-      text: task.text,
-      dueDate: task.dueDate ?? null,
-      category: task.category,
-      priority: task.priority,
-      timeEstimateMin: task.timeEstimateMin,
+      text: normalizedTask.text,
+      dueDate: normalizedTask.dueDate,
+      category: normalizedTask.category,
+      priority: normalizedTask.priority,
+      timeEstimateMin: normalizedTask.timeEstimateMin,
       source,
       sourceLabel: isNotesTask ? task.sourceNote : "Moments",
       existsAlready: existingKeys.has(key),
@@ -766,7 +833,27 @@ export function migrateDashboardCandidateState(savedState: {
   notesAddedExtractedKeys?: unknown;
 }): DashboardCandidateStateMigration {
   if (Array.isArray(savedState.candidateTasks)) {
-    const candidateTasks = savedState.candidateTasks as DashboardCandidateView[];
+    const candidateTasks = savedState.candidateTasks
+      .map((task): DashboardCandidateView | null => {
+        const normalizedTask = normalizeDashboardCandidateTask(task);
+        if (!normalizedTask) {
+          return null;
+        }
+
+        const candidate = task as Partial<DashboardCandidateView>;
+        return {
+          ...normalizedTask,
+          order: typeof candidate.order === "number" ? candidate.order : undefined,
+          added: Boolean(candidate.added),
+          extractionIndex:
+            typeof candidate.extractionIndex === "number"
+              ? candidate.extractionIndex
+              : typeof candidate.order === "number"
+                ? candidate.order
+                : 0,
+        };
+      })
+      .filter((task): task is DashboardCandidateView => task !== null);
     const maxOrder = candidateTasks.reduce((highest, task) => {
       return typeof task.order === "number" && task.order > highest ? task.order : highest;
     }, -1);
@@ -777,21 +864,23 @@ export function migrateDashboardCandidateState(savedState: {
           ? savedState.candidateOrderSeed
           : maxOrder + 1,
       addedCandidateKeys: Array.isArray(savedState.addedCandidateKeys)
-        ? (savedState.addedCandidateKeys as string[])
+        ? (savedState.addedCandidateKeys as unknown[]).filter(
+            (key): key is string => typeof key === "string" && key.length > 0,
+          )
         : [],
     };
   }
 
   let nextOrder = 0;
   const fromMoments = (Array.isArray(savedState.extractedTasks) ? savedState.extractedTasks : []).map(
-    (task): DashboardCandidateView => {
-      const candidate = task as DashboardCandidateTask;
+    (task): DashboardCandidateView | null => {
+      const candidate = normalizeDashboardCandidateTaskForSource(task, "moments");
+      if (!candidate) {
+        return null;
+      }
+
       return {
         ...candidate,
-        kind: "candidate",
-        source: candidate.source || "moments",
-        sourceLabel: candidate.sourceLabel || "Moments",
-        existsAlready: Boolean(candidate.existsAlready),
         order: nextOrder++,
         added: Array.isArray(savedState.addedExtractedKeys)
           ? savedState.addedExtractedKeys.includes(normalizeExtractedTaskIdentity(candidate.text))
@@ -799,25 +888,25 @@ export function migrateDashboardCandidateState(savedState: {
         extractionIndex: nextOrder - 1,
       };
     },
-  );
+  ).filter((task): task is DashboardCandidateView => task !== null);
   const fromNotes = (Array.isArray(savedState.notesExtractedTasks)
     ? savedState.notesExtractedTasks
     : []
-  ).map((task): DashboardCandidateView => {
-    const candidate = task as DashboardCandidateTask;
+  ).map((task): DashboardCandidateView | null => {
+    const candidate = normalizeDashboardCandidateTaskForSource(task, "notes");
+    if (!candidate) {
+      return null;
+    }
+
     return {
       ...candidate,
-      kind: "candidate",
-      source: candidate.source || "notes",
-      sourceLabel: candidate.sourceLabel || "Notes",
-      existsAlready: Boolean(candidate.existsAlready),
       order: nextOrder++,
       added: Array.isArray(savedState.notesAddedExtractedKeys)
         ? savedState.notesAddedExtractedKeys.includes(normalizeExtractedTaskIdentity(candidate.text))
         : false,
       extractionIndex: nextOrder - 1,
     };
-  });
+  }).filter((task): task is DashboardCandidateView => task !== null);
 
   return {
     candidateTasks: fromMoments.concat(fromNotes),
@@ -2760,19 +2849,101 @@ ${buildDashboardExtractSectionHtml(data.today)}
         .toLowerCase();
     }
 
+    function normalizeStoredCandidateTask(task) {
+      if (!task || typeof task !== "object") {
+        return null;
+      }
+
+      const text = sanitizeBrowserTaskText(typeof task.text === "string" ? task.text : "");
+      if (!text) {
+        return null;
+      }
+
+      return {
+        kind: "candidate",
+        text: text,
+        dueDate:
+          typeof task.dueDate === "string" && /^\d{4}-\d{2}-\d{2}$/.test(task.dueDate)
+            ? task.dueDate
+            : null,
+        category: typeof task.category === "string" && task.category.trim().length > 0 ? task.category : "other",
+        priority: typeof task.priority === "string" && task.priority.trim().length > 0 ? task.priority : "medium",
+        timeEstimateMin:
+          typeof task.timeEstimateMin === "number" && Number.isFinite(task.timeEstimateMin)
+            ? task.timeEstimateMin
+            : 0,
+        source: task.source === "notes" ? "notes" : "moments",
+        sourceLabel:
+          typeof task.sourceLabel === "string" && task.sourceLabel.trim().length > 0
+            ? task.sourceLabel
+            : task.source === "notes"
+              ? "Notes"
+              : "Moments",
+        existsAlready: Boolean(task.existsAlready),
+      };
+    }
+
+    function normalizeStoredCandidateTaskForSource(task, fallbackSource) {
+      if (!task || typeof task !== "object") {
+        return null;
+      }
+
+      const normalizedTask = normalizeStoredCandidateTask(task);
+      if (!normalizedTask) {
+        return null;
+      }
+
+      const legacySourceLabel =
+        typeof task.sourceLabel === "string" && task.sourceLabel.trim().length > 0
+          ? task.sourceLabel
+          : typeof task.sourceNote === "string" && task.sourceNote.trim().length > 0
+            ? task.sourceNote
+            : fallbackSource === "notes"
+              ? "Notes"
+              : "Moments";
+
+      return {
+        ...normalizedTask,
+        source: fallbackSource,
+        sourceLabel: legacySourceLabel,
+      };
+    }
+
     function migrateLegacyCandidateState(savedState) {
       if (Array.isArray(savedState.candidateTasks)) {
-        const maxOrder = savedState.candidateTasks.reduce(function (highest, task) {
+        const candidateTasks = savedState.candidateTasks
+          .map(function (task) {
+            const normalizedTask = normalizeStoredCandidateTask(task);
+            if (!normalizedTask) {
+              return null;
+            }
+
+            return {
+              ...normalizedTask,
+              order: typeof task.order === "number" ? task.order : undefined,
+              added: Boolean(task.added),
+              extractionIndex:
+                typeof task.extractionIndex === "number"
+                  ? task.extractionIndex
+                  : typeof task.order === "number"
+                    ? task.order
+                    : 0,
+            };
+          })
+          .filter(Boolean);
+        const maxOrder = candidateTasks.reduce(function (highest, task) {
           return typeof task.order === "number" && task.order > highest ? task.order : highest;
         }, -1);
         return {
-          candidateTasks: savedState.candidateTasks,
+          candidateTasks: candidateTasks,
           candidateOrderSeed:
             typeof savedState.candidateOrderSeed === "number"
               ? savedState.candidateOrderSeed
               : maxOrder + 1,
           addedCandidateKeys: Array.isArray(savedState.addedCandidateKeys)
-            ? savedState.addedCandidateKeys
+            ? savedState.addedCandidateKeys.filter(function (key) {
+                return typeof key === "string" && key.length > 0;
+              })
             : [],
         };
       }
@@ -2780,36 +2951,38 @@ ${buildDashboardExtractSectionHtml(data.today)}
       let nextOrder = 0;
       const fromMoments = (Array.isArray(savedState.extractedTasks) ? savedState.extractedTasks : []).map(
         function (task) {
+          const normalizedTask = normalizeStoredCandidateTaskForSource(task, "moments");
+          if (!normalizedTask) {
+            return null;
+          }
+
           return {
-            kind: "candidate",
-            source: task.source || "moments",
-            sourceLabel: task.sourceLabel || "Moments",
-            existsAlready: Boolean(task.existsAlready),
+            ...normalizedTask,
             order: nextOrder++,
             added: Array.isArray(savedState.addedExtractedKeys)
-              ? savedState.addedExtractedKeys.includes(normalizedCandidateIdentity(task.text))
+              ? savedState.addedExtractedKeys.includes(normalizedCandidateIdentity(normalizedTask.text))
               : false,
             extractionIndex: nextOrder - 1,
-            ...task,
           };
         },
-      );
+      ).filter(Boolean);
       const fromNotes = (Array.isArray(savedState.notesExtractedTasks) ? savedState.notesExtractedTasks : []).map(
         function (task) {
+          const normalizedTask = normalizeStoredCandidateTaskForSource(task, "notes");
+          if (!normalizedTask) {
+            return null;
+          }
+
           return {
-            kind: "candidate",
-            source: task.source || "notes",
-            sourceLabel: task.sourceLabel || "Notes",
-            existsAlready: Boolean(task.existsAlready),
+            ...normalizedTask,
             order: nextOrder++,
             added: Array.isArray(savedState.notesAddedExtractedKeys)
-              ? savedState.notesAddedExtractedKeys.includes(normalizedCandidateIdentity(task.text))
+              ? savedState.notesAddedExtractedKeys.includes(normalizedCandidateIdentity(normalizedTask.text))
               : false,
             extractionIndex: nextOrder - 1,
-            ...task,
           };
         },
-      );
+      ).filter(Boolean);
 
       return {
         candidateTasks: fromMoments.concat(fromNotes),
