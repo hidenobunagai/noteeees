@@ -6,6 +6,12 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-04-04
+
+### Fixed
+- **Task Dashboard extract stability**: Hardened candidate-state migration and extract-result filtering so malformed persisted or extracted candidate data no longer breaks the dashboard webview or makes `From Moments` extraction appear inert.
+- **Legacy candidate migration**: Preserved legacy Notes candidate source metadata from both `sourceLabel` and `sourceNote` while keeping malformed candidate entries safely ignored during migration.
+
 ## [0.6.0] - 2026-04-03
 
 ### Changed
