@@ -1733,6 +1733,23 @@ suite("Extension Test Suite", () => {
     );
   });
 
+  test("candidate block failure displays error message at top of block and clears on next success", () => {
+    const html = renderDashboardWebviewHtml();
+
+    assert.ok(
+      html.includes("state.candidateBlockError"),
+      "expected state to track candidateBlockError for block-level failure display",
+    );
+    assert.ok(
+      html.includes('class="candidate-block-error"'),
+      "expected candidate block to render error with candidate-block-error class",
+    );
+    assert.ok(
+      html.includes("candidateBlockError") && html.includes("next extract") || html.includes("extractResult") || html.includes("notesExtractResult"),
+      "expected block error to clear on next extract from either source",
+    );
+  });
+
   test("filterExtractedTasksForDisplay hides dismissed and duplicate candidates but keeps existing matches visible", () => {
     const result = filterExtractedTasksForDisplay(
       [

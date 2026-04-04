@@ -3082,6 +3082,7 @@ ${buildDashboardExtractSectionHtml(data.today)}
       notesAiStatus: savedState.notesAiStatus || "",
       notesAiStatusType: savedState.notesAiStatusType || "idle",
       candidateBlockShown: savedState.candidateBlockShown || false,
+      candidateBlockError: savedState.candidateBlockError || "",
     };
 
     const simplifiedSectionOrder = ["today", "planned", "unsorted", "done"];
@@ -3143,6 +3144,7 @@ ${buildDashboardExtractSectionHtml(data.today)}
         notesAiStatus: state.notesAiStatus,
         notesAiStatusType: state.notesAiStatusType,
         candidateBlockShown: state.candidateBlockShown,
+        candidateBlockError: state.candidateBlockError,
       });
     }
 
@@ -3580,19 +3582,27 @@ ${buildDashboardExtractSectionHtml(data.today)}
         state.candidateBlockShown = true;
       }
 
+      let html = "";
+      if (state.candidateBlockError) {
+        html += '<div class="candidate-block-error">' + esc(state.candidateBlockError) + '</div>';
+      }
+
       if (!hasCandidates) {
-        candidateItems.innerHTML = '<div class="empty-state">' +
+        html += '<div class="empty-state">' +
           '<strong class="empty-state-title">No candidates</strong>' +
           '<p class="empty-state-body">Run AI Extract to find task candidates.</p>' +
         '</div>';
+        candidateItems.innerHTML = html;
         return;
       }
 
-      candidateItems.innerHTML = visibleCandidates
+      html += visibleCandidates
         .map(function (task, index) {
           return renderCandidateItem(task, index);
         })
         .join("");
+
+      candidateItems.innerHTML = html;
     }
 
     function renderEmptyState(message) {
@@ -3836,6 +3846,7 @@ ${buildDashboardExtractSectionHtml(data.today)}
       state.candidateTasks = (state.candidateTasks || []).filter(function (candidate) {
         return candidate.order !== task.order;
       });
+      state.candidateBlockError = "";
       persistState();
       vscode.postMessage({
         command: "dismissExtractedTask",
@@ -3952,6 +3963,7 @@ ${buildDashboardExtractSectionHtml(data.today)}
       if (message.type === "extractResult") {
         state.filter = "all";
         state.candidateBlockShown = true;
+        state.candidateBlockError = "";
         mergeCandidateBatch("moments", message.tasks || []);
         persistState();
         rerender();
@@ -3959,6 +3971,7 @@ ${buildDashboardExtractSectionHtml(data.today)}
       }
 
       if (message.type === "candidateAddResult") {
+        state.candidateBlockError = "";
         removePendingCandidateAdd(message.requestId || null);
         rerender();
         return;
@@ -3974,6 +3987,7 @@ ${buildDashboardExtractSectionHtml(data.today)}
             return key !== pending.key;
           });
         }
+        state.candidateBlockError = message.message || "Failed to add candidate task.";
         if (pending && pending.source === "notes") {
           setNotesAiStatus("error", message.message || "Failed to add candidate task.");
         } else {
@@ -3992,6 +4006,7 @@ ${buildDashboardExtractSectionHtml(data.today)}
       if (message.type === "notesExtractResult") {
         state.filter = "all";
         state.candidateBlockShown = true;
+        state.candidateBlockError = "";
         mergeCandidateBatch("notes", message.tasks || []);
         persistState();
         rerender();
