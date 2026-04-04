@@ -6,6 +6,11 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-04-05
+
+### Changed
+- **Task Dashboard simplified redesign**: Rebuilt the dashboard into a calmer, action-first workspace. Filters reduced from 9 to 4 (`All`, `Today`, `Planned`, `Done`). Extracted candidates now appear inline directly below `Extract` instead of inside the main task list. Header KPI chips are now non-interactive summary displays. Added candidate persistence with re-extract ordering, block-level candidate failure display with dismiss button, and narrow-width `More` menu for saved-task rows at ≤720px.
+
 ## [0.6.3] - 2026-04-04
 
 ### Fixed
