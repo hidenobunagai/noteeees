@@ -26,7 +26,7 @@ import {
   createNotesWatcherPattern,
   resolveNotesDirectory,
 } from "../extension";
-import type { ExtractedTask } from "../aiTaskProcessor";
+import { extractTasksFromTextWithStatus, type ExtractedTask } from "../aiTaskProcessor";
 import {
   appendMoment,
   collectMomentsFeed,
@@ -1300,7 +1300,7 @@ suite("Extension Test Suite", () => {
     const noCandidates = buildDashboardListViewModel([], "candidate", "");
     assert.strictEqual(
       noCandidates.emptyMessage,
-      "No candidates yet||Extraction results from Moments or Notes will appear here.",
+      "No candidates yet||Extraction results from Moments or Notes will appear here. Saved tasks stay visible in other filters.",
     );
   });
 
@@ -1322,7 +1322,9 @@ suite("Extension Test Suite", () => {
       "expected Attention empty state to explain there is nothing urgent",
     );
     assert.ok(
-      html.includes('"No candidates yet||Extraction results from Moments or Notes will appear here."'),
+      html.includes(
+        '"No candidates yet||Extraction results from Moments or Notes will appear here. Saved tasks stay visible in other filters."',
+      ),
       "expected Candidate empty state to explain where extracted candidates appear",
     );
   });
@@ -2476,7 +2478,7 @@ suite("Extension Test Suite", () => {
     const noCandidateRows = buildDashboardListViewModel([], "candidate", "");
     assert.strictEqual(
       noCandidateRows.emptyMessage,
-      "No candidates yet||Extraction results from Moments or Notes will appear here.",
+      "No candidates yet||Extraction results from Moments or Notes will appear here. Saved tasks stay visible in other filters.",
     );
 
     const noSearchResults = buildDashboardListViewModel(candidates, "candidate", "missing");
@@ -2488,11 +2490,34 @@ suite("Extension Test Suite", () => {
     const noCandidateRowsWithSearch = buildDashboardListViewModel([], "candidate", "missing");
     assert.strictEqual(
       noCandidateRowsWithSearch.emptyMessage,
-      "No candidates yet||Extraction results from Moments or Notes will appear here.",
+      "No candidates yet||Extraction results from Moments or Notes will appear here. Saved tasks stay visible in other filters.",
     );
 
     const noItemsInFilterWithSearch = buildDashboardListViewModel([], "today", "missing");
     assert.strictEqual(noItemsInFilterWithSearch.emptyMessage, "No items in this filter");
+  });
+
+  test("extractTasksFromTextWithStatus reports when no Copilot chat model is available", async () => {
+    const lmApi = vscode.lm as typeof vscode.lm & {
+      selectChatModels: typeof vscode.lm.selectChatModels;
+    };
+    const originalSelectChatModels = lmApi.selectChatModels;
+
+    lmApi.selectChatModels = async () => [];
+
+    try {
+      const result = await extractTasksFromTextWithStatus(
+        "- 09:00 明日の請求書を送る",
+        new vscode.CancellationTokenSource().token,
+      );
+
+      assert.deepStrictEqual(result, {
+        tasks: [],
+        failureReason: "modelUnavailable",
+      });
+    } finally {
+      lmApi.selectChatModels = originalSelectChatModels;
+    }
   });
 
   test("migrateDashboardCandidateState converts legacy extracted state into unified candidate state", () => {

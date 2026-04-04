@@ -4,10 +4,11 @@ import * as path from "path";
 import * as vscode from "vscode";
 import { buildDashboardExtractSectionHtml } from "./dashboardExtractLayout.js";
 import {
-  extractTasksFromMoments,
+  extractTasksFromTextWithStatus,
   extractTasksFromNotes,
   aggregateNoteContents,
   type ExtractedTask,
+  type ExtractTasksFailureReason,
   type NoteContent,
   type ExtractedTaskWithSource,
   type McpClient,
@@ -122,7 +123,7 @@ function buildDashboardEmptyMessage(filter: DashboardListFilter): string {
     case "focus":
       return `Nothing urgent right now${DASHBOARD_EMPTY_MESSAGE_SEPARATOR}Attention items from Overdue, Today, and Upcoming will appear here.`;
     case "candidate":
-      return `No candidates yet${DASHBOARD_EMPTY_MESSAGE_SEPARATOR}Extraction results from Moments or Notes will appear here.`;
+      return `No candidates yet${DASHBOARD_EMPTY_MESSAGE_SEPARATOR}Extraction results from Moments or Notes will appear here. Saved tasks stay visible in other filters.`;
     default:
       return "No items in this filter";
   }
@@ -505,6 +506,18 @@ function buildExtractedTaskStatusMessage(result: ExtractedTaskFilterResult): str
   return hiddenParts.length > 0
     ? `${result.visibleTasks.length}件の候補を表示しています。${hiddenParts.join("、")}として除外しました。`
     : `${result.visibleTasks.length}件の候補を表示しています。`;
+}
+
+function buildExtractedTaskFailureMessage(reason: ExtractTasksFailureReason): string {
+  if (reason === "modelUnavailable") {
+    return "AI 抽出を実行できませんでした。GitHub Copilot Chat の利用状態を確認してください。";
+  }
+
+  if (reason === "requestFailed") {
+    return "AI 抽出に失敗しました。少し待ってからもう一度お試しください。";
+  }
+
+  return "実行可能なタスクは見つかりませんでした。";
 }
 
 export function collectTasksFromNotes(notesDir: string, momentsSubfolder = "moments"): DashTask[] {
@@ -1460,7 +1473,8 @@ export class DashboardPanel {
         return;
       }
 
-      const extracted = await extractTasksFromMoments(cleanText, token);
+      const extractionResult = await extractTasksFromTextWithStatus(cleanText, token);
+      const extracted = extractionResult.tasks;
       const existingTasks = collectTasksFromNotes(notesDir, momentsSubfolder);
       const filtered = filterExtractedTasksForDisplay(
         extracted,
@@ -1472,7 +1486,10 @@ export class DashboardPanel {
         void this._panel.webview.postMessage({
           type: "aiStatus",
           status: "done",
-          message: buildExtractedTaskStatusMessage(filtered),
+          message:
+            extractionResult.failureReason !== null
+              ? buildExtractedTaskFailureMessage(extractionResult.failureReason)
+              : buildExtractedTaskStatusMessage(filtered),
         });
         return;
       }
@@ -3247,7 +3264,7 @@ ${buildDashboardExtractSectionHtml(data.today)}
           case "focus":
             return "Nothing urgent right now||Attention items from Overdue, Today, and Upcoming will appear here.";
           case "candidate":
-            return "No candidates yet||Extraction results from Moments or Notes will appear here.";
+            return "No candidates yet||Extraction results from Moments or Notes will appear here. Saved tasks stay visible in other filters.";
           default:
             return "No items in this filter";
         }

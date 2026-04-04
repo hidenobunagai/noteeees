@@ -23,6 +23,13 @@ export interface McpClient {
   }>;
 }
 
+export type ExtractTasksFailureReason = "modelUnavailable" | "requestFailed" | null;
+
+export interface ExtractTasksResult {
+  tasks: ExtractedTask[];
+  failureReason: ExtractTasksFailureReason;
+}
+
 function stripJsonFences(text: string): string {
   return text
     .replace(/^```(?:json)?\s*/i, "")
@@ -43,9 +50,20 @@ export async function extractTasksFromText(
   text: string,
   token: vscode.CancellationToken,
 ): Promise<ExtractedTask[]> {
+  const result = await extractTasksFromTextWithStatus(text, token);
+  return result.tasks;
+}
+
+export async function extractTasksFromTextWithStatus(
+  text: string,
+  token: vscode.CancellationToken,
+): Promise<ExtractTasksResult> {
   const model = await getModel();
   if (!model) {
-    return [];
+    return {
+      tasks: [],
+      failureReason: "modelUnavailable",
+    };
   }
 
   const prompt = `以下は日常のつぶやき・日記テキストです。\
@@ -76,11 +94,20 @@ ${text}`;
     }
     const parsed = JSON.parse(stripJsonFences(raw)) as unknown;
     if (!Array.isArray(parsed)) {
-      return [];
+      return {
+        tasks: [],
+        failureReason: "requestFailed",
+      };
     }
-    return parsed as ExtractedTask[];
+    return {
+      tasks: parsed as ExtractedTask[],
+      failureReason: null,
+    };
   } catch {
-    return [];
+    return {
+      tasks: [],
+      failureReason: "requestFailed",
+    };
   }
 }
 
