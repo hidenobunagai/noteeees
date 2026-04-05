@@ -3807,7 +3807,6 @@ ${buildDashboardExtractSectionHtml(data.today)}
     });
 
     syncStaticInputs();
-    syncHeaderDate();
     rerender();
   </script>
 </body>

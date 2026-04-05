@@ -6,6 +6,11 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.8.1] - 2026-04-06
+
+### Fixed
+- **Task Dashboard initialization**: Fixed a JavaScript error where `syncHeaderDate()` was called but the function no longer existed, preventing the task list from rendering on initial load.
+
 ## [0.8.0] - 2026-04-05
 
 ### Changed
