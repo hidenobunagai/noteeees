@@ -1753,67 +1753,31 @@ export class DashboardPanel {
 
   .dashboard-header {
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     justify-content: space-between;
     gap: 12px;
-    padding: 10px 0 6px;
-    border-bottom: 1px solid color-mix(in srgb, var(--border) 72%, transparent);
+    padding: 8px 0;
   }
 
   .header-copy {
     display: flex;
-    flex-direction: column;
-    gap: 4px;
+    align-items: baseline;
+    gap: 10px;
     min-width: 0;
-  }
-
-  .eyebrow {
-    color: var(--accent);
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
   }
 
   .header-title {
     margin: 0;
-    font-size: 18px;
+    font-size: 15px;
     font-weight: 600;
   }
 
   .header-right {
-    display: flex;
+    display: inline-flex;
     flex-wrap: wrap;
     justify-content: flex-end;
     gap: 8px;
     align-items: center;
-  }
-
-  .dashboard-date-group {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    min-height: 32px;
-    padding: 0 10px;
-    border-radius: 999px;
-    border: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
-    background: color-mix(in srgb, var(--surface) 60%, transparent);
-    color: var(--muted);
-    font-size: 12px;
-    white-space: nowrap;
-  }
-
-  .dashboard-date-label {
-    color: var(--text);
-    font-weight: 600;
-    font-variant-numeric: tabular-nums;
-  }
-
-  .dashboard-weekday-marker {
-    color: var(--muted);
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
   }
 
   .dashboard-kpi-row {
@@ -1868,62 +1832,69 @@ export class DashboardPanel {
     background: color-mix(in srgb, var(--surface) 56%, transparent);
   }
 
-  .card-header {
+  .dash-add-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .dash-add-input {
+    flex: 1;
+    min-width: 0;
+    border: 1px solid color-mix(in srgb, var(--border) 78%, transparent);
+    border-radius: var(--radius-sm);
+    background: color-mix(in srgb, var(--surface) 34%, transparent);
+    color: var(--text);
+    padding: 9px 12px;
+    font-size: 13px;
+    outline: none;
+  }
+
+  .dash-add-input:focus {
+    border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+  }
+
+  .dash-add-input::placeholder {
+    color: var(--muted);
+  }
+
+  .dash-extract-row {
     display: flex;
     align-items: flex-start;
-    justify-content: space-between;
-    gap: 12px;
-    margin-bottom: 10px;
-  }
-
-  .card-header h2,
-  .card-header h3 {
-    margin: 4px 0 0;
-    font-size: 14px;
-    line-height: 1.3;
-  }
-
-  .card-header p {
-    margin: 4px 0 0;
-    color: var(--muted);
-    font-size: 12px;
-  }
-
-  .card-header .eyebrow {
-    font-size: 10px;
-  }
-
-  .dashboard-toolbar {
-    display: flex;
-    flex-direction: column;
     gap: 8px;
-    padding: 9px 12px;
+    flex-wrap: wrap;
   }
 
-  .dashboard-action-bar {
-    display: grid;
-    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
-    gap: 10px;
-    padding: 10px 12px;
+  .dash-extract-group {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
   }
 
-  .action-panel {
-    min-width: 0;
-    padding: 10px 12px;
-    border-radius: var(--radius-sm);
-    border: 1px solid color-mix(in srgb, var(--border) 68%, transparent);
-    background: color-mix(in srgb, var(--surface) 38%, transparent);
-  }
-
-  .action-panel-quick-add,
-  .action-panel-ai-extract {
+  .dash-list-bar {
     display: flex;
-    flex-direction: column;
+    align-items: center;
     gap: 10px;
+    flex-wrap: wrap;
+    padding: 8px 0;
+  }
+
+  .dash-list-bar .search-shell {
+    flex: 1;
+    min-width: 140px;
+    min-height: 34px;
+  }
+
+  .dash-list-bar .filter-row {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 6px;
   }
 
   .list-surface {
-    padding: 10px 12px;
+    padding: 0;
+    border: none;
+    background: transparent;
   }
 
   .candidate-block {
@@ -2457,59 +2428,39 @@ export class DashboardPanel {
     gap: 8px;
   }
 
-  .extract-stack {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-  }
-
-  .action-bar-extract-group {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  .extract-group-label {
-    color: var(--muted);
-    display: block;
-    font-size: 12px;
-    font-weight: 600;
-  }
-
-  .extract-range-row {
-    display: flex;
+  .dash-extract-group {
+    display: inline-flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
+    flex-wrap: wrap;
   }
 
-  .extract-submit-row {
-    display: flex;
+  .btn-extract {
+    white-space: nowrap;
+    font-size: 12px;
+    padding: 6px 10px;
   }
 
-  .extract-submit-row .btn {
-    min-width: 116px;
-  }
-
-  .extract-date-input {
-    width: 100%;
-    min-width: 0;
+  .extract-date-inline {
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
     background: color-mix(in srgb, var(--surface) 88%, var(--bg));
     color: var(--text);
-    padding: 6px 10px;
+    padding: 5px 8px;
     outline: none;
     font-family: inherit;
-    font-size: 13px;
+    font-size: 12px;
+    width: auto;
   }
 
-  .extract-date-input:focus {
+  .extract-date-inline:focus {
     border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
   }
 
   .extract-range-separator {
     color: var(--muted);
     flex-shrink: 0;
+    font-size: 12px;
   }
 
   .inline-fields {
@@ -2567,153 +2518,6 @@ export class DashboardPanel {
 
   .analytics-panel {
     padding: 8px 10px;
-  }
-
-  .week-chart,
-  .week-chart-compact {
-    display: flex;
-    gap: 8px;
-    align-items: stretch;
-    height: 108px;
-  }
-
-  .week-day {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-end;
-    gap: 6px;
-  }
-
-  .week-day-bars {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-end;
-    gap: 3px;
-    padding: 5px;
-    border-radius: var(--radius-sm);
-    background: color-mix(in srgb, var(--surface) 88%, var(--bg));
-    border: 1px solid var(--border);
-  }
-
-  .week-day-bars[data-zero="true"] {
-    opacity: 0.88;
-  }
-
-  .week-day.is-today .week-day-bars {
-    border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
-    background: color-mix(in srgb, var(--accent) 10%, transparent);
-  }
-
-  .week-bar {
-    width: 100%;
-    border-radius: 999px;
-    min-height: 6px;
-  }
-
-  .week-bar.is-zero {
-    opacity: 0.38;
-  }
-
-  .week-bar-open {
-    background: color-mix(in srgb, var(--accent) 55%, transparent);
-  }
-
-  .week-bar-done {
-    background: color-mix(in srgb, var(--success) 60%, transparent);
-  }
-
-  .week-day-label {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 2px;
-    color: var(--muted);
-    font-size: 11px;
-  }
-
-  .week-day-label strong {
-    color: var(--text);
-    font-size: 12px;
-    font-variant-numeric: tabular-nums;
-  }
-
-  .chart-legend {
-    display: flex;
-    justify-content: flex-end;
-    gap: 10px;
-    margin-top: 8px;
-    color: var(--muted);
-    font-size: 12px;
-  }
-
-  .legend-dot {
-    width: 10px;
-    height: 10px;
-    border-radius: 999px;
-    display: inline-block;
-    margin-right: 6px;
-    vertical-align: middle;
-  }
-
-  .category-list,
-  .category-list-compact {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  .category-row {
-    display: grid;
-    grid-template-columns: minmax(96px, auto) minmax(0, 1fr) auto;
-    gap: 10px;
-    align-items: center;
-  }
-
-  .category-label {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 13px;
-  }
-
-  .category-icon {
-    width: 22px;
-    height: 22px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 999px;
-    border: 1px solid color-mix(in srgb, var(--accent) 40%, var(--border));
-    color: var(--accent);
-    font-size: 11px;
-    font-weight: 700;
-  }
-
-  .category-track {
-    height: 8px;
-    border-radius: 999px;
-    overflow: hidden;
-    background: color-mix(in srgb, var(--surface) 84%, var(--bg));
-    border: 1px solid color-mix(in srgb, var(--border) 85%, transparent);
-  }
-
-  .category-fill {
-    height: 100%;
-    min-width: 10px;
-    border-radius: 999px;
-    background: color-mix(in srgb, var(--accent) 70%, transparent);
-  }
-
-  .category-fill.is-zero {
-    opacity: 0.35;
-  }
-
-  .category-count {
-    color: var(--muted);
-    font-size: 12px;
-    font-variant-numeric: tabular-nums;
   }
 
   .status-line {
@@ -2838,12 +2642,6 @@ export class DashboardPanel {
     <header class="dashboard-header" id="dashboard-header">
       <div class="header-copy">
         <h1 class="header-title">Task Dashboard</h1>
-      </div>
-      <div class="header-right" id="dashboard-header-right">
-        <div class="dashboard-date-group">
-          <span class="dashboard-date-label mono" id="dashboard-date-label">${escHtml(data.today)}</span>
-          <span class="dashboard-weekday-marker" id="dashboard-weekday-marker"></span>
-        </div>
         <div class="dashboard-kpi-row">
           <span class="dashboard-kpi-chip" id="dashboard-kpi-open">
             <span class="dashboard-kpi-label">Open</span>
@@ -2852,115 +2650,41 @@ export class DashboardPanel {
           <span class="dashboard-kpi-chip" id="dashboard-kpi-today">
             <span class="dashboard-kpi-label">Today</span>
             <span class="dashboard-kpi-value">${data.summary.attentionCount}</span>
-            <span class="dashboard-kpi-note">${data.summary.overdueCount}</span>
           </span>
           <span class="dashboard-kpi-chip" id="dashboard-kpi-done">
-            <span class="dashboard-kpi-label">Done %</span>
+            <span class="dashboard-kpi-label">Done</span>
             <span class="dashboard-kpi-value">${data.summary.completionRate}%</span>
           </span>
         </div>
+      </div>
+      <div class="header-right" id="dashboard-header-right">
         <button class="btn" id="btn-refresh" type="button">Refresh</button>
       </div>
     </header>
 
-    <section class="dashboard-toolbar" id="dashboard-toolbar">
+    <section class="dash-add-row" id="dash-add-row">
+      <input id="new-task-text" class="dash-add-input" type="text" placeholder="Add a task… (Enter to save)" />
+      <button class="btn btn-primary btn-add-task" id="btn-create-task" type="button">Add</button>
+    </section>
+
+    <section class="dash-extract-row" id="dash-extract-row">
+${buildDashboardExtractSectionHtml(data.today)}
+    </section>
+
+    <section class="candidate-block" id="candidate-block" style="display:none;">
+      <div class="candidate-items" id="candidate-items"></div>
+    </section>
+
+    <section class="dash-list-bar" id="dash-list-bar">
       <label class="search-shell" aria-label="Search tasks">
-        <span>Search</span>
-        <input id="task-search" type="search" placeholder="text, tag, file path, date" />
+        <span>🔍</span>
+        <input id="task-search" type="search" placeholder="Search tasks…" />
       </label>
       <div class="filter-row" id="filter-row"></div>
     </section>
 
-    <section class="dashboard-action-bar" id="dashboard-action-bar">
-      <section class="action-panel action-panel-quick-add">
-        <div class="card-header">
-          <div>
-            <div class="eyebrow">Quick Add</div>
-            <h3>Add a task</h3>
-            <p>保存先と due を指定して、そのまま上部から追加します。</p>
-          </div>
-        </div>
-        <div class="composer-body">
-          <div class="field">
-            <span>Task</span>
-            <textarea id="new-task-text" placeholder="例: 見積もりを送る #work"></textarea>
-          </div>
-          <div class="field-grid" style="margin-bottom: 12px;">
-            <label class="field-compact">
-              <span>Save In Date File</span>
-              <input id="new-task-target-date" type="date" />
-            </label>
-            <label class="field-compact">
-              <span>Due Date</span>
-              <input id="new-task-due-date" type="date" />
-            </label>
-          </div>
-          <p class="helper" id="composer-target-preview">保存先: tasks/inbox.md</p>
-          <div class="inline-actions">
-            <button class="btn btn-primary" id="btn-create-task" type="button">Add Task</button>
-            <button class="btn" id="btn-clear-task" type="button">Clear</button>
-          </div>
-        </div>
-      </section>
-
-      <section class="action-panel action-panel-ai-extract">
-        <div class="card-header">
-          <div>
-            <div class="eyebrow">AI Extract</div>
-            <h3>Capture candidates</h3>
-            <p>Moments と Notes の抽出操作は上部に残し、リストより軽い補助面として扱います。</p>
-          </div>
-        </div>
-${buildDashboardExtractSectionHtml(data.today)}
-      </section>
-    </section>
-
-    <section class="candidate-block" id="candidate-block" style="display:none;">
-      <div class="card-header">
-        <div>
-          <div class="eyebrow">Candidates</div>
-          <h2>Extracted tasks</h2>
-          <p>AI が抽出したタスク候補です。追加するか非表示にします。</p>
-        </div>
-      </div>
-      <div class="candidate-items" id="candidate-items"></div>
-    </section>
-
     <section class="list-surface">
-      <div class="card-header">
-        <div>
-          <div class="eyebrow">Main List</div>
-          <h2>All task sections</h2>
-          <p>メインリストを最優先に見せる listboard shell です。</p>
-        </div>
-      </div>
       <div class="dashboard-main-list" id="dashboard-main-list"></div>
-    </section>
-
-    <section class="analytics-strip" id="analytics-strip">
-      <section class="analytics-panel">
-        <div class="card-header">
-          <div>
-            <div class="eyebrow">Upcoming Load</div>
-            <h3>Next 7 days</h3>
-          </div>
-        </div>
-        <div class="week-chart week-chart-compact">${weekBarsHtml}</div>
-        <div class="chart-legend">
-          <span><span class="legend-dot" style="background:color-mix(in srgb, var(--success) 60%, transparent)"></span>Done</span>
-          <span><span class="legend-dot" style="background:color-mix(in srgb, var(--accent) 55%, transparent)"></span>Open</span>
-        </div>
-      </section>
-
-      <section class="analytics-panel">
-        <div class="card-header">
-          <div>
-            <div class="eyebrow">Open Mix</div>
-            <h3>Category balance</h3>
-          </div>
-        </div>
-        <div class="category-list category-list-compact">${categoryHtml}</div>
-      </section>
     </section>
   </div>
 
@@ -3152,9 +2876,6 @@ ${buildDashboardExtractSectionHtml(data.today)}
     const state = {
       filter: savedState.filter === "focus" ? "attention" : (savedState.filter || "all"),
       search: savedState.search || "",
-      targetDate: savedState.targetDate || "",
-      composerText: savedState.composerText || "",
-      composerDueDate: savedState.composerDueDate || "",
       aiSourceDate: savedState.aiSourceDate || dashboardData.today,
       editingId: savedState.editingId || null,
       candidateTasks: migratedCandidates.candidateTasks,
@@ -3197,18 +2918,13 @@ ${buildDashboardExtractSectionHtml(data.today)}
     const filterRow = document.getElementById("filter-row");
     const taskList = document.getElementById("dashboard-main-list");
     const newTaskText = document.getElementById("new-task-text");
-    const newTaskTargetDate = document.getElementById("new-task-target-date");
-    const newTaskDueDate = document.getElementById("new-task-due-date");
-    const composerTargetPreview = document.getElementById("composer-target-preview");
     const aiSourceDateInput = document.getElementById("ai-source-date");
     const aiStatus = document.getElementById("ai-status");
     const notesFromDateInput = document.getElementById("notes-from-date");
     const notesToDateInput = document.getElementById("notes-to-date");
     const notesStatus = document.getElementById("notes-extract-status");
-    const dashboardDateLabel = document.getElementById("dashboard-date-label");
-    const dashboardWeekdayMarker = document.getElementById("dashboard-weekday-marker");
 
-    if (!taskSearchInput || !filterRow || !taskList || !newTaskText || !newTaskTargetDate || !newTaskDueDate || !composerTargetPreview || !aiSourceDateInput || !aiStatus || !notesFromDateInput || !notesToDateInput || !notesStatus || !dashboardDateLabel || !dashboardWeekdayMarker) {
+    if (!taskSearchInput || !filterRow || !taskList || !newTaskText || !aiSourceDateInput || !aiStatus || !notesFromDateInput || !notesToDateInput || !notesStatus) {
       throw new Error("Task Dashboard failed to initialize required webview controls.");
     }
 
@@ -3216,9 +2932,6 @@ ${buildDashboardExtractSectionHtml(data.today)}
       vscode.setState({
         filter: state.filter,
         search: state.search,
-        targetDate: state.targetDate,
-        composerText: state.composerText,
-        composerDueDate: state.composerDueDate,
         aiSourceDate: state.aiSourceDate,
         editingId: state.editingId,
         candidateTasks: state.candidateTasks,
@@ -3256,42 +2969,6 @@ ${buildDashboardExtractSectionHtml(data.today)}
       return Number.parseInt(parts[1], 10) + "/" + Number.parseInt(parts[2], 10);
     }
 
-    function formatDashboardHeaderDate(dateString) {
-      const date = new Date(String(dateString || dashboardData.today) + "T00:00:00");
-      if (Number.isNaN(date.getTime())) {
-        return String(dateString || dashboardData.today);
-      }
-
-      return date.toLocaleDateString(undefined, {
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-      });
-    }
-
-    function formatDashboardWeekdayMarker(dateString) {
-      const date = new Date(String(dateString || dashboardData.today) + "T00:00:00");
-      if (Number.isNaN(date.getTime())) {
-        return "";
-      }
-
-      return date.toLocaleDateString(undefined, { weekday: "short" });
-    }
-
-    function getCurrentDashboardDate() {
-      const now = new Date();
-      const year = now.getFullYear();
-      const month = String(now.getMonth() + 1).padStart(2, "0");
-      const day = String(now.getDate()).padStart(2, "0");
-      return year + "-" + month + "-" + day;
-    }
-
-    function syncHeaderDate() {
-      const currentDate = getCurrentDashboardDate();
-      dashboardDateLabel.textContent = formatDashboardHeaderDate(currentDate);
-      dashboardWeekdayMarker.textContent = formatDashboardWeekdayMarker(currentDate);
-    }
-
     function extractedTaskKey(task) {
       return normalizeTaskIdentity(task.text);
     }
@@ -3323,14 +3000,6 @@ ${buildDashboardExtractSectionHtml(data.today)}
       const pending = pendingCandidateAdds[index];
       pendingCandidateAdds.splice(index, 1);
       return pending;
-    }
-
-    function getSaveTargetLabel() {
-      return state.targetDate ? "tasks/" + state.targetDate + ".md" : "tasks/inbox.md";
-    }
-
-    function updateComposerPreview() {
-      composerTargetPreview.textContent = "保存先: " + getSaveTargetLabel();
     }
 
     function getExistingTaskKeys() {
@@ -3806,13 +3475,9 @@ ${buildDashboardExtractSectionHtml(data.today)}
 
     function syncStaticInputs() {
       taskSearchInput.value = state.search;
-      newTaskText.value = state.composerText;
-      newTaskTargetDate.value = state.targetDate;
-      newTaskDueDate.value = state.composerDueDate;
       aiSourceDateInput.value = state.aiSourceDate;
       notesFromDateInput.value = state.notesFromDate;
       notesToDateInput.value = state.notesToDate;
-      updateComposerPreview();
       setAiStatus(state.aiStatusType, state.aiStatus);
       setNotesAiStatus(state.notesAiStatusType, state.notesAiStatus);
     }
@@ -3822,20 +3487,10 @@ ${buildDashboardExtractSectionHtml(data.today)}
       renderFilters();
       renderTasks();
       renderCandidateBlock();
-      updateComposerPreview();
-      syncHeaderDate();
     }
 
     document.getElementById("btn-refresh").addEventListener("click", function () {
       vscode.postMessage({ command: "refresh" });
-    });
-
-    document.getElementById("btn-clear-task").addEventListener("click", function () {
-      state.composerText = "";
-      state.composerDueDate = "";
-      newTaskText.value = "";
-      newTaskDueDate.value = "";
-      rerender();
     });
 
     document.getElementById("btn-create-task").addEventListener("click", function () {
@@ -3846,20 +3501,25 @@ ${buildDashboardExtractSectionHtml(data.today)}
       }
 
       newTaskText.value = "";
-      state.composerText = "";
       state.aiStatus = "";
       state.aiStatusType = "idle";
       if (state.filter !== "all") {
-        const hasDate = state.targetDate || state.composerDueDate;
-        state.filter = hasDate ? "all" : "unsorted";
+        state.filter = "all";
       }
       persistState();
       vscode.postMessage({
         command: "createTask",
         text,
-        targetDate: state.targetDate || null,
-        dueDate: state.composerDueDate || null,
+        targetDate: null,
+        dueDate: null,
       });
+    });
+
+    newTaskText.addEventListener("keydown", function (event) {
+      if (event.key === "Enter" && !event.shiftKey) {
+        event.preventDefault();
+        document.getElementById("btn-create-task").click();
+      }
     });
 
     document.getElementById("btn-ai-extract").addEventListener("click", function () {
@@ -3893,21 +3553,6 @@ ${buildDashboardExtractSectionHtml(data.today)}
     taskSearchInput.addEventListener("input", function (event) {
       state.search = event.target.value;
       rerender();
-    });
-
-    newTaskText.addEventListener("input", function (event) {
-      state.composerText = event.target.value;
-      persistState();
-    });
-
-    newTaskTargetDate.addEventListener("input", function (event) {
-      state.targetDate = event.target.value;
-      rerender();
-    });
-
-    newTaskDueDate.addEventListener("input", function (event) {
-      state.composerDueDate = event.target.value;
-      persistState();
     });
 
     aiSourceDateInput.addEventListener("input", function (event) {

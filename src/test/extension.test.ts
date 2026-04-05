@@ -937,31 +937,34 @@ suite("Extension Test Suite", () => {
     );
   });
 
-  test("dashboard webview renders the listboard shell in the approved order", () => {
+  test("dashboard webview renders the minimal shell in the approved order", () => {
     const html = renderDashboardWebviewHtml();
 
     const headerIndex = html.indexOf('id="dashboard-header"');
-    const toolbarIndex = html.indexOf('id="dashboard-toolbar"');
-    const actionBarIndex = html.indexOf('id="dashboard-action-bar"');
+    const addRowIndex = html.indexOf('id="dash-add-row"');
+    const extractRowIndex = html.indexOf('id="dash-extract-row"');
+    const listBarIndex = html.indexOf('id="dash-list-bar"');
     const listIndex = html.indexOf('id="dashboard-main-list"');
-    const analyticsIndex = html.indexOf('id="analytics-strip"');
 
-    assert.ok(headerIndex >= 0, "expected compact listboard header marker");
-    assert.ok(toolbarIndex >= 0, "expected toolbar marker above the task list");
-    assert.ok(actionBarIndex >= 0, "expected top action bar marker");
+    assert.ok(headerIndex >= 0, "expected compact header marker");
+    assert.ok(addRowIndex >= 0, "expected add task row marker");
+    assert.ok(extractRowIndex >= 0, "expected extract row marker");
+    assert.ok(listBarIndex >= 0, "expected list bar marker");
     assert.ok(listIndex >= 0, "expected main list marker");
-    assert.ok(analyticsIndex >= 0, "expected analytics strip marker");
 
+    // Old heavy UI elements removed
+    assert.ok(!html.includes('id="dashboard-toolbar"'), "expected old toolbar to be removed");
+    assert.ok(!html.includes('id="dashboard-action-bar"'), "expected old action bar to be removed");
+    assert.ok(!html.includes('id="analytics-strip"'), "expected analytics strip to be removed");
     assert.ok(!html.includes('id="dashboard-kpis"'), "expected old KPI strip shell to be removed");
     assert.ok(!html.includes('id="dashboard-workspace"'), "expected old split workspace shell to be removed");
-    assert.ok(!html.includes('id="task-toolbar"'), "expected old toolbar shell id to be removed");
-    assert.ok(!html.includes('id="task-list"'), "expected old list shell id to be removed");
     assert.ok(!html.includes('id="support-rail"'), "expected right-side support rail shell to be removed");
 
-    assert.ok(headerIndex < toolbarIndex, "expected header before toolbar");
-    assert.ok(toolbarIndex < actionBarIndex, "expected toolbar before action bar");
-    assert.ok(actionBarIndex < listIndex, "expected action bar before main list");
-    assert.ok(listIndex < analyticsIndex, "expected analytics strip below the main list");
+    // Order: header → add row → extract row → list bar → main list
+    assert.ok(headerIndex < addRowIndex, "expected header before add row");
+    assert.ok(addRowIndex < extractRowIndex, "expected add row before extract row");
+    assert.ok(extractRowIndex < listBarIndex, "expected extract row before list bar");
+    assert.ok(listBarIndex < listIndex, "expected list bar before main list");
   });
 
   test("dashboard webview removes the old hero-first shell and attention KPI chip", () => {
@@ -1013,10 +1016,10 @@ suite("Extension Test Suite", () => {
     assert.ok(html.includes('id="candidate-block"'), "expected dedicated candidate block container");
     assert.ok(html.includes('id="dashboard-main-list"'), "expected main list container");
 
-    const extractIdx = html.indexOf('id="dashboard-action-bar"');
+    const extractIdx = html.indexOf('id="dash-extract-row"');
     const candidateIdx = html.indexOf('id="candidate-block"');
     const listIdx = html.indexOf('id="dashboard-main-list"');
-    assert.ok(extractIdx >= 0, "expected extract action bar marker");
+    assert.ok(extractIdx >= 0, "expected extract row marker");
     assert.ok(candidateIdx >= 0, "expected candidate block marker");
     assert.ok(listIdx >= 0, "expected main list marker");
     assert.ok(extractIdx < candidateIdx && candidateIdx < listIdx, "expected candidate block between extract and main list");
@@ -1032,15 +1035,10 @@ suite("Extension Test Suite", () => {
     assert.ok(!html.includes('document.querySelectorAll("[data-kpi-filter]")'), "expected no KPI filter click wiring");
   });
 
-  test("dashboard webview keeps compact header KPI and date contracts for the listboard shell", () => {
+  test("dashboard webview keeps minimal header with KPI chips only", () => {
     const html = renderDashboardWebviewHtml();
 
-    assert.ok(html.includes('id="dashboard-header-right"'), "expected dedicated header right container");
-    assert.ok(html.includes('id="dashboard-date-label"'), "expected current local date label in header");
-    assert.ok(
-      html.includes('id="dashboard-weekday-marker"'),
-      "expected compact weekday marker container in header",
-    );
+    assert.ok(html.includes('id="dashboard-header"'), "expected header marker");
     assert.ok(
       html.includes('id="dashboard-kpi-open"') && html.includes('>Open<'),
       "expected Open KPI chip label",
@@ -1050,8 +1048,8 @@ suite("Extension Test Suite", () => {
       "expected Today KPI chip label",
     );
     assert.ok(
-      html.includes('id="dashboard-kpi-done"') && html.includes('>Done %<'),
-      "expected Done % KPI chip label",
+      html.includes('id="dashboard-kpi-done"') && html.includes('>Done<'),
+      "expected Done KPI chip label",
     );
     assert.ok(
       !html.includes('data-kpi-filter='),
@@ -1062,74 +1060,40 @@ suite("Extension Test Suite", () => {
       "expected no KPI filter click wiring in browser script",
     );
     assert.ok(html.includes('id="btn-refresh"'), "expected refresh action in header");
-    assert.ok(
-      !html.includes('>Listboard<'),
-      "expected header left side to avoid an extra eyebrow label outside the approved contract",
-    );
-    assert.ok(
-      html.includes('function formatDashboardHeaderDate(dateString)') &&
-        html.includes('function formatDashboardWeekdayMarker(dateString)'),
-      "expected rerender-driven date formatting helpers for header label and weekday",
-    );
-    assert.ok(
-      html.includes('function getCurrentDashboardDate()') &&
-        html.includes('const now = new Date();') &&
-        html.includes('syncHeaderDate();'),
-      "expected header date to use the browser local date during rerender without a timer",
-    );
-    assert.ok(
-      html.includes('const currentDate = getCurrentDashboardDate();') &&
-        html.includes('formatDashboardHeaderDate(currentDate)') &&
-        html.includes('formatDashboardWeekdayMarker(currentDate)'),
-      "expected syncHeaderDate to derive both label and weekday from the current browser-local date",
-    );
-    assert.ok(
-      !html.includes('formatDashboardHeaderDate(dashboardData.today)') &&
-        !html.includes('formatDashboardWeekdayMarker(dashboardData.today)'),
-      "expected header date rendering to avoid stale webview-generation date data",
-    );
+
+    // Date label and weekday marker removed for minimal UI
+    assert.ok(!html.includes('id="dashboard-date-label"'), "expected date label to be removed");
+    assert.ok(!html.includes('id="dashboard-weekday-marker"'), "expected weekday marker to be removed");
+
     assert.ok(html.includes('.dashboard-kpi-value {') && html.includes('font-variant-numeric: tabular-nums;'), "expected KPI numbers to use tabular alignment");
-    assert.ok(
-      html.includes('.header-right {') &&
-        html.includes('flex-wrap: wrap;') &&
-        html.includes('justify-content: flex-end;'),
-      "expected header right area to wrap into two rows when needed",
-    );
   });
 
-  test("dashboard webview keeps Quick Add and AI Extract in a 60/40 top action bar without changing task or candidate behavior", () => {
+  test("dashboard webview uses compact single-line add and extract rows", () => {
     const html = renderDashboardWebviewHtml();
 
-    assert.match(
-      html,
-      /id="dashboard-action-bar"[\s\S]*<section class="action-panel action-panel-quick-add"[\s\S]*Quick Add[\s\S]*id="new-task-text"[\s\S]*<section class="action-panel action-panel-ai-extract"[\s\S]*AI Extract[\s\S]*id="btn-ai-extract"[\s\S]*id="btn-extract-notes"/,
-      "expected Quick Add to render before AI Extract in the top action bar",
-    );
+    // Single-line add row with input + button
     assert.ok(
-      html.includes('.dashboard-action-bar {') &&
-        html.includes('grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);'),
-      "expected desktop action bar to use an explicit 60/40 split",
+      html.includes('id="dash-add-row"') &&
+        html.includes('id="new-task-text"') &&
+        html.includes('id="btn-create-task"'),
+      "expected compact add row with input and button",
     );
+
+    // Compact extract row
     assert.ok(
-      html.includes('@media (width < 1000px) {') &&
-        html.includes('.dashboard-action-bar {\n      grid-template-columns: 1fr;'),
-      "expected action bar to stack vertically below 1000px",
+      html.includes('id="dash-extract-row"') &&
+        html.includes('data-extract-group="moments"') &&
+        html.includes('data-extract-group="notes"'),
+      "expected compact extract row",
     );
-    assert.ok(
-      html.includes('class="action-panel action-panel-quick-add"') &&
-        html.includes('class="action-panel action-panel-ai-extract"'),
-      "expected dedicated action bar panels for Quick Add and AI Extract",
-    );
-    assert.ok(
-      html.includes('data-extract-group="moments"') && html.includes('data-extract-group="notes"'),
-      "expected extract controls to belong to action-bar groups instead of a right rail",
-    );
-    assert.ok(
-      html.includes('function getSaveTargetLabel() {') &&
-        html.includes('"tasks/" + state.targetDate + ".md"') &&
-        html.includes('"tasks/inbox.md"'),
-      "expected Quick Add save target behavior to stay unchanged",
-    );
+
+    // Old heavy action bar removed
+    assert.ok(!html.includes('id="dashboard-action-bar"'), "expected old action bar to be removed");
+    assert.ok(!html.includes('class="action-panel action-panel-quick-add"'), "expected old quick add panel to be removed");
+    assert.ok(!html.includes('class="action-panel action-panel-ai-extract"'), "expected old ai extract panel to be removed");
+    // Old section header labels removed (but text may still appear in empty states)
+    assert.ok(!html.includes('>Quick Add<'), "expected Quick Add header label to be removed");
+    assert.ok(!html.includes('>AI Extract<'), "expected AI Extract header label to be removed");
     assert.ok(
       html.includes('document.getElementById("btn-ai-extract").addEventListener("click", function () {') &&
         html.includes('document.getElementById("btn-extract-notes").addEventListener("click", function () {'),
@@ -1299,35 +1263,13 @@ suite("Extension Test Suite", () => {
     );
   });
 
-  test("dashboard webview keeps a compact analytics strip with zero-data visuals", () => {
+  test("dashboard webview removes analytics strip for minimal UI", () => {
     const html = renderDashboardWebviewHtml();
 
-    assert.ok(
-      html.includes('id="analytics-strip"') &&
-        html.includes('class="week-chart week-chart-compact"') &&
-        html.includes('class="category-list category-list-compact"'),
-      "expected analytics strip to keep compact chart and bar-list containers",
-    );
-    assert.ok(
-      html.includes('class="week-day-bars"') &&
-        html.includes('data-zero="') &&
-        html.includes('class="week-bar week-bar-open') &&
-        html.includes('class="week-bar week-bar-done'),
-      "expected next 7 days to keep mini bars rendered even when a value is zero",
-    );
-    assert.ok(
-      html.includes('class="category-track"') &&
-        html.includes('class="category-fill') &&
-        html.includes('data-empty="') &&
-        html.includes('min-width: 10px;'),
-      "expected category balance rows to keep fixed-height zero-value bars instead of disappearing",
-    );
-    assert.ok(
-      html.includes('.week-chart-compact {') &&
-        html.includes('height: 108px;') &&
-        html.includes('.category-list-compact {'),
-      "expected analytics strip CSS to stay visually compact",
-    );
+    // Analytics strip removed for cleaner, action-focused UI
+    assert.ok(!html.includes('id="analytics-strip"'), "expected analytics strip to be removed");
+    assert.ok(!html.includes('week-chart'), "expected week chart to be removed");
+    assert.ok(!html.includes('category-list'), "expected category list to be removed");
   });
 
   test("dashboard list view model uses final compact empty-state messaging", () => {

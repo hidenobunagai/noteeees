@@ -7,31 +7,17 @@ function escAttr(s: string): string {
 }
 
 export function buildDashboardExtractSectionHtml(today: string): string {
-  return `              <!-- Moments Extract -->
-               <section class="action-bar-extract-group" data-extract-group="moments">
-                 <span class="extract-group-label">From Moments</span>
-                 <div class="extract-stack">
-                   <input id="ai-source-date" type="date" value="${escAttr(today)}" class="extract-date-input" />
-                   <div class="extract-submit-row">
-                     <button class="btn" id="btn-ai-extract" type="button">Extract</button>
-                   </div>
-                 </div>
-                 <div class="status-line" id="ai-status"></div>
-               </section>
-
-               <!-- Notes Extract -->
-               <section class="action-bar-extract-group" data-extract-group="notes">
-                 <span class="extract-group-label">From Notes</span>
-                 <div class="extract-stack">
-                   <div class="extract-range-row">
-                     <input id="notes-from-date" type="date" value="${escAttr(today)}" class="extract-date-input" />
-                     <span class="extract-range-separator">-</span>
-                     <input id="notes-to-date" type="date" value="${escAttr(today)}" class="extract-date-input" />
-                   </div>
-                   <div class="extract-submit-row">
-                     <button class="btn" id="btn-extract-notes" type="button">Extract</button>
-                   </div>
-                 </div>
-                 <div class="status-line" id="notes-extract-status"></div>
-               </section>`;
+  return `
+    <section class="dash-extract-group" data-extract-group="moments">
+      <button class="btn btn-extract" id="btn-ai-extract" type="button">From Moments</button>
+      <input id="ai-source-date" type="date" value="${escAttr(today)}" class="extract-date-inline" />
+      <span class="status-line" id="ai-status"></span>
+    </section>
+    <section class="dash-extract-group" data-extract-group="notes">
+      <button class="btn btn-extract" id="btn-extract-notes" type="button">From Notes</button>
+      <input id="notes-from-date" type="date" value="${escAttr(today)}" class="extract-date-inline" />
+      <span class="extract-range-separator">–</span>
+      <input id="notes-to-date" type="date" value="${escAttr(today)}" class="extract-date-inline" />
+      <span class="status-line" id="notes-extract-status"></span>
+    </section>`;
 }
