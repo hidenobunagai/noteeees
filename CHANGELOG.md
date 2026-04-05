@@ -6,6 +6,11 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-04-05
+
+### Changed
+- **Task Dashboard minimal redesign**: Ultra-compact action-first UI. Single-line task input with Enter-to-add. Compact inline extract controls (`From Moments`, `From Notes`). Removed analytics strip, date labels, and heavy card layouts for maximum clarity. All saved tasks visible immediately with simplified filter bar.
+
 ## [0.7.0] - 2026-04-05
 
 ### Changed
