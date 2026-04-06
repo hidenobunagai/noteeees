@@ -30,6 +30,13 @@ export interface ExtractTasksResult {
   failureReason: ExtractTasksFailureReason;
 }
 
+export interface CopilotModel {
+  id: string;
+  name: string;
+  vendor: string;
+  family: string;
+}
+
 function stripJsonFences(text: string): string {
   return text
     .replace(/^```(?:json)?\s*/i, "")
@@ -37,10 +44,37 @@ function stripJsonFences(text: string): string {
     .trim();
 }
 
-async function getModel(): Promise<vscode.LanguageModelChat | null> {
+export async function listCopilotModels(): Promise<CopilotModel[]> {
   try {
     const models = await vscode.lm.selectChatModels({ vendor: "copilot" });
-    return models[0] ?? null;
+    return models.map((model) => ({
+      id: model.id,
+      name: model.name,
+      vendor: model.vendor,
+      family: model.family,
+    }));
+  } catch {
+    return [];
+  }
+}
+
+async function getModel(modelId?: string): Promise<vscode.LanguageModelChat | null> {
+  try {
+    const models = await vscode.lm.selectChatModels({ vendor: "copilot" });
+    if (models.length === 0) {
+      return null;
+    }
+    
+    // If a specific model is requested, try to find it
+    if (modelId) {
+      const selectedModel = models.find((m) => m.id === modelId);
+      if (selectedModel) {
+        return selectedModel;
+      }
+    }
+    
+    // Default to first available model
+    return models[0];
   } catch {
     return null;
   }
@@ -49,16 +83,18 @@ async function getModel(): Promise<vscode.LanguageModelChat | null> {
 export async function extractTasksFromText(
   text: string,
   token: vscode.CancellationToken,
+  modelId?: string,
 ): Promise<ExtractedTask[]> {
-  const result = await extractTasksFromTextWithStatus(text, token);
+  const result = await extractTasksFromTextWithStatus(text, token, modelId);
   return result.tasks;
 }
 
 export async function extractTasksFromTextWithStatus(
   text: string,
   token: vscode.CancellationToken,
+  modelId?: string,
 ): Promise<ExtractTasksResult> {
-  const model = await getModel();
+  const model = await getModel(modelId);
   if (!model) {
     return {
       tasks: [],
@@ -164,6 +200,7 @@ export interface ExtractedTaskWithSource extends ExtractedTask {
 export async function extractTasksFromNotes(
   noteContents: NoteContent[],
   token: vscode.CancellationToken,
+  modelId?: string,
 ): Promise<ExtractedTaskWithSource[]> {
   const allTasks: ExtractedTaskWithSource[] = [];
 
@@ -172,7 +209,7 @@ export async function extractTasksFromNotes(
       break;
     }
 
-    const tasks = await extractTasksFromText(note.content, token);
+    const tasks = await extractTasksFromText(note.content, token, modelId);
     for (const task of tasks) {
       allTasks.push({
         ...task,

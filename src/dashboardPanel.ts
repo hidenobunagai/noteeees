@@ -7,6 +7,7 @@ import {
   extractTasksFromTextWithStatus,
   extractTasksFromNotes,
   aggregateNoteContents,
+  listCopilotModels,
   type ExtractedTask,
   type ExtractTasksFailureReason,
   type NoteContent,
@@ -221,6 +222,7 @@ interface DashboardData {
   catCount: Record<string, number>;
   sectionCounts: Record<DashboardTaskSection, number>;
   summary: DashboardSummary;
+  availableModels: Array<{ id: string; name: string }>;
 }
 
 // ---------------------------------------------------------------------------
@@ -1061,7 +1063,7 @@ export class DashboardPanel {
   }
 
   static refresh(): void {
-    DashboardPanel._instance?._update();
+    void DashboardPanel._instance?._update();
   }
 
   static dispose(): void {
@@ -1096,7 +1098,7 @@ export class DashboardPanel {
       this._disposables,
     );
 
-    this._update();
+    void this._update();
   }
 
   private _getDismissedExtractedStorageKey(notesDir: string): string {
@@ -1146,7 +1148,7 @@ export class DashboardPanel {
     this._disposables = [];
   }
 
-  private _update(): void {
+  private async _update(): Promise<void> {
     const notesDir = this._getNotesDir();
     if (!notesDir) {
       this._panel.webview.html = this._getLoadingHtml(
@@ -1166,6 +1168,7 @@ export class DashboardPanel {
     const sectionCounts = buildSectionCounts(taskViews);
     const catCount = buildCategoryCounts(taskViews);
     const summary = buildSummary(taskViews, sectionCounts);
+    const availableModels = await listCopilotModels();
 
     this._panel.webview.html = this._getHtml({
       today,
@@ -1174,13 +1177,14 @@ export class DashboardPanel {
       catCount,
       sectionCounts,
       summary,
+      availableModels: availableModels.map((m) => ({ id: m.id, name: m.name })),
     });
   }
 
   private _handleMessage(message: Record<string, unknown>): void {
     switch (message.command) {
       case "refresh":
-        this._update();
+        void this._update();
         return;
 
       case "toggleTask": {
@@ -1246,14 +1250,14 @@ export class DashboardPanel {
       }
 
       case "aiExtract": {
-        const { sourceDate } = message as { sourceDate?: string | null };
-        void this._runAiExtract(normalizeOptionalDate(sourceDate));
+        const { sourceDate, modelId } = message as { sourceDate?: string | null; modelId?: string };
+        void this._runAiExtract(normalizeOptionalDate(sourceDate), modelId);
         return;
       }
 
       case "extractFromNotes": {
-        const { fromDate, toDate } = message as { fromDate: string; toDate: string };
-        void this._extractFromNotes(fromDate, toDate);
+        const { fromDate, toDate, modelId } = message as { fromDate: string; toDate: string; modelId?: string };
+        void this._extractFromNotes(fromDate, toDate, modelId);
         return;
       }
     }
@@ -1283,7 +1287,7 @@ export class DashboardPanel {
 
     lines[ref.lineIndex] = buildTaskMarkdownLine(done, match[2].trim());
     fs.writeFileSync(ref.filePath, lines.join("\n"), "utf8");
-    this._update();
+    void this._update();
   }
 
   private _updateTask(taskId: string, text: string, dueDate: string | null): void {
@@ -1316,7 +1320,7 @@ export class DashboardPanel {
 
     lines[ref.lineIndex] = buildTaskMarkdownLine(match[1].toLowerCase() === "x", normalizedText);
     fs.writeFileSync(ref.filePath, lines.join("\n"), "utf8");
-    this._update();
+    void this._update();
   }
 
   private _deleteTask(taskId: string): void {
@@ -1338,7 +1342,7 @@ export class DashboardPanel {
 
     lines.splice(ref.lineIndex, 1);
     fs.writeFileSync(ref.filePath, lines.join("\n"), "utf8");
-    this._update();
+    void this._update();
   }
 
   private async _createTask(
@@ -1366,7 +1370,7 @@ export class DashboardPanel {
       "utf8",
     );
 
-    this._update();
+    void this._update();
     return true;
   }
 
@@ -1399,7 +1403,7 @@ export class DashboardPanel {
     }
 
     if (this._hasExistingExtractedTask(notesDir, text)) {
-      this._update();
+      void this._update();
       this._postCandidateAddResult({ requestId, status: "exists" });
       return;
     }
@@ -1447,7 +1451,7 @@ export class DashboardPanel {
     editor.revealRange(new vscode.Range(position, position));
   }
 
-  private async _runAiExtract(sourceDate?: string | null): Promise<void> {
+  private async _runAiExtract(sourceDate?: string | null, modelId?: string): Promise<void> {
     this._cancelToken?.cancel();
     this._cancelToken = new vscode.CancellationTokenSource();
     const token = this._cancelToken.token;
@@ -1497,7 +1501,7 @@ export class DashboardPanel {
         return;
       }
 
-      const extractionResult = await extractTasksFromTextWithStatus(cleanText, token);
+      const extractionResult = await extractTasksFromTextWithStatus(cleanText, token, modelId);
       const extracted = extractionResult.tasks;
       const existingTasks = collectTasksFromNotes(notesDir, momentsSubfolder);
       const filtered = filterExtractedTasksForDisplay(
@@ -1529,7 +1533,7 @@ export class DashboardPanel {
     }
   }
 
-  private async _extractFromNotes(fromDate: string, toDate: string): Promise<void> {
+  private async _extractFromNotes(fromDate: string, toDate: string, modelId?: string): Promise<void> {
     this._cancelToken?.cancel();
     this._cancelToken = new vscode.CancellationTokenSource();
     const token = this._cancelToken.token;
@@ -1561,7 +1565,7 @@ export class DashboardPanel {
 
       const momentsSubfolder =
         vscode.workspace.getConfiguration("notes").get<string>("momentsSubfolder") || "moments";
-      const extracted = await extractTasksFromNotes(noteContents, token);
+      const extracted = await extractTasksFromNotes(noteContents, token, modelId);
       const existingTasks = collectTasksFromNotes(notesDir, momentsSubfolder);
       const filtered = filterExtractedTasksForDisplay(
         extracted,
@@ -1790,13 +1794,15 @@ export class DashboardPanel {
    .dashboard-kpi-chip {
      display: inline-flex;
      align-items: center;
-     gap: 8px;
-     min-height: 32px;
+     gap: 6px;
+     min-height: 28px;
      padding: 0 10px;
-     border-radius: 999px;
-     border: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
-     background: color-mix(in srgb, var(--surface) 68%, transparent);
+     border-radius: 4px;
+     border: 1px solid var(--border);
+     background: var(--surface);
      color: var(--text);
+     font-size: 12px;
+     transition: background-color 150ms ease;
      cursor: default;
    }
 
@@ -1841,34 +1847,93 @@ export class DashboardPanel {
   .dash-add-input {
     flex: 1;
     min-width: 0;
-    border: 1px solid color-mix(in srgb, var(--border) 78%, transparent);
-    border-radius: var(--radius-sm);
-    background: color-mix(in srgb, var(--surface) 34%, transparent);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--bg);
     color: var(--text);
-    padding: 9px 12px;
+    padding: 8px 12px;
     font-size: 13px;
     outline: none;
+    transition: border-color 150ms ease, box-shadow 150ms ease;
   }
 
   .dash-add-input:focus {
-    border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 20%, transparent);
   }
 
   .dash-add-input::placeholder {
     color: var(--muted);
   }
 
-  .dash-extract-row {
+  .dash-extract-row-compact {
     display: flex;
-    align-items: flex-start;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .dash-extract-main {
+    display: flex;
+    align-items: center;
     gap: 8px;
     flex-wrap: wrap;
   }
 
-  .dash-extract-group {
-    display: inline-flex;
+  .dash-extract-advanced {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+  }
+
+  .extract-model-select,
+  .extract-date-range {
+    display: flex;
     align-items: center;
     gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .extract-model-select label,
+  .extract-date-range label {
+    font-size: 12px;
+    color: var(--muted);
+    min-width: 60px;
+  }
+
+  .extract-model-select select {
+    min-width: 200px;
+    padding: 4px 8px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 13px;
+  }
+
+  .extract-date-range input[type="date"] {
+    padding: 4px 8px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 13px;
+  }
+
+  .extract-icon {
+    font-size: 14px;
+    opacity: 0.8;
+  }
+
+  .btn-extract {
+    background: color-mix(in srgb, var(--accent) 10%, var(--surface));
+  }
+
+  .btn-extract:hover {
+    background: color-mix(in srgb, var(--accent) 20%, var(--surface));
   }
 
   .dash-list-bar {
@@ -1955,45 +2020,51 @@ export class DashboardPanel {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    padding: 8px 12px;
-    border-radius: 999px;
-    border: 1px solid var(--border);
+    padding: 4px 10px;
+    border-radius: 4px;
+    border: 1px solid transparent;
     background: transparent;
     color: var(--muted);
     cursor: pointer;
+    font-size: 13px;
+    transition: all 150ms ease;
   }
 
   .filter-chip:hover {
-    border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+    background: var(--vscode-toolbar-hoverBackground, color-mix(in srgb, var(--border) 50%, transparent));
     color: var(--text);
   }
 
   .filter-chip.is-active {
-    background: color-mix(in srgb, var(--accent) 14%, transparent);
-    border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
-    color: var(--accent);
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--vscode-button-foreground, #fff);
   }
 
   .filter-chip strong {
-    font-weight: 700;
+    font-weight: 600;
     font-variant-numeric: tabular-nums;
   }
 
   .search-shell {
     display: flex;
     align-items: center;
-    gap: 10px;
-    border: 1px solid color-mix(in srgb, var(--border) 78%, transparent);
-    border-radius: var(--radius-sm);
-    padding: 0 12px;
-    min-height: 38px;
-    background: color-mix(in srgb, var(--surface) 34%, transparent);
+    gap: 8px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 0 10px;
+    min-height: 32px;
+    background: var(--bg);
+    transition: border-color 150ms ease;
+  }
+
+  .search-shell:focus-within {
+    border-color: var(--accent);
   }
 
   .search-shell span {
     color: var(--muted);
-    font-size: 12px;
-    white-space: nowrap;
+    font-size: 13px;
   }
 
   .search-shell input {
@@ -2003,20 +2074,21 @@ export class DashboardPanel {
     width: 100%;
     min-width: 0;
     outline: none;
-    padding: 10px 0;
+    padding: 6px 0;
+    font-size: 13px;
   }
 
   .dashboard-main-list {
     display: flex;
     flex-direction: column;
-    gap: 14px;
+    gap: 16px;
     min-width: 0;
   }
 
   .task-section {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 6px;
   }
 
   .task-section-header {
@@ -2024,37 +2096,46 @@ export class DashboardPanel {
     align-items: center;
     justify-content: space-between;
     gap: 8px;
+    padding: 4px 0;
+    border-bottom: 1px solid var(--border);
   }
 
   .task-section-header h3 {
     margin: 0;
-    font-size: 13px;
-    font-weight: 700;
-    letter-spacing: 0.04em;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
+    color: var(--muted);
   }
 
   .task-section-header span {
     color: var(--muted);
-    font-size: 12px;
+    font-size: 11px;
     font-variant-numeric: tabular-nums;
   }
 
   .task-items {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 2px;
   }
 
   .task-row {
     display: flex;
     align-items: flex-start;
     gap: 10px;
-    padding: 10px 12px;
-    border-radius: var(--radius-sm);
-    border: 1px solid color-mix(in srgb, var(--border) 82%, transparent);
-    background: color-mix(in srgb, var(--surface) 90%, var(--bg));
+    padding: 8px 10px;
+    border-radius: 4px;
+    border: 1px solid transparent;
+    background: transparent;
     min-width: 0;
+    transition: background-color 150ms ease, border-color 150ms ease;
+  }
+
+  .task-row:hover {
+    background: var(--vscode-list-hoverBackground, color-mix(in srgb, var(--accent) 5%, transparent));
+    border-color: var(--border);
   }
 
   .task-row.task-row-saved.is-overdue {
@@ -2241,53 +2322,62 @@ export class DashboardPanel {
   .link-btn,
   .text-btn,
   .btn {
-    border-radius: 999px;
+    border-radius: 4px;
     border: 1px solid var(--border);
-    background: transparent;
+    background: var(--surface);
     color: var(--text);
     cursor: pointer;
-    padding: 8px 12px;
+    padding: 6px 12px;
+    font-size: 13px;
+    transition: all 150ms ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
   }
 
-  .btn {
-    border-radius: var(--radius-sm);
-    font-weight: 600;
+  .btn:hover {
+    background: var(--vscode-toolbar-hoverBackground, color-mix(in srgb, var(--accent) 8%, var(--surface)));
+    border-color: var(--accent);
   }
 
   .btn-primary {
-    background: color-mix(in srgb, var(--accent) 18%, transparent);
-    border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
-    color: var(--accent);
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--vscode-button-foreground, #fff);
+  }
+
+  .btn-primary:hover {
+    background: color-mix(in srgb, var(--accent) 85%, #000);
+    border-color: color-mix(in srgb, var(--accent) 85%, #000);
   }
 
   .btn-danger {
-    border-color: color-mix(in srgb, var(--danger) 55%, var(--border));
+    border-color: var(--danger);
     color: var(--danger);
+  }
+
+  .btn-danger:hover {
+    background: color-mix(in srgb, var(--danger) 10%, transparent);
   }
 
   .btn:disabled,
   .text-btn:disabled {
     cursor: not-allowed;
-    opacity: 0.55;
+    opacity: 0.5;
   }
 
   .text-btn,
   .link-btn {
-    padding: 5px 9px;
+    padding: 4px 8px;
     font-size: 12px;
     color: var(--muted);
+    background: transparent;
   }
 
   .text-btn:hover,
-  .link-btn:hover,
-  .btn:hover {
-    border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+  .link-btn:hover {
     color: var(--text);
-  }
-
-  .text-btn.is-danger:hover {
-    border-color: color-mix(in srgb, var(--danger) 45%, var(--border));
-    color: var(--danger);
+    background: var(--vscode-toolbar-hoverBackground, color-mix(in srgb, var(--border) 50%, transparent));
   }
 
   .task-row-meta {
@@ -2694,6 +2784,36 @@ ${buildDashboardExtractSectionHtml(data.today)}
     const savedState = vscode.getState() || {};
     const pendingCandidateAdds = [];
 
+    // Populate model selector with available models
+    (function populateModelSelector() {
+      const modelSelect = document.getElementById("ai-model-select");
+      if (modelSelect && dashboardData.availableModels && dashboardData.availableModels.length > 0) {
+        // Keep the first "Auto select" option
+        const autoOption = modelSelect.querySelector('option[value=""]');
+        modelSelect.innerHTML = "";
+        if (autoOption) {
+          modelSelect.appendChild(autoOption);
+        } else {
+          const defaultOption = document.createElement("option");
+          defaultOption.value = "";
+          defaultOption.textContent = "自動選択";
+          modelSelect.appendChild(defaultOption);
+        }
+        
+        dashboardData.availableModels.forEach(function(model) {
+          const option = document.createElement("option");
+          option.value = model.id;
+          option.textContent = model.name;
+          modelSelect.appendChild(option);
+        });
+        
+        // Restore selected model if any
+        if (savedState.selectedModel) {
+          modelSelect.value = savedState.selectedModel;
+        }
+      }
+    })();
+
     function sanitizeBrowserTaskText(text) {
       return String(text || "")
         .replaceAll(String.fromCharCode(13) + String.fromCharCode(10), String.fromCharCode(10))
@@ -2885,13 +3005,21 @@ ${buildDashboardExtractSectionHtml(data.today)}
         : migratedCandidates.addedCandidateKeys,
       aiStatus: savedState.aiStatus || "",
       aiStatusType: savedState.aiStatusType || "idle",
-      notesFromDate: savedState.notesFromDate || dashboardData.today,
+      notesFromDate: savedState.notesFromDate || getDefaultDate(7),
       notesToDate: savedState.notesToDate || dashboardData.today,
       notesAiStatus: savedState.notesAiStatus || "",
       notesAiStatusType: savedState.notesAiStatusType || "idle",
       candidateBlockShown: savedState.candidateBlockShown || false,
       candidateBlockError: savedState.candidateBlockError || "",
+      selectedModel: savedState.selectedModel || "",
+      advancedPanelOpen: savedState.advancedPanelOpen || false,
     };
+
+    function getDefaultDate(daysAgo) {
+      const d = new Date();
+      d.setDate(d.getDate() - daysAgo);
+      return d.toISOString().split("T")[0];
+    }
 
     const simplifiedSectionOrder = ["today", "planned", "unsorted", "done"];
     const simplifiedSectionTitles = {
@@ -2945,6 +3073,8 @@ ${buildDashboardExtractSectionHtml(data.today)}
         notesAiStatusType: state.notesAiStatusType,
         candidateBlockShown: state.candidateBlockShown,
         candidateBlockError: state.candidateBlockError,
+        selectedModel: state.selectedModel,
+        advancedPanelOpen: state.advancedPanelOpen,
       });
     }
 
@@ -3475,11 +3605,22 @@ ${buildDashboardExtractSectionHtml(data.today)}
 
     function syncStaticInputs() {
       taskSearchInput.value = state.search;
-      aiSourceDateInput.value = state.aiSourceDate;
       notesFromDateInput.value = state.notesFromDate;
       notesToDateInput.value = state.notesToDate;
       setAiStatus(state.aiStatusType, state.aiStatus);
       setNotesAiStatus(state.notesAiStatusType, state.notesAiStatus);
+
+      // Sync advanced panel
+      const advancedPanel = document.getElementById("extract-advanced-panel");
+      if (advancedPanel) {
+        advancedPanel.style.display = state.advancedPanelOpen ? "block" : "none";
+      }
+
+      // Sync model selector
+      const modelSelect = document.getElementById("ai-model-select");
+      if (modelSelect) {
+        modelSelect.value = state.selectedModel;
+      }
     }
 
     function rerender() {
@@ -3522,11 +3663,36 @@ ${buildDashboardExtractSectionHtml(data.today)}
       }
     });
 
+    // Advanced panel toggle
+    const advancedToggleBtn = document.getElementById("btn-extract-advanced");
+    const advancedPanel = document.getElementById("extract-advanced-panel");
+    if (advancedToggleBtn && advancedPanel) {
+      advancedToggleBtn.addEventListener("click", function () {
+        state.advancedPanelOpen = !state.advancedPanelOpen;
+        advancedPanel.style.display = state.advancedPanelOpen ? "block" : "none";
+        persistState();
+      });
+    }
+
+    // Model selection
+    const modelSelect = document.getElementById("ai-model-select");
+    if (modelSelect) {
+      modelSelect.value = state.selectedModel;
+      modelSelect.addEventListener("change", function (event) {
+        state.selectedModel = event.target.value;
+        persistState();
+      });
+    }
+
     document.getElementById("btn-ai-extract").addEventListener("click", function () {
       mergeCandidateBatch("moments", []);
-      setAiStatus("processing", state.aiSourceDate + " の Moments を分析しています...");
+      setAiStatus("processing", "過去7日間の Moments を分析しています...");
       rerender();
-      vscode.postMessage({ command: "aiExtract", sourceDate: state.aiSourceDate });
+      vscode.postMessage({
+        command: "aiExtract",
+        sourceDate: state.notesFromDate,
+        modelId: state.selectedModel,
+      });
     });
 
     document.getElementById("btn-extract-notes").addEventListener("click", function () {
@@ -3537,6 +3703,7 @@ ${buildDashboardExtractSectionHtml(data.today)}
         command: "extractFromNotes",
         fromDate: state.notesFromDate,
         toDate: state.notesToDate,
+        modelId: state.selectedModel,
       });
     });
 
