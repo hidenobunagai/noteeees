@@ -6,6 +6,11 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.8.3] - 2026-04-06
+
+### Fixed
+- **Extract button regression**: Fixed v0.8.2 regression where "From Moments" and "From Notes" buttons were unresponsive due to browser script referencing a removed DOM element.
+
 ## [0.8.2] - 2026-04-06
 
 ### Changed
