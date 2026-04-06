@@ -6,6 +6,13 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.8.2] - 2026-04-06
+
+### Changed
+- **Task Dashboard polished design**: VS Code-native dark theme styling with improved buttons, inputs, and transitions.
+- **Extract default range**: Changed from single-day to past 7 days by default, with advanced panel for custom ranges.
+- **AI Model selection**: Added dropdown to select from available GitHub Copilot models (auto-select by default).
+
 ## [0.8.1] - 2026-04-06
 
 ### Fixed
