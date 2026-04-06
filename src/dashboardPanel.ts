@@ -2996,7 +2996,7 @@ ${buildDashboardExtractSectionHtml(data.today)}
     const state = {
       filter: savedState.filter === "focus" ? "attention" : (savedState.filter || "all"),
       search: savedState.search || "",
-      aiSourceDate: savedState.aiSourceDate || dashboardData.today,
+
       editingId: savedState.editingId || null,
       candidateTasks: migratedCandidates.candidateTasks,
       candidateOrderSeed: migratedCandidates.candidateOrderSeed,
@@ -3046,13 +3046,12 @@ ${buildDashboardExtractSectionHtml(data.today)}
     const filterRow = document.getElementById("filter-row");
     const taskList = document.getElementById("dashboard-main-list");
     const newTaskText = document.getElementById("new-task-text");
-    const aiSourceDateInput = document.getElementById("ai-source-date");
     const aiStatus = document.getElementById("ai-status");
     const notesFromDateInput = document.getElementById("notes-from-date");
     const notesToDateInput = document.getElementById("notes-to-date");
     const notesStatus = document.getElementById("notes-extract-status");
 
-    if (!taskSearchInput || !filterRow || !taskList || !newTaskText || !aiSourceDateInput || !aiStatus || !notesFromDateInput || !notesToDateInput || !notesStatus) {
+    if (!taskSearchInput || !filterRow || !taskList || !newTaskText || !aiStatus || !notesFromDateInput || !notesToDateInput || !notesStatus) {
       throw new Error("Task Dashboard failed to initialize required webview controls.");
     }
 
@@ -3060,7 +3059,7 @@ ${buildDashboardExtractSectionHtml(data.today)}
       vscode.setState({
         filter: state.filter,
         search: state.search,
-        aiSourceDate: state.aiSourceDate,
+
         editingId: state.editingId,
         candidateTasks: state.candidateTasks,
         candidateOrderSeed: state.candidateOrderSeed,
@@ -3722,10 +3721,7 @@ ${buildDashboardExtractSectionHtml(data.today)}
       rerender();
     });
 
-    aiSourceDateInput.addEventListener("input", function (event) {
-      state.aiSourceDate = event.target.value || dashboardData.today;
-      persistState();
-    });
+
 
     function handleAddExtractedAction(actionEl) {
       const index = Number.parseInt(actionEl.dataset.index || "-1", 10);
