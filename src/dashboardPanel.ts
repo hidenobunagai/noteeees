@@ -1074,9 +1074,13 @@ export class DashboardPanel {
     DashboardPanel._statusListener = cb;
   }
 
-  static runAiExtract(): void {
+  static runAiExtract(fromDate?: string, toDate?: string): void {
     if (DashboardPanel._instance) {
-      void DashboardPanel._instance._runAiExtract();
+      const today = todayDateString();
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      const defaultFromDate = sevenDaysAgo.toISOString().split("T")[0];
+      void DashboardPanel._instance._runAiExtract(fromDate || defaultFromDate, toDate || today);
     }
   }
 
@@ -1250,8 +1254,8 @@ export class DashboardPanel {
       }
 
       case "aiExtract": {
-        const { sourceDate, modelId } = message as { sourceDate?: string | null; modelId?: string };
-        void this._runAiExtract(normalizeOptionalDate(sourceDate), modelId);
+        const { fromDate, toDate, modelId } = message as { fromDate: string; toDate: string; modelId?: string };
+        void this._runAiExtract(fromDate, toDate, modelId);
         return;
       }
 
@@ -1451,17 +1455,16 @@ export class DashboardPanel {
     editor.revealRange(new vscode.Range(position, position));
   }
 
-  private async _runAiExtract(sourceDate?: string | null, modelId?: string): Promise<void> {
+  private async _runAiExtract(fromDate: string, toDate: string, modelId?: string): Promise<void> {
     this._cancelToken?.cancel();
     this._cancelToken = new vscode.CancellationTokenSource();
     const token = this._cancelToken.token;
-    const targetDate = sourceDate ?? todayDateString();
 
     DashboardPanel._statusListener?.(true);
     void this._panel.webview.postMessage({
       type: "aiStatus",
       status: "processing",
-      message: `${targetDate} の Moments を分析しています...`,
+      message: `${fromDate} ～ ${toDate} の Moments を分析しています...`,
     });
 
     try {
@@ -1472,36 +1475,45 @@ export class DashboardPanel {
 
       const momentsSubfolder =
         vscode.workspace.getConfiguration("notes").get<string>("momentsSubfolder") || "moments";
-      const momentsFile = path.join(notesDir, momentsSubfolder, `${targetDate}.md`);
 
-      if (!fs.existsSync(momentsFile)) {
+      // Collect content from all dates in the range
+      const allCleanTexts: string[] = [];
+      const datesWithContent: string[] = [];
+      const startDate = new Date(fromDate);
+      const endDate = new Date(toDate);
+
+      for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+        const dateStr = d.toISOString().split("T")[0];
+        const momentsFile = path.join(notesDir, momentsSubfolder, `${dateStr}.md`);
+
+        if (fs.existsSync(momentsFile)) {
+          const content = fs.readFileSync(momentsFile, "utf8");
+          const body = content.replace(/^---[\s\S]*?---\s*/m, "").trim();
+          const cleanText = body
+            .split("\n")
+            .filter((line) => line.startsWith("- "))
+            .map((line) => line.replace(/^- (\d{2}:\d{2} )?/, "").trim())
+            .filter(Boolean)
+            .join("\n");
+
+          if (cleanText) {
+            allCleanTexts.push(`[${dateStr}]\n${cleanText}`);
+            datesWithContent.push(dateStr);
+          }
+        }
+      }
+
+      if (allCleanTexts.length === 0) {
         void this._panel.webview.postMessage({
           type: "aiStatus",
           status: "error",
-          message: `${targetDate} の Moments ファイルが見つかりません。`,
+          message: `${fromDate} ～ ${toDate} の期間に該当する Moments が見つかりません。`,
         });
         return;
       }
 
-      const content = fs.readFileSync(momentsFile, "utf8");
-      const body = content.replace(/^---[\s\S]*?---\s*/m, "").trim();
-      const cleanText = body
-        .split("\n")
-        .filter((line) => line.startsWith("- "))
-        .map((line) => line.replace(/^- (\d{2}:\d{2} )?/, "").trim())
-        .filter(Boolean)
-        .join("\n");
-
-      if (!cleanText) {
-        void this._panel.webview.postMessage({
-          type: "aiStatus",
-          status: "error",
-          message: `${targetDate} の Moments に抽出対象のテキストがありません。`,
-        });
-        return;
-      }
-
-      const extractionResult = await extractTasksFromTextWithStatus(cleanText, token, modelId);
+      const combinedText = allCleanTexts.join("\n\n");
+      const extractionResult = await extractTasksFromTextWithStatus(combinedText, token, modelId);
       const extracted = extractionResult.tasks;
       const existingTasks = collectTasksFromNotes(notesDir, momentsSubfolder);
       const filtered = filterExtractedTasksForDisplay(
@@ -1525,7 +1537,7 @@ export class DashboardPanel {
       void this._panel.webview.postMessage({
         type: "aiStatus",
         status: "done",
-        message: buildExtractedTaskStatusMessage(filtered),
+        message: `${datesWithContent.length}日分の Moments から${filtered.visibleTasks.length}件のタスク候補を抽出しました。`,
       });
       void this._panel.webview.postMessage({ type: "extractResult", tasks: filtered.visibleTasks });
     } finally {
@@ -3685,11 +3697,12 @@ ${buildDashboardExtractSectionHtml(data.today)}
 
     document.getElementById("btn-ai-extract").addEventListener("click", function () {
       mergeCandidateBatch("moments", []);
-      setAiStatus("processing", "過去7日間の Moments を分析しています...");
+      setAiStatus("processing", state.notesFromDate + " ～ " + state.notesToDate + " の Moments を分析しています...");
       rerender();
       vscode.postMessage({
         command: "aiExtract",
-        sourceDate: state.notesFromDate,
+        fromDate: state.notesFromDate,
+        toDate: state.notesToDate,
         modelId: state.selectedModel,
       });
     });
