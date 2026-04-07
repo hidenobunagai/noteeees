@@ -6,7 +6,12 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
-## [0.8.3] - 2026-04-06
+## [0.8.4] - 2026-04-08
+
+### Fixed
+- **Moments extraction range**: Fixed "From Moments" to properly extract from all dates in the selected range (default 7 days) instead of only checking the first date.
+
+## [0.8.3] - 2026-04-08
 
 ### Fixed
 - **Extract button regression**: Fixed v0.8.2 regression where "From Moments" and "From Notes" buttons were unresponsive due to browser script referencing a removed DOM element.
