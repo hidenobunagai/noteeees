@@ -1,10 +1,4 @@
-function escAttr(s: string): string {
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/"/g, "&quot;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
-}
+import { escAttr } from "./dashboardTaskUtils.js";
 
 function getDefaultDate(daysAgo: number): string {
   const date = new Date();
