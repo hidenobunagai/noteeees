@@ -2953,7 +2953,7 @@ ${buildDashboardExtractSectionHtml(data.today)}
       }
 
       if (action === "save-edit") {
-        const taskEl = actionEl.closest("[data-task-id]");
+        const taskEl = actionEl.closest("article[data-task-id]");
         if (!taskEl) {
           return;
         }

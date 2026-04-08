@@ -6,6 +6,12 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.9.1] - 2026-04-09
+
+### Fixed
+
+- **Task edit "Task text cannot be empty" error**: Fixed a bug where clicking Save on an edited task always showed "Task text cannot be empty" because `closest("[data-task-id]")` returned the Save button itself instead of the parent `<article>`, causing the textarea lookup to fail.
+
 ## [0.9.0] - 2026-04-08
 
 ### Added
