@@ -200,14 +200,14 @@ export class NotesTreeProvider implements vscode.TreeDataProvider<NoteTreeItem> 
     return element;
   }
 
-  getChildren(element?: NoteTreeItem): NoteTreeItem[] {
+  async getChildren(element?: NoteTreeItem): Promise<NoteTreeItem[]> {
     const notesDir = this.getNotesDir();
 
     if (!notesDir) {
       return [];
     }
 
-    const notes = this._getSidebarNotes(notesDir);
+    const notes = await this._getSidebarNotes(notesDir);
     const pinnedRelativePaths = new Set(this.getPinnedRelativePaths());
     const pinnedNotes = notes.filter((note) => pinnedRelativePaths.has(note.relativePath));
     const unpinnedNotes = notes.filter((note) => !pinnedRelativePaths.has(note.relativePath));
@@ -270,11 +270,11 @@ export class NotesTreeProvider implements vscode.TreeDataProvider<NoteTreeItem> 
     return [];
   }
 
-  private _getSidebarNotes(notesDir: string): SidebarNoteItem[] {
+  private async _getSidebarNotes(notesDir: string): Promise<SidebarNoteItem[]> {
     const config = vscode.workspace.getConfiguration("notes");
     const momentsSubfolder = config.get<string>("momentsSubfolder") || "moments";
-    const noteFiles = collectNoteFiles(notesDir, notesDir, [momentsSubfolder]);
-    const indexedNotes = buildIndexedNotes(noteFiles);
+    const noteFiles = await collectNoteFiles(notesDir, notesDir, [momentsSubfolder]);
+    const indexedNotes = await buildIndexedNotes(noteFiles);
 
     return indexedNotes
       .sort((a, b) => b.mtime - a.mtime)

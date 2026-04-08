@@ -1,4 +1,4 @@
-import * as fs from "fs";
+import * as fs from "fs/promises";
 import * as path from "path";
 import * as vscode from "vscode";
 import { createTaskFileWatcher } from "./aiTaskIndexer";
@@ -178,15 +178,15 @@ export function activate(context: vscode.ExtensionContext) {
     return notesDir;
   }
 
-  function getIndexedNotes(notesDir: string) {
+  async function getIndexedNotes(notesDir: string) {
     const momentsSubfolder =
       vscode.workspace.getConfiguration("notes").get<string>("momentsSubfolder") || "moments";
-    const noteFiles = collectNoteFiles(notesDir, notesDir, [momentsSubfolder]);
-    return buildIndexedNotes(noteFiles).sort((a, b) => b.mtime - a.mtime);
+    const noteFiles = await collectNoteFiles(notesDir, notesDir, [momentsSubfolder]);
+    return (await buildIndexedNotes(noteFiles)).sort((a, b) => b.mtime - a.mtime);
   }
 
   async function searchTags(notesDir: string): Promise<void> {
-    const indexedNotes = getIndexedNotes(notesDir);
+    const indexedNotes = await getIndexedNotes(notesDir);
     const tagItems = buildTagSearchItems(indexedNotes, getSidebarTagSort());
 
     if (tagItems.length === 0) {
@@ -469,7 +469,9 @@ export function activate(context: vscode.ExtensionContext) {
           return;
         }
       }
-      if (!fs.existsSync(filePath)) {
+      try {
+        await fs.access(filePath);
+      } catch {
         return;
       }
       const doc = await vscode.workspace.openTextDocument(filePath);

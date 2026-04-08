@@ -1,4 +1,5 @@
-import * as fs from "fs";
+import { Dirent } from "fs";
+import * as fs from "fs/promises";
 import * as path from "path";
 import * as vscode from "vscode";
 
@@ -11,13 +12,13 @@ export function parseWikiLinks(text: string): string[] {
   return [...text.matchAll(WIKI_LINK_RE)].map((m) => m[1]);
 }
 
-function getAllNoteFiles(notesDir: string): string[] {
+async function getAllNoteFiles(notesDir: string): Promise<string[]> {
   const results: string[] = [];
 
-  function walk(dir: string): void {
-    let entries: fs.Dirent[];
+  async function walk(dir: string): Promise<void> {
+    let entries: Dirent[];
     try {
-      entries = fs.readdirSync(dir, { withFileTypes: true });
+      entries = await fs.readdir(dir, { withFileTypes: true });
     } catch {
       return;
     }
@@ -27,14 +28,14 @@ function getAllNoteFiles(notesDir: string): string[] {
       }
       const full = path.join(dir, entry.name);
       if (entry.isDirectory()) {
-        walk(full);
+        await walk(full);
       } else if (entry.isFile() && entry.name.endsWith(".md")) {
         results.push(full);
       }
     }
   }
 
-  walk(notesDir);
+  await walk(notesDir);
   return results;
 }
 
@@ -73,8 +74,11 @@ function resolveWikiLinkFromFiles(title: string, files: string[]): string | unde
   return undefined;
 }
 
-export function resolveWikiLinkPath(title: string, notesDir: string): string | undefined {
-  return resolveWikiLinkFromFiles(title, getAllNoteFiles(notesDir));
+export async function resolveWikiLinkPath(
+  title: string,
+  notesDir: string,
+): Promise<string | undefined> {
+  return resolveWikiLinkFromFiles(title, await getAllNoteFiles(notesDir));
 }
 
 // --- DocumentLinkProvider ---
@@ -82,7 +86,7 @@ export function resolveWikiLinkPath(title: string, notesDir: string): string | u
 export class WikiLinkDocumentLinkProvider implements vscode.DocumentLinkProvider {
   constructor(private getNotesDir: () => string | undefined) {}
 
-  provideDocumentLinks(document: vscode.TextDocument): vscode.DocumentLink[] {
+  async provideDocumentLinks(document: vscode.TextDocument): Promise<vscode.DocumentLink[]> {
     const notesDir = this.getNotesDir();
     if (!notesDir) {
       return [];
@@ -93,7 +97,7 @@ export class WikiLinkDocumentLinkProvider implements vscode.DocumentLinkProvider
 
     for (const match of text.matchAll(/\[\[([^\]]+)\]\]/g)) {
       const title = match[1];
-      const filePath = resolveWikiLinkPath(title, notesDir);
+      const filePath = await resolveWikiLinkPath(title, notesDir);
       if (!filePath) {
         continue;
       }
@@ -114,10 +118,10 @@ export class WikiLinkDocumentLinkProvider implements vscode.DocumentLinkProvider
 export class WikiLinkCompletionProvider implements vscode.CompletionItemProvider {
   constructor(private getNotesDir: () => string | undefined) {}
 
-  provideCompletionItems(
+  async provideCompletionItems(
     document: vscode.TextDocument,
     position: vscode.Position,
-  ): vscode.CompletionItem[] | undefined {
+  ): Promise<vscode.CompletionItem[] | undefined> {
     const notesDir = this.getNotesDir();
     if (!notesDir) {
       return;
@@ -129,7 +133,7 @@ export class WikiLinkCompletionProvider implements vscode.CompletionItemProvider
       return;
     }
 
-    const files = getAllNoteFiles(notesDir);
+    const files = await getAllNoteFiles(notesDir);
     const currentFile = document.uri.fsPath;
 
     return files
@@ -152,10 +156,10 @@ export class WikiLinkCompletionProvider implements vscode.CompletionItemProvider
 export class WikiLinkDefinitionProvider implements vscode.DefinitionProvider {
   constructor(private getNotesDir: () => string | undefined) {}
 
-  provideDefinition(
+  async provideDefinition(
     document: vscode.TextDocument,
     position: vscode.Position,
-  ): vscode.Definition | undefined {
+  ): Promise<vscode.Definition | undefined> {
     const notesDir = this.getNotesDir();
     if (!notesDir) {
       return;
@@ -172,7 +176,7 @@ export class WikiLinkDefinitionProvider implements vscode.DefinitionProvider {
       return;
     }
 
-    const filePath = resolveWikiLinkPath(match[1], notesDir);
+    const filePath = await resolveWikiLinkPath(match[1], notesDir);
     if (!filePath) {
       return;
     }
@@ -189,11 +193,11 @@ export interface BacklinkItem {
   lineNumber: number;
 }
 
-export function collectBacklinks(
+export async function collectBacklinks(
   targetFile: string,
   notesDir: string,
-): Map<string, BacklinkItem[]> {
-  const files = getAllNoteFiles(notesDir);
+): Promise<Map<string, BacklinkItem[]>> {
+  const files = await getAllNoteFiles(notesDir);
   const result = new Map<string, BacklinkItem[]>();
 
   for (const file of files) {
@@ -203,7 +207,7 @@ export function collectBacklinks(
 
     let content: string;
     try {
-      content = fs.readFileSync(file, "utf8");
+      content = await fs.readFile(file, "utf8");
     } catch {
       continue;
     }
@@ -290,7 +294,7 @@ export class BacklinksProvider implements vscode.TreeDataProvider<BacklinkTreeIt
     return element;
   }
 
-  getChildren(element?: BacklinkTreeItem): BacklinkTreeItem[] {
+  async getChildren(element?: BacklinkTreeItem): Promise<BacklinkTreeItem[]> {
     const notesDir = this.getNotesDir();
     if (!notesDir) {
       return [];
@@ -307,7 +311,7 @@ export class BacklinksProvider implements vscode.TreeDataProvider<BacklinkTreeIt
         return [];
       }
 
-      const backlinks = collectBacklinks(currentFile, notesDir);
+      const backlinks = await collectBacklinks(currentFile, notesDir);
 
       return [...backlinks.entries()].map(([file, items]) => {
         const title = stripDatePrefix(path.basename(file, ".md"));

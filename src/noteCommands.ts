@@ -1,4 +1,4 @@
-import * as fs from "fs";
+import * as fs from "fs/promises";
 import * as path from "path";
 import * as vscode from "vscode";
 
@@ -177,9 +177,11 @@ function resolveFilename(titleInput: string, now: Date): string {
   return filename;
 }
 
-export function resolveUniqueFilePath(targetDir: string, filename: string): string {
+export async function resolveUniqueFilePath(targetDir: string, filename: string): Promise<string> {
   const candidate = path.join(targetDir, filename);
-  if (!fs.existsSync(candidate)) {
+  try {
+    await fs.access(candidate);
+  } catch {
     return candidate;
   }
 
@@ -189,7 +191,9 @@ export function resolveUniqueFilePath(targetDir: string, filename: string): stri
 
   for (let i = 2; i <= 99; i++) {
     const uniquePath = path.join(targetDir, `${stem}-${i}${ext}`);
-    if (!fs.existsSync(uniquePath)) {
+    try {
+      await fs.access(uniquePath);
+    } catch {
       return uniquePath;
     }
   }
@@ -372,21 +376,23 @@ export async function pickIndexedNote(
   });
 }
 
-export function buildIndexedNotes(noteFiles: NoteFile[]): IndexedNote[] {
-  return noteFiles.map((file) => {
-    const rawContent = fs.readFileSync(file.absolutePath, "utf8");
+export async function buildIndexedNotes(noteFiles: NoteFile[]): Promise<IndexedNote[]> {
+  const results: IndexedNote[] = [];
+  for (const file of noteFiles) {
+    const rawContent = await fs.readFile(file.absolutePath, "utf8");
     const fallbackTitle = path.basename(file.relativePath, ".md");
     const metadata = extractNoteMetadata(rawContent, fallbackTitle);
     const preview = extractPreviewText(rawContent);
     const searchText = normalizeSearchText(stripFrontMatter(rawContent));
 
-    return {
+    results.push({
       ...file,
       metadata,
       preview,
       searchText,
-    };
-  });
+    });
+  }
+  return results;
 }
 
 export async function createNewNote(notesDir: string, initialTitle?: string): Promise<void> {
@@ -417,13 +423,16 @@ export async function createNewNote(notesDir: string, initialTitle?: string): Pr
 
   // Step 4: Create directories as needed
   const targetDir = subDir ? path.join(notesDir, subDir) : notesDir;
-  if (!fs.existsSync(targetDir)) {
-    fs.mkdirSync(targetDir, { recursive: true });
+  try {
+    await fs.access(targetDir);
+  } catch {
+    await fs.mkdir(targetDir, { recursive: true });
   }
 
   // Step 5: Resolve a unique file path (seconds precision + counter suffix)
-  const filePath = resolveUniqueFilePath(targetDir, filename);
-  if (fs.existsSync(filePath)) {
+  const filePath = await resolveUniqueFilePath(targetDir, filename);
+  try {
+    await fs.access(filePath);
     const overwrite = await vscode.window.showWarningMessage(
       `File "${path.basename(filePath)}" already exists. Overwrite?`,
       "Yes",
@@ -432,9 +441,11 @@ export async function createNewNote(notesDir: string, initialTitle?: string): Pr
     if (overwrite !== "Yes") {
       return;
     }
+  } catch {
+    // File doesn't exist, proceed normally
   }
 
-  fs.writeFileSync(filePath, "", "utf8");
+  await fs.writeFile(filePath, "", "utf8");
 
   // Step 6: Open the file
   const doc = await vscode.workspace.openTextDocument(filePath);
@@ -524,9 +535,12 @@ export async function buildDailyNoteContent(
       ? templatePath
       : path.join(notesDir, templatePath);
 
-    if (fs.existsSync(resolvedPath)) {
-      const raw = fs.readFileSync(resolvedPath, "utf8");
+    try {
+      await fs.access(resolvedPath);
+      const raw = await fs.readFile(resolvedPath, "utf8");
       return applyDailyNoteTokens(raw, now);
+    } catch {
+      // Template file doesn't exist, use default
     }
   }
 
@@ -538,9 +552,11 @@ export async function openDailyNote(notesDir: string, templatePath?: string): Pr
   const fileName = `${today}_daily.md`;
   const filePath = path.join(notesDir, fileName);
 
-  if (!fs.existsSync(filePath)) {
+  try {
+    await fs.access(filePath);
+  } catch {
     const content = await buildDailyNoteContent(today, templatePath, notesDir);
-    fs.writeFileSync(filePath, content, "utf8");
+    await fs.writeFile(filePath, content, "utf8");
   }
 
   const doc = await vscode.workspace.openTextDocument(filePath);
@@ -550,7 +566,7 @@ export async function openDailyNote(notesDir: string, templatePath?: string): Pr
 export async function listNotes(notesDir: string): Promise<void> {
   const config = vscode.workspace.getConfiguration("notes");
   const momentsSubfolder = config.get<string>("momentsSubfolder") || "moments";
-  const noteFiles = collectNoteFiles(notesDir, notesDir, [momentsSubfolder]);
+  const noteFiles = await collectNoteFiles(notesDir, notesDir, [momentsSubfolder]);
 
   if (noteFiles.length === 0) {
     vscode.window.showInformationMessage("No notes found.");
@@ -560,7 +576,7 @@ export async function listNotes(notesDir: string): Promise<void> {
   // Sort by modification time, newest first
   noteFiles.sort((a, b) => b.mtime - a.mtime);
 
-  const indexedNotes = buildIndexedNotes(noteFiles);
+  const indexedNotes = await buildIndexedNotes(noteFiles);
   const selected = await pickIndexedNote(
     indexedNotes,
     `${noteFiles.length} notes found. Search by title, path, tag, or body text.`,
@@ -582,18 +598,20 @@ interface NoteFile {
   mtime: number;
 }
 
-export function collectNoteFiles(
+export async function collectNoteFiles(
   baseDir: string,
   currentDir: string,
   excludeDirs: string[] = [],
-): NoteFile[] {
+): Promise<NoteFile[]> {
   const results: NoteFile[] = [];
 
-  if (!fs.existsSync(currentDir)) {
+  try {
+    await fs.access(currentDir);
+  } catch {
     return results;
   }
 
-  const entries = fs.readdirSync(currentDir, { withFileTypes: true });
+  const entries = await fs.readdir(currentDir, { withFileTypes: true });
 
   for (const entry of entries) {
     const fullPath = path.join(currentDir, entry.name);
@@ -608,9 +626,9 @@ export function collectNoteFiles(
       if (excludeDirs.includes(entry.name)) {
         continue;
       }
-      results.push(...collectNoteFiles(baseDir, fullPath, excludeDirs));
+      results.push(...(await collectNoteFiles(baseDir, fullPath, excludeDirs)));
     } else if (entry.isFile() && entry.name.endsWith(".md")) {
-      const stat = fs.statSync(fullPath);
+      const stat = await fs.stat(fullPath);
       results.push({
         relativePath: path.relative(baseDir, fullPath),
         absolutePath: fullPath,
