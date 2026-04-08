@@ -3851,10 +3851,6 @@ ${buildDashboardExtractSectionHtml(data.today)}
           return;
         }
 
-        if (!window.confirm("このタスクを削除しますか?")) {
-          return;
-        }
-
         vscode.postMessage({ command: "deleteTask", taskId });
         return;
       }

@@ -6,6 +6,11 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.8.5] - 2026-04-08
+
+### Fixed
+- **Delete button not working**: Fixed an issue where the Delete button on tasks was unresponsive due to `window.confirm()` being blocked in VS Code's sandboxed webview. Removed the confirmation dialog; tasks are now deleted immediately when the Delete button is clicked.
+
 ## [0.8.4] - 2026-04-08
 
 ### Fixed
