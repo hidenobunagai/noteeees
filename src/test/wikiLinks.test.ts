@@ -52,32 +52,32 @@ suite("WikiLinks - resolveWikiLinkPath", () => {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
 
-  test("resolves by exact filename match", () => {
-    const result = resolveWikiLinkPath("Meeting Notes", tmpDir);
+  test("resolves by exact filename match", async () => {
+    const result = await resolveWikiLinkPath("Meeting Notes", tmpDir);
     assert.ok(result);
     assert.strictEqual(path.basename(result), "Meeting Notes.md");
   });
 
-  test("resolves by case-insensitive match", () => {
-    const result = resolveWikiLinkPath("meeting notes", tmpDir);
+  test("resolves by case-insensitive match", async () => {
+    const result = await resolveWikiLinkPath("meeting notes", tmpDir);
     assert.ok(result);
     assert.strictEqual(path.basename(result), "Meeting Notes.md");
   });
 
-  test("resolves by suffix match after date prefix", () => {
-    const result = resolveWikiLinkPath("Daily", tmpDir);
+  test("resolves by suffix match after date prefix", async () => {
+    const result = await resolveWikiLinkPath("Daily", tmpDir);
     assert.ok(result);
     assert.strictEqual(path.basename(result), "2025-01-15_Daily.md");
   });
 
-  test("resolves in subdirectory", () => {
-    const result = resolveWikiLinkPath("Alpha", tmpDir);
+  test("resolves in subdirectory", async () => {
+    const result = await resolveWikiLinkPath("Alpha", tmpDir);
     assert.ok(result);
-    assert.strictEqual(result.endsWith(path.join("projects", "Alpha.md")), true);
+    assert.strictEqual(result!.endsWith(path.join("projects", "Alpha.md")), true);
   });
 
-  test("returns undefined for non-existent note", () => {
-    const result = resolveWikiLinkPath("NonExistent", tmpDir);
+  test("returns undefined for non-existent note", async () => {
+    const result = await resolveWikiLinkPath("NonExistent", tmpDir);
     assert.strictEqual(result, undefined);
   });
 });
@@ -105,29 +105,29 @@ suite("WikiLinks - collectBacklinks", () => {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   });
 
-  test("finds backlinks from multiple source files", () => {
+  test("finds backlinks from multiple source files", async () => {
     const targetFile = path.join(tmpDir, "Target.md");
-    const result = collectBacklinks(targetFile, tmpDir);
+    const result = await collectBacklinks(targetFile, tmpDir);
     assert.strictEqual(result.size, 2);
   });
 
-  test("includes correct line numbers", () => {
+  test("includes correct line numbers", async () => {
     const targetFile = path.join(tmpDir, "Target.md");
-    const result = collectBacklinks(targetFile, tmpDir);
+    const result = await collectBacklinks(targetFile, tmpDir);
     const source1Items = result.get(path.join(tmpDir, "Source1.md"));
     assert.ok(source1Items);
     assert.strictEqual(source1Items[0].lineNumber, 1);
   });
 
-  test("skips self-referencing links", () => {
+  test("skips self-referencing links", async () => {
     const targetFile = path.join(tmpDir, "Target.md");
-    const result = collectBacklinks(targetFile, tmpDir);
+    const result = await collectBacklinks(targetFile, tmpDir);
     assert.ok(!result.has(targetFile));
   });
 
-  test("returns empty map for file with no backlinks", () => {
+  test("returns empty map for file with no backlinks", async () => {
     const noLinksFile = path.join(tmpDir, "NoLinks.md");
-    const result = collectBacklinks(noLinksFile, tmpDir);
+    const result = await collectBacklinks(noLinksFile, tmpDir);
     assert.strictEqual(result.size, 0);
   });
 });
