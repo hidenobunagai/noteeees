@@ -1,4 +1,4 @@
-import * as fs from "fs";
+import * as fs from "fs/promises";
 import * as path from "path";
 import { syncNotesIndex } from "./db.js";
 
@@ -160,17 +160,22 @@ function isMomentsNote(rawContent: string, filename: string): boolean {
   return filename.split(path.sep).includes("moments") || filename.split("/").includes("moments");
 }
 
-function collectNoteFiles(dir: string): { filePath: string; mtime: number }[] {
+async function collectNoteFiles(dir: string): Promise<{ filePath: string; mtime: number }[]> {
   const results: { filePath: string; mtime: number }[] = [];
-  if (!fs.existsSync(dir)) return results;
+  try {
+    await fs.access(dir);
+  } catch {
+    return results;
+  }
 
-  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+  const entries = await fs.readdir(dir, { withFileTypes: true });
+  for (const entry of entries) {
     if (entry.name.startsWith(".")) continue;
     const fullPath = path.join(dir, entry.name);
     if (entry.isDirectory()) {
-      results.push(...collectNoteFiles(fullPath));
+      results.push(...(await collectNoteFiles(fullPath)));
     } else if (entry.isFile() && entry.name.endsWith(".md")) {
-      const stat = fs.statSync(fullPath);
+      const stat = await fs.stat(fullPath);
       results.push({ filePath: fullPath, mtime: stat.mtimeMs });
     }
   }
@@ -235,8 +240,8 @@ export function clearSearchIndexCache(): void {
   cachedSearchIndex = null;
 }
 
-export function getCachedSearchIndex(notesDir: string): SearchIndexSnapshot {
-  const files = collectNoteFiles(notesDir);
+export async function getCachedSearchIndex(notesDir: string): Promise<SearchIndexSnapshot> {
+  const files = await collectNoteFiles(notesDir);
   const fileSignature = buildFileSignature(notesDir, files);
 
   if (
@@ -247,8 +252,8 @@ export function getCachedSearchIndex(notesDir: string): SearchIndexSnapshot {
     return cachedSearchIndex;
   }
 
-  const notes = syncNotesIndex(notesDir, files, (filePath, mtime) => {
-    const rawContent = fs.readFileSync(filePath, "utf8");
+  const notes = await syncNotesIndex(notesDir, files, async (filePath, mtime) => {
+    const rawContent = await fs.readFile(filePath, "utf8");
     const filename = path.relative(notesDir, filePath);
     const title = extractTitle(rawContent, filename);
     const frontMatterTags = extractFrontMatterTags(rawContent);
@@ -723,6 +728,6 @@ export function noteMatchesDateRange(entry: NoteEntry, from?: string, to?: strin
   return true;
 }
 
-export function readNoteEntries(notesDir: string): NoteEntry[] {
-  return getSearchIndexNotes(getCachedSearchIndex(notesDir));
+export async function readNoteEntries(notesDir: string): Promise<NoteEntry[]> {
+  return getSearchIndexNotes(await getCachedSearchIndex(notesDir));
 }

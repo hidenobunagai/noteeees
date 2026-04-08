@@ -109,27 +109,25 @@ function getStoredMtimes(db: Database): Map<string, number> {
   return new Map(rows.map((r) => [r.file_path, r.mtime]));
 }
 
-export function syncNotesIndex(
+export async function syncNotesIndex(
   notesDir: string,
   diskFiles: { filePath: string; mtime: number }[],
-  parseFile: (filePath: string, mtime: number) => NoteEntry,
-): NoteEntry[] {
+  parseFile: (filePath: string, mtime: number) => Promise<NoteEntry>,
+): Promise<NoteEntry[]> {
   const db = getDb(notesDir);
   const storedMtimes = getStoredMtimes(db);
   const diskPathSet = new Set(diskFiles.map((f) => f.filePath));
 
-  // Remove entries for files that no longer exist on disk
   for (const storedPath of storedMtimes.keys()) {
     if (!diskPathSet.has(storedPath)) {
       deleteEntry(db, storedPath);
     }
   }
 
-  // Insert or update entries that are new or have changed mtime
   for (const { filePath, mtime } of diskFiles) {
     const storedMtime = storedMtimes.get(filePath);
     if (storedMtime === mtime) continue;
-    const entry = parseFile(filePath, mtime);
+    const entry = await parseFile(filePath, mtime);
     upsertEntry(db, entry);
   }
 

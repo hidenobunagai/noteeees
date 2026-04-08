@@ -2,7 +2,7 @@
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
-import * as fs from "fs";
+import * as fs from "fs/promises";
 import * as path from "path";
 import {
   closeDb,
@@ -96,10 +96,12 @@ function getMomentsFilePath(notesDir: string, date: string): string {
 const MOMENTS_FRONT_MATTER_TEMPLATE = (date: string) =>
   `---\ntype: moments\ndate: ${date}\n---\n\n`;
 
-function ensureMomentsFile(filePath: string, date: string): void {
-  if (!fs.existsSync(filePath)) {
-    fs.mkdirSync(path.dirname(filePath), { recursive: true });
-    fs.writeFileSync(filePath, MOMENTS_FRONT_MATTER_TEMPLATE(date), "utf8");
+async function ensureMomentsFile(filePath: string, date: string): Promise<void> {
+  try {
+    await fs.access(filePath);
+  } catch {
+    await fs.mkdir(path.dirname(filePath), { recursive: true });
+    await fs.writeFile(filePath, MOMENTS_FRONT_MATTER_TEMPLATE(date), "utf8");
   }
 }
 
@@ -111,28 +113,37 @@ function currentTime(): string {
 const server = new Server({ name: "notes-mcp", version: "3.0.0" }, { capabilities: { tools: {} } });
 
 // Sync tasks index for all .md files in the notes directory (non-moments only)
-function _syncTasksIfNeeded(notesDir: string): void {
-  if (!fs.existsSync(notesDir)) return;
+async function _syncTasksIfNeeded(notesDir: string): Promise<void> {
+  try {
+    await fs.access(notesDir);
+  } catch {
+    return;
+  }
   const diskFiles: { filePath: string; mtime: number; content: string }[] = [];
-  function walk(dir: string): void {
-    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+  async function walk(dir: string): Promise<void> {
+    let entries;
+    try {
+      entries = await fs.readdir(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const entry of entries) {
       const full = path.join(dir, entry.name);
       if (entry.isDirectory()) {
-        // skip moments subfolder — Moments are tweet-style, no tasks
         if (entry.name === "moments") continue;
-        walk(full);
+        await walk(full);
       } else if (entry.isFile() && entry.name.endsWith(".md")) {
-        const stat = fs.statSync(full);
+        const stat = await fs.stat(full);
+        const content = await fs.readFile(full, "utf8");
         diskFiles.push({
           filePath: full,
           mtime: stat.mtimeMs,
-          content: fs.readFileSync(full, "utf8"),
+          content,
         });
       }
     }
   }
-  walk(notesDir);
-  // syncTasksIndex only rewrites files whose mtime changed
+  await walk(notesDir);
   syncTasksIndex(notesDir, diskFiles);
 }
 
@@ -393,7 +404,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
 
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const notesDir = getNotesDir();
-  const searchIndex = getCachedSearchIndex(notesDir);
+  const searchIndex = await getCachedSearchIndex(notesDir);
   const entries = getSearchIndexNotes(searchIndex);
 
   switch (request.params.name) {
@@ -641,10 +652,10 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           ],
         };
       }
-      fs.mkdirSync(targetDir, { recursive: true });
+      await fs.mkdir(targetDir, { recursive: true });
       const filePath = path.join(targetDir, filename);
       const body = buildNoteContent(title, content, tags);
-      fs.writeFileSync(filePath, body, "utf8");
+      await fs.writeFile(filePath, body, "utf8");
       clearSearchIndexCache();
 
       return {
@@ -674,7 +685,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           ],
         };
       }
-      if (!fs.existsSync(filePath)) {
+      try {
+        await fs.access(filePath);
+      } catch {
         return {
           content: [
             {
@@ -685,9 +698,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         };
       }
 
-      const existing = fs.readFileSync(filePath, "utf8");
+      const existing = await fs.readFile(filePath, "utf8");
       const separator = existing.endsWith("\n") ? "\n" : "\n\n";
-      fs.writeFileSync(filePath, `${existing}${separator}${appendContent}\n`, "utf8");
+      await fs.writeFile(filePath, `${existing}${separator}${appendContent}\n`, "utf8");
       clearSearchIndexCache();
 
       return {
@@ -728,13 +741,13 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           ],
         };
       }
-      ensureMomentsFile(filePath, targetDate);
+      await ensureMomentsFile(filePath, targetDate);
 
       const time = currentTime();
       const line = `- ${time} ${text}`;
-      const existing = fs.readFileSync(filePath, "utf8");
+      const existing = await fs.readFile(filePath, "utf8");
       const separator = existing.endsWith("\n") ? "" : "\n";
-      fs.writeFileSync(filePath, `${existing}${separator}${line}\n`, "utf8");
+      await fs.writeFile(filePath, `${existing}${separator}${line}\n`, "utf8");
       clearSearchIndexCache();
 
       return {
@@ -759,7 +772,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         date_to?: string;
         limit?: number;
       };
-      _syncTasksIfNeeded(notesDir);
+      await _syncTasksIfNeeded(notesDir);
       const tasks = queryTasks(notesDir, { status, dateFrom: date_from, dateTo: date_to, limit });
       return {
         content: [{ type: "text" as const, text: JSON.stringify(tasks, null, 2) }],
@@ -767,7 +780,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     }
 
     case "get_task_stats": {
-      _syncTasksIfNeeded(notesDir);
+      await _syncTasksIfNeeded(notesDir);
       const stats = getTaskStats(notesDir);
       return {
         content: [{ type: "text" as const, text: JSON.stringify(stats, null, 2) }],
@@ -776,7 +789,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
     case "update_task_status": {
       const { task_id, done } = request.params.arguments as { task_id: string; done: boolean };
-      _syncTasksIfNeeded(notesDir);
+      await _syncTasksIfNeeded(notesDir);
       const task = getTaskById(notesDir, task_id);
       if (!task) {
         return {
@@ -798,7 +811,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           ],
         };
       }
-      if (!fs.existsSync(task.filePath)) {
+      try {
+        await fs.access(task.filePath);
+      } catch {
         return {
           content: [
             {
@@ -808,7 +823,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           ],
         };
       }
-      const fileLines = fs.readFileSync(task.filePath, "utf8").split("\n");
+      const fileContent = await fs.readFile(task.filePath, "utf8");
+      const fileLines = fileContent.split("\n");
       const line = fileLines[task.lineIndex];
       if (!line) {
         return {
@@ -824,7 +840,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         ? line.replace(/^- \[ \]/, "- [x]")
         : line.replace(/^- \[[xX]\]/, "- [ ]");
       fileLines[task.lineIndex] = updatedLine;
-      fs.writeFileSync(task.filePath, fileLines.join("\n"), "utf8");
+      await fs.writeFile(task.filePath, fileLines.join("\n"), "utf8");
       setTaskDone(notesDir, task_id, done);
       clearSearchIndexCache();
       return {
@@ -839,18 +855,20 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       };
       const targetDate = taskDate ?? todayDate();
       const taskDir = path.join(notesDir, "tasks");
-      fs.mkdirSync(taskDir, { recursive: true });
+      await fs.mkdir(taskDir, { recursive: true });
       const taskFilePath = path.join(taskDir, `${targetDate}.md`);
-      if (!fs.existsSync(taskFilePath)) {
-        fs.writeFileSync(taskFilePath, `---\ntype: tasks\ndate: ${targetDate}\n---\n\n`, "utf8");
+      try {
+        await fs.access(taskFilePath);
+      } catch {
+        await fs.writeFile(taskFilePath, `---\ntype: tasks\ndate: ${targetDate}\n---\n\n`, "utf8");
       }
       const taskLine = `- [ ] ${taskText}`;
-      const existingTaskContent = fs.readFileSync(taskFilePath, "utf8");
+      const existingTaskContent = await fs.readFile(taskFilePath, "utf8");
       const sep = existingTaskContent.endsWith("\n") ? "" : "\n";
-      fs.writeFileSync(taskFilePath, `${existingTaskContent}${sep}${taskLine}\n`, "utf8");
-      const taskMtime = fs.statSync(taskFilePath).mtimeMs;
-      const taskFileContent = fs.readFileSync(taskFilePath, "utf8");
-      const newTasks = parseTasksFromFile(taskFilePath, taskFileContent, taskMtime);
+      await fs.writeFile(taskFilePath, `${existingTaskContent}${sep}${taskLine}\n`, "utf8");
+      const taskStat = await fs.stat(taskFilePath);
+      const taskFileContent = await fs.readFile(taskFilePath, "utf8");
+      const newTasks = parseTasksFromFile(taskFilePath, taskFileContent, taskStat.mtimeMs);
       syncTasksForFile(notesDir, taskFilePath, newTasks);
       clearSearchIndexCache();
       return {
@@ -862,7 +880,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
     case "get_reminders": {
       const { days_ahead = 7 } = (request.params.arguments ?? {}) as { days_ahead?: number };
-      _syncTasksIfNeeded(notesDir);
+      await _syncTasksIfNeeded(notesDir);
       const today = todayDate();
       const limitDate = new Date();
       limitDate.setDate(limitDate.getDate() + Math.max(0, days_ahead));

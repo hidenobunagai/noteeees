@@ -159,7 +159,7 @@ describe("notes-mcp structured search", () => {
     expect(response.results[0]?.entry.filename).toBe("projects/deploy-plan.md");
   });
 
-  test("cached index extracts Japanese inline hashtags", () => {
+  test("cached index extracts Japanese inline hashtags", async () => {
     const notesDir = fs.mkdtempSync(path.join(os.tmpdir(), "notes-mcp-tags-"));
 
     try {
@@ -170,7 +170,7 @@ describe("notes-mcp structured search", () => {
       );
 
       clearSearchIndexCache();
-      const index = getCachedSearchIndex(notesDir);
+      const index = await getCachedSearchIndex(notesDir);
       const [note] = getSearchIndexNotes(index);
       const response = executeStructuredSearch(index, {
         query: "#振り返り-設計",
