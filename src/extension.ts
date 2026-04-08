@@ -1,4 +1,5 @@
 import * as fs from "fs";
+import * as path from "path";
 import * as vscode from "vscode";
 import { createTaskFileWatcher } from "./aiTaskIndexer";
 import { DashboardPanel } from "./dashboardPanel";
@@ -457,7 +458,19 @@ export function activate(context: vscode.ExtensionContext) {
   const openNoteFileDisposable = vscode.commands.registerCommand(
     "notes.openNoteFile",
     async (filePath: string) => {
-      if (!filePath || !fs.existsSync(filePath)) {
+      if (typeof filePath !== "string" || !filePath) { return; }
+      const notesDir = getNotesDir();
+      if (notesDir) {
+        const resolved = path.resolve(filePath);
+        const resolvedNotes = path.resolve(notesDir);
+        if (
+          resolved !== resolvedNotes &&
+          !resolved.startsWith(`${resolvedNotes}${path.sep}`)
+        ) {
+          return;
+        }
+      }
+      if (!fs.existsSync(filePath)) {
         return;
       }
       const doc = await vscode.workspace.openTextDocument(filePath);

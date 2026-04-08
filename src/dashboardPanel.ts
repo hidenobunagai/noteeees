@@ -1192,76 +1192,62 @@ export class DashboardPanel {
         return;
 
       case "toggleTask": {
-        const { taskId, done } = message as { taskId: string; done: boolean };
-        this._toggleTask(taskId, done);
+        if (typeof message.taskId !== "string" || typeof message.done !== "boolean") { return; }
+        this._toggleTask(message.taskId, message.done);
         return;
       }
 
       case "openFile": {
-        const { filePath, lineIndex } = message as { filePath: string; lineIndex: number };
-        void this._openFile(filePath, lineIndex);
+        if (typeof message.filePath !== "string" || typeof message.lineIndex !== "number") { return; }
+        void this._openFile(message.filePath, message.lineIndex);
         return;
       }
 
       case "createTask": {
-        const { text, dueDate, targetDate } = message as {
-          text: string;
-          dueDate?: string | null;
-          targetDate?: string | null;
-        };
-        void this._createTask(text, normalizeOptionalDate(targetDate), normalizeOptionalDate(dueDate));
+        if (typeof message.text !== "string") { return; }
+        void this._createTask(message.text, normalizeOptionalDate(message.targetDate as string | null | undefined), normalizeOptionalDate(message.dueDate as string | null | undefined));
         return;
       }
 
       case "addExtractedTask": {
-        const { text, dueDate, targetDate, requestId } = message as {
-          text: string;
-          dueDate?: string | null;
-          targetDate?: string | null;
-          requestId?: string | null;
-        };
+        if (typeof message.text !== "string") { return; }
         void this._addExtractedTask({
-          text,
-          targetDate: normalizeOptionalDate(targetDate),
-          dueDate: normalizeOptionalDate(dueDate),
-          requestId: typeof requestId === "string" ? requestId : null,
+          text: message.text,
+          targetDate: normalizeOptionalDate(message.targetDate as string | null | undefined),
+          dueDate: normalizeOptionalDate(message.dueDate as string | null | undefined),
+          requestId: typeof message.requestId === "string" ? message.requestId : null,
         });
         return;
       }
 
       case "updateTask": {
-        const { taskId, text, dueDate } = message as {
-          taskId: string;
-          text: string;
-          dueDate?: string | null;
-        };
-        this._updateTask(taskId, text, normalizeOptionalDate(dueDate));
+        if (typeof message.taskId !== "string" || typeof message.text !== "string") { return; }
+        this._updateTask(message.taskId, message.text, normalizeOptionalDate(message.dueDate as string | null | undefined));
         return;
       }
 
       case "dismissExtractedTask": {
-        const { text } = message as { text?: unknown };
-        if (typeof text === "string") {
-          this._dismissExtractedTask(text);
+        if (typeof message.text === "string") {
+          this._dismissExtractedTask(message.text);
         }
         return;
       }
 
       case "deleteTask": {
-        const { taskId } = message as { taskId: string };
-        this._deleteTask(taskId);
+        if (typeof message.taskId !== "string") { return; }
+        this._deleteTask(message.taskId);
         return;
       }
 
       case "aiExtract": {
-        const { fromDate, toDate, modelId } = message as { fromDate: string; toDate: string; modelId?: string };
-        void this._runAiExtract(fromDate, toDate, modelId);
+        if (typeof message.fromDate !== "string" || typeof message.toDate !== "string") { return; }
+        void this._runAiExtract(message.fromDate, message.toDate, typeof message.modelId === "string" ? message.modelId : undefined);
         return;
       }
 
       case "extractFromNotes": {
-        const { fromDate, toDate, modelId } = message as { fromDate: string; toDate: string; modelId?: string };
-        void this._extractFromNotes(fromDate, toDate, modelId);
+        if (typeof message.fromDate !== "string" || typeof message.toDate !== "string") { return; }
+        void this._extractFromNotes(message.fromDate, message.toDate, typeof message.modelId === "string" ? message.modelId : undefined);
         return;
       }
     }
