@@ -120,7 +120,9 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
             this._showError("Notes directory is not configured.");
             return;
           }
-          if (typeof message.index !== "number") { return; }
+          if (typeof message.index !== "number") {
+            return;
+          }
 
           void vscode.window
             .showWarningMessage("Delete this Moment entry?", { modal: true }, "Delete")
@@ -217,7 +219,9 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
         }
 
         case "pinEntry": {
-          if (typeof message.date !== "string" || typeof message.index !== "number") { return; }
+          if (typeof message.date !== "string" || typeof message.index !== "number") {
+            return;
+          }
           const pinned = this._getPinnedEntries();
           const pinnedId = `${message.date}:${message.index}`;
           if (!pinned.some((e) => `${e.date}:${e.index}` === pinnedId)) {
@@ -234,7 +238,9 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
         }
 
         case "unpinEntry": {
-          if (typeof message.pinnedId !== "string") { return; }
+          if (typeof message.pinnedId !== "string") {
+            return;
+          }
           const pinned = this._getPinnedEntries();
           this._setPinnedEntries(pinned.filter((e) => `${e.date}:${e.index}` !== message.pinnedId));
           this._sendEntries();

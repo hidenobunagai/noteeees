@@ -54,8 +54,8 @@ export function migrateDashboardCandidateState(savedState: {
   }
 
   let nextOrder = 0;
-  const fromMoments = (Array.isArray(savedState.extractedTasks) ? savedState.extractedTasks : []).map(
-    (task): DashboardCandidateView | null => {
+  const fromMoments = (Array.isArray(savedState.extractedTasks) ? savedState.extractedTasks : [])
+    .map((task): DashboardCandidateView | null => {
       const candidate = normalizeDashboardCandidateTaskForSource(task, "moments");
       if (!candidate) {
         return null;
@@ -69,26 +69,29 @@ export function migrateDashboardCandidateState(savedState: {
           : false,
         extractionIndex: nextOrder - 1,
       };
-    },
-  ).filter((task): task is DashboardCandidateView => task !== null);
-  const fromNotes = (Array.isArray(savedState.notesExtractedTasks)
-    ? savedState.notesExtractedTasks
-    : []
-  ).map((task): DashboardCandidateView | null => {
-    const candidate = normalizeDashboardCandidateTaskForSource(task, "notes");
-    if (!candidate) {
-      return null;
-    }
+    })
+    .filter((task): task is DashboardCandidateView => task !== null);
+  const fromNotes = (
+    Array.isArray(savedState.notesExtractedTasks) ? savedState.notesExtractedTasks : []
+  )
+    .map((task): DashboardCandidateView | null => {
+      const candidate = normalizeDashboardCandidateTaskForSource(task, "notes");
+      if (!candidate) {
+        return null;
+      }
 
-    return {
-      ...candidate,
-      order: nextOrder++,
-      added: Array.isArray(savedState.notesAddedExtractedKeys)
-        ? savedState.notesAddedExtractedKeys.includes(normalizeExtractedTaskIdentity(candidate.text))
-        : false,
-      extractionIndex: nextOrder - 1,
-    };
-  }).filter((task): task is DashboardCandidateView => task !== null);
+      return {
+        ...candidate,
+        order: nextOrder++,
+        added: Array.isArray(savedState.notesAddedExtractedKeys)
+          ? savedState.notesAddedExtractedKeys.includes(
+              normalizeExtractedTaskIdentity(candidate.text),
+            )
+          : false,
+        extractionIndex: nextOrder - 1,
+      };
+    })
+    .filter((task): task is DashboardCandidateView => task !== null);
 
   return {
     candidateTasks: fromMoments.concat(fromNotes),

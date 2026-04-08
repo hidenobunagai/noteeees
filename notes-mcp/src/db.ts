@@ -282,8 +282,7 @@ export function queryTasks(
   }
 
   const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
-  const limitClause =
-    opts.limit && opts.limit > 0 ? `LIMIT ?` : "";
+  const limitClause = opts.limit && opts.limit > 0 ? `LIMIT ?` : "";
   const sql = `SELECT * FROM tasks_cache ${where} ORDER BY date DESC, line_index ASC ${limitClause}`;
   const queryParams = opts.limit && opts.limit > 0 ? [...params, opts.limit] : params;
   return (db.query(sql).all(...queryParams) as RawTaskRow[]).map(rawToTaskRow);

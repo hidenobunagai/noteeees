@@ -98,11 +98,7 @@ suite("WikiLinks - collectBacklinks", () => {
       "# Source 2\n- Ref: [[Target]]\n- Other: [[Unknown]]",
       "utf8",
     );
-    fs.writeFileSync(
-      path.join(tmpDir, "NoLinks.md"),
-      "# No Links\nJust regular text.",
-      "utf8",
-    );
+    fs.writeFileSync(path.join(tmpDir, "NoLinks.md"), "# No Links\nJust regular text.", "utf8");
   });
 
   teardown(() => {

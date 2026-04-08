@@ -1,7 +1,13 @@
-import type { DashboardSummary, DashboardTaskSection, DashboardTaskView } from "./dashboardTypes.js";
+import type {
+  DashboardSummary,
+  DashboardTaskSection,
+  DashboardTaskView,
+} from "./dashboardTypes.js";
 import { ATTENTION_SECTIONS } from "./dashboardTaskUtils.js";
 
-export function buildSectionCounts(tasks: DashboardTaskView[]): Record<DashboardTaskSection, number> {
+export function buildSectionCounts(
+  tasks: DashboardTaskView[],
+): Record<DashboardTaskSection, number> {
   const counts: Record<DashboardTaskSection, number> = {
     overdue: 0,
     today: 0,

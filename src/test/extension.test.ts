@@ -738,7 +738,7 @@ suite("Extension Test Suite", () => {
     const html = renderDashboardWebviewHtml();
 
     assert.ok(
-      html.includes('const filterDefinitions = ['),
+      html.includes("const filterDefinitions = ["),
       "expected dashboard script to define the filter chip set",
     );
     assert.ok(
@@ -750,11 +750,13 @@ suite("Extension Test Suite", () => {
       "expected rendered filter output to include an active state contract",
     );
     assert.ok(
-      html.includes(`return '<button type="button" class="filter-chip' + activeClass + '" data-filter="' + esc(filter.id) + '">`),
+      html.includes(
+        `return '<button type="button" class="filter-chip' + activeClass + '" data-filter="' + esc(filter.id) + '">`,
+      ),
       "expected rendered filter output to bind each chip to its filter id",
     );
     assert.ok(
-      html.includes('state.filter = button.dataset.filter;'),
+      html.includes("state.filter = button.dataset.filter;"),
       "expected filter buttons to drive the active filter from the rendered output contract",
     );
     assert.ok(
@@ -762,12 +764,7 @@ suite("Extension Test Suite", () => {
       "expected the All filter to remain the primary default list view during rerenders",
     );
 
-    for (const filterId of [
-      "all",
-      "today",
-      "planned",
-      "done",
-    ]) {
+    for (const filterId of ["all", "today", "planned", "done"]) {
       assert.ok(
         html.includes(`{ id: "${filterId}", label:`),
         `expected ${filterId} filter chip definition in the dashboard toolbar`,
@@ -782,12 +779,30 @@ suite("Extension Test Suite", () => {
     assert.ok(html.includes('{ id: "today", label: "Today"'), "expected Today filter chip");
     assert.ok(html.includes('{ id: "planned", label: "Planned"'), "expected Planned filter chip");
     assert.ok(html.includes('{ id: "done", label: "Done"'), "expected Done filter chip");
-    assert.ok(!html.includes('{ id: "attention", label:'), "expected no Attention filter in simplified UI");
-    assert.ok(!html.includes('{ id: "candidate", label:'), "expected no Candidate filter in simplified UI");
-    assert.ok(!html.includes('{ id: "overdue", label:'), "expected no Overdue filter in simplified UI");
-    assert.ok(!html.includes('{ id: "upcoming", label:'), "expected no Upcoming filter in simplified UI");
-    assert.ok(!html.includes('{ id: "scheduled", label:'), "expected no Scheduled filter in simplified UI");
-    assert.ok(!html.includes('{ id: "backlog", label:'), "expected no Backlog filter in simplified UI");
+    assert.ok(
+      !html.includes('{ id: "attention", label:'),
+      "expected no Attention filter in simplified UI",
+    );
+    assert.ok(
+      !html.includes('{ id: "candidate", label:'),
+      "expected no Candidate filter in simplified UI",
+    );
+    assert.ok(
+      !html.includes('{ id: "overdue", label:'),
+      "expected no Overdue filter in simplified UI",
+    );
+    assert.ok(
+      !html.includes('{ id: "upcoming", label:'),
+      "expected no Upcoming filter in simplified UI",
+    );
+    assert.ok(
+      !html.includes('{ id: "scheduled", label:'),
+      "expected no Scheduled filter in simplified UI",
+    );
+    assert.ok(
+      !html.includes('{ id: "backlog", label:'),
+      "expected no Backlog filter in simplified UI",
+    );
   });
 
   test("simplified section model under All renders Today/Planned/Unsorted/Done", () => {
@@ -797,10 +812,22 @@ suite("Extension Test Suite", () => {
     assert.ok(html.includes('planned: "Planned"'), "expected Planned section title mapping");
     assert.ok(html.includes('unsorted: "Unsorted"'), "expected Unsorted section title mapping");
     assert.ok(html.includes('done: "Done"'), "expected Done section title mapping");
-    assert.ok(!html.includes('overdue: "Overdue"'), "expected no Overdue section in simplified model");
-    assert.ok(!html.includes('upcoming: "Upcoming"'), "expected no Upcoming section in simplified model");
-    assert.ok(!html.includes('scheduled: "Scheduled"'), "expected no Scheduled section in simplified model");
-    assert.ok(!html.includes('backlog: "Backlog"'), "expected no Backlog section in simplified model");
+    assert.ok(
+      !html.includes('overdue: "Overdue"'),
+      "expected no Overdue section in simplified model",
+    );
+    assert.ok(
+      !html.includes('upcoming: "Upcoming"'),
+      "expected no Upcoming section in simplified model",
+    );
+    assert.ok(
+      !html.includes('scheduled: "Scheduled"'),
+      "expected no Scheduled section in simplified model",
+    );
+    assert.ok(
+      !html.includes('backlog: "Backlog"'),
+      "expected no Backlog section in simplified model",
+    );
   });
 
   test("dashboard webview switches to All after extraction and tracks locally added candidate keys", () => {
@@ -815,18 +842,20 @@ suite("Extension Test Suite", () => {
       "expected browser-side existing task keys to include locally added candidates",
     );
     assert.ok(
-      html.includes('state.candidateBlockShown = true;') &&
+      html.includes("state.candidateBlockShown = true;") &&
         html.includes('mergeCandidateBatch("moments", message.tasks || []);'),
       "expected moments extraction results to switch the UI to All and show candidate block",
     );
     assert.ok(
-      html.includes('state.candidateBlockShown = true;') &&
+      html.includes("state.candidateBlockShown = true;") &&
         html.includes('mergeCandidateBatch("notes", message.tasks || []);'),
       "expected notes extraction results to switch the UI to All and show candidate block",
     );
     assert.ok(
       html.includes("function handleDismissExtractedAction(actionEl) {") &&
-        !html.includes("function handleDismissExtractedAction(actionEl) {\n      const index = Number.parseInt(actionEl.dataset.index || \"-1\", 10);\n      const visibleCandidates = getVisibleCandidates();\n      if (Number.isNaN(index) || !visibleCandidates[index]) {\n        return;\n      }\n\n      const task = visibleCandidates[index];\n      state.candidateTasks = (state.candidateTasks || []).filter(function (candidate) {\n        return candidate.order !== task.order;\n      });\n      state.addedCandidateKeys = (state.addedCandidateKeys || []).filter(function (key) {"),
+        !html.includes(
+          'function handleDismissExtractedAction(actionEl) {\n      const index = Number.parseInt(actionEl.dataset.index || "-1", 10);\n      const visibleCandidates = getVisibleCandidates();\n      if (Number.isNaN(index) || !visibleCandidates[index]) {\n        return;\n      }\n\n      const task = visibleCandidates[index];\n      state.candidateTasks = (state.candidateTasks || []).filter(function (candidate) {\n        return candidate.order !== task.order;\n      });\n      state.addedCandidateKeys = (state.addedCandidateKeys || []).filter(function (key) {',
+        ),
       "expected dismiss handling to keep local duplicate guard keys intact",
     );
   });
@@ -836,7 +865,7 @@ suite("Extension Test Suite", () => {
 
     assert.ok(
       html.includes('const subtitle = state.filter === "all"') &&
-        html.includes('? simplifiedSectionDescriptions[section.key]') &&
+        html.includes("? simplifiedSectionDescriptions[section.key]") &&
         html.includes(': "filtered items";'),
       "expected flat filter subtitles to fall back to a defined label instead of undefined",
     );
@@ -847,7 +876,7 @@ suite("Extension Test Suite", () => {
 
     assert.ok(
       html.includes('state.filter === "all"') &&
-        html.includes('? simplifiedSectionDescriptions[section.key]'),
+        html.includes("? simplifiedSectionDescriptions[section.key]"),
       "expected grouped All sections to keep their specific section description text",
     );
   });
@@ -932,7 +961,9 @@ suite("Extension Test Suite", () => {
     assert.ok(
       html.includes("function normalizeStoredCandidateTask(") &&
         html.includes('if (!task || typeof task !== "object") {') &&
-        html.includes('const text = sanitizeBrowserTaskText(typeof task.text === "string" ? task.text : "");'),
+        html.includes(
+          'const text = sanitizeBrowserTaskText(typeof task.text === "string" ? task.text : "");',
+        ),
       "expected browser-side candidate migration to ignore malformed persisted candidate entries before initial render",
     );
   });
@@ -957,8 +988,14 @@ suite("Extension Test Suite", () => {
     assert.ok(!html.includes('id="dashboard-action-bar"'), "expected old action bar to be removed");
     assert.ok(!html.includes('id="analytics-strip"'), "expected analytics strip to be removed");
     assert.ok(!html.includes('id="dashboard-kpis"'), "expected old KPI strip shell to be removed");
-    assert.ok(!html.includes('id="dashboard-workspace"'), "expected old split workspace shell to be removed");
-    assert.ok(!html.includes('id="support-rail"'), "expected right-side support rail shell to be removed");
+    assert.ok(
+      !html.includes('id="dashboard-workspace"'),
+      "expected old split workspace shell to be removed",
+    );
+    assert.ok(
+      !html.includes('id="support-rail"'),
+      "expected right-side support rail shell to be removed",
+    );
 
     // Order: header → add row → extract row → list bar → main list
     assert.ok(headerIndex < addRowIndex, "expected header before add row");
@@ -974,25 +1011,42 @@ suite("Extension Test Suite", () => {
       const overdueYmd = formatDateYMD(overdueDate);
       const overdueFile = path.join(notesDir, "tasks", `${overdueYmd}.md`);
       fs.mkdirSync(path.dirname(overdueFile), { recursive: true });
-      fs.writeFileSync(overdueFile, `---\ntype: tasks\ndate: ${overdueYmd}\n---\n\n- [ ] Overdue task\n`, "utf8");
+      fs.writeFileSync(
+        overdueFile,
+        `---\ntype: tasks\ndate: ${overdueYmd}\n---\n\n- [ ] Overdue task\n`,
+        "utf8",
+      );
     });
 
     assert.ok(!html.includes('<section class="hero">'), "expected old hero block to be removed");
-    assert.ok(!html.includes('class="summary-card is-warning"'), "expected old overdue KPI card to be removed");
-    assert.ok(!html.includes('<div class="summary-label">Overdue</div>'), "expected overdue KPI label to be removed");
-    assert.ok(!html.includes('id="dashboard-kpi-attention"'), "expected attention KPI chip to be removed");
-    assert.ok(!html.includes('>Attention<'), "expected Attention label to be removed from header");
+    assert.ok(
+      !html.includes('class="summary-card is-warning"'),
+      "expected old overdue KPI card to be removed",
+    );
+    assert.ok(
+      !html.includes('<div class="summary-label">Overdue</div>'),
+      "expected overdue KPI label to be removed",
+    );
+    assert.ok(
+      !html.includes('id="dashboard-kpi-attention"'),
+      "expected attention KPI chip to be removed",
+    );
+    assert.ok(!html.includes(">Attention<"), "expected Attention label to be removed from header");
   });
 
   test("dashboard webview persists extracted results immediately on message receipt", () => {
     const html = renderDashboardWebviewHtml();
 
     assert.ok(
-      html.includes("mergeCandidateBatch(\"moments\", message.tasks || []);\n        persistState();\n        rerender();"),
+      html.includes(
+        'mergeCandidateBatch("moments", message.tasks || []);\n        persistState();\n        rerender();',
+      ),
       "expected extractResult handler to merge unified candidates before rerendering",
     );
     assert.ok(
-      html.includes("mergeCandidateBatch(\"notes\", message.tasks || []);\n        persistState();\n        rerender();"),
+      html.includes(
+        'mergeCandidateBatch("notes", message.tasks || []);\n        persistState();\n        rerender();',
+      ),
       "expected notesExtractResult handler to merge unified candidates before rerendering",
     );
   });
@@ -1013,7 +1067,10 @@ suite("Extension Test Suite", () => {
   test("dashboard webview renders an inline candidate block below Extract", () => {
     const html = renderDashboardWebviewHtml();
 
-    assert.ok(html.includes('id="candidate-block"'), "expected dedicated candidate block container");
+    assert.ok(
+      html.includes('id="candidate-block"'),
+      "expected dedicated candidate block container",
+    );
     assert.ok(html.includes('id="dashboard-main-list"'), "expected main list container");
 
     const extractIdx = html.indexOf('id="dash-extract-row"');
@@ -1022,7 +1079,10 @@ suite("Extension Test Suite", () => {
     assert.ok(extractIdx >= 0, "expected extract row marker");
     assert.ok(candidateIdx >= 0, "expected candidate block marker");
     assert.ok(listIdx >= 0, "expected main list marker");
-    assert.ok(extractIdx < candidateIdx && candidateIdx < listIdx, "expected candidate block between extract and main list");
+    assert.ok(
+      extractIdx < candidateIdx && candidateIdx < listIdx,
+      "expected candidate block between extract and main list",
+    );
   });
 
   test("dashboard webview renders non-interactive header KPI chips", () => {
@@ -1031,8 +1091,14 @@ suite("Extension Test Suite", () => {
     assert.ok(html.includes('id="dashboard-kpi-open"'), "expected Open KPI chip");
     assert.ok(html.includes('id="dashboard-kpi-today"'), "expected Today KPI chip");
     assert.ok(html.includes('id="dashboard-kpi-done"'), "expected Done % KPI chip");
-    assert.ok(!html.includes('data-kpi-filter='), "expected no data-kpi-filter attributes on chips");
-    assert.ok(!html.includes('document.querySelectorAll("[data-kpi-filter]")'), "expected no KPI filter click wiring");
+    assert.ok(
+      !html.includes("data-kpi-filter="),
+      "expected no data-kpi-filter attributes on chips",
+    );
+    assert.ok(
+      !html.includes('document.querySelectorAll("[data-kpi-filter]")'),
+      "expected no KPI filter click wiring",
+    );
   });
 
   test("dashboard webview keeps minimal header with KPI chips only", () => {
@@ -1040,19 +1106,19 @@ suite("Extension Test Suite", () => {
 
     assert.ok(html.includes('id="dashboard-header"'), "expected header marker");
     assert.ok(
-      html.includes('id="dashboard-kpi-open"') && html.includes('>Open<'),
+      html.includes('id="dashboard-kpi-open"') && html.includes(">Open<"),
       "expected Open KPI chip label",
     );
     assert.ok(
-      html.includes('id="dashboard-kpi-today"') && html.includes('>Today<'),
+      html.includes('id="dashboard-kpi-today"') && html.includes(">Today<"),
       "expected Today KPI chip label",
     );
     assert.ok(
-      html.includes('id="dashboard-kpi-done"') && html.includes('>Done<'),
+      html.includes('id="dashboard-kpi-done"') && html.includes(">Done<"),
       "expected Done KPI chip label",
     );
     assert.ok(
-      !html.includes('data-kpi-filter='),
+      !html.includes("data-kpi-filter="),
       "expected no data-kpi-filter attributes on header chips",
     );
     assert.ok(
@@ -1063,9 +1129,16 @@ suite("Extension Test Suite", () => {
 
     // Date label and weekday marker removed for minimal UI
     assert.ok(!html.includes('id="dashboard-date-label"'), "expected date label to be removed");
-    assert.ok(!html.includes('id="dashboard-weekday-marker"'), "expected weekday marker to be removed");
+    assert.ok(
+      !html.includes('id="dashboard-weekday-marker"'),
+      "expected weekday marker to be removed",
+    );
 
-    assert.ok(html.includes('.dashboard-kpi-value {') && html.includes('font-variant-numeric: tabular-nums;'), "expected KPI numbers to use tabular alignment");
+    assert.ok(
+      html.includes(".dashboard-kpi-value {") &&
+        html.includes("font-variant-numeric: tabular-nums;"),
+      "expected KPI numbers to use tabular alignment",
+    );
   });
 
   test("dashboard webview uses compact single-line add and extract rows", () => {
@@ -1089,14 +1162,24 @@ suite("Extension Test Suite", () => {
 
     // Old heavy action bar removed
     assert.ok(!html.includes('id="dashboard-action-bar"'), "expected old action bar to be removed");
-    assert.ok(!html.includes('class="action-panel action-panel-quick-add"'), "expected old quick add panel to be removed");
-    assert.ok(!html.includes('class="action-panel action-panel-ai-extract"'), "expected old ai extract panel to be removed");
-    // Old section header labels removed (but text may still appear in empty states)
-    assert.ok(!html.includes('>Quick Add<'), "expected Quick Add header label to be removed");
-    assert.ok(!html.includes('>AI Extract<'), "expected AI Extract header label to be removed");
     assert.ok(
-      html.includes('document.getElementById("btn-ai-extract").addEventListener("click", function () {') &&
-        html.includes('document.getElementById("btn-extract-notes").addEventListener("click", function () {'),
+      !html.includes('class="action-panel action-panel-quick-add"'),
+      "expected old quick add panel to be removed",
+    );
+    assert.ok(
+      !html.includes('class="action-panel action-panel-ai-extract"'),
+      "expected old ai extract panel to be removed",
+    );
+    // Old section header labels removed (but text may still appear in empty states)
+    assert.ok(!html.includes(">Quick Add<"), "expected Quick Add header label to be removed");
+    assert.ok(!html.includes(">AI Extract<"), "expected AI Extract header label to be removed");
+    assert.ok(
+      html.includes(
+        'document.getElementById("btn-ai-extract").addEventListener("click", function () {',
+      ) &&
+        html.includes(
+          'document.getElementById("btn-extract-notes").addEventListener("click", function () {',
+        ),
       "expected extraction commands to stay wired from the top action bar",
     );
     assert.ok(
@@ -1105,29 +1188,33 @@ suite("Extension Test Suite", () => {
       "expected extraction status updates to remain attached to their control groups",
     );
     assert.ok(
-      html.includes('data-action="add-candidate"') && html.includes('data-action="dismiss-candidate"'),
+      html.includes('data-action="add-candidate"') &&
+        html.includes('data-action="dismiss-candidate"'),
       "expected candidate Add and Dismiss actions to remain wired",
     );
     assert.ok(
       html.includes("Already exists") &&
         html.includes("canAddDashboardCandidate(task, existingTaskKeys)") &&
-        html.includes("data-action=\"add-candidate\"") &&
-        html.includes("data-action=\"dismiss-candidate\""),
+        html.includes('data-action="add-candidate"') &&
+        html.includes('data-action="dismiss-candidate"'),
       "expected duplicate candidates to remain blocked with Already exists",
     );
-    assert.ok(!html.includes('id="support-rail"'), "expected extract controls to stay out of a right rail");
+    assert.ok(
+      !html.includes('id="support-rail"'),
+      "expected extract controls to stay out of a right rail",
+    );
   });
 
   test("dashboard action bar stacks only below 1000px", () => {
     const html = renderDashboardWebviewHtml();
 
     assert.ok(
-      html.includes('@media (width < 1000px) {') &&
-        html.includes('.dashboard-action-bar {\n      grid-template-columns: 1fr;'),
+      html.includes("@media (width < 1000px) {") &&
+        html.includes(".dashboard-action-bar {\n      grid-template-columns: 1fr;"),
       "expected action bar stacking rule to start only below 1000px",
     );
     assert.ok(
-      !html.includes('@media (max-width: 1000px) {\n    .dashboard-action-bar {'),
+      !html.includes("@media (max-width: 1000px) {\n    .dashboard-action-bar {"),
       "expected action bar not to stack at exactly 1000px",
     );
   });
@@ -1150,22 +1237,23 @@ suite("Extension Test Suite", () => {
     // At desktop widths, secondary actions are revealed by hover/focus
     assert.ok(
       html.includes('class="task-row-secondary-actions"') &&
-        html.includes('task-row:hover .task-row-secondary-actions') &&
-        html.includes('task-row:focus-within .task-row-secondary-actions') &&
-        html.includes('>Edit</button>') &&
-        html.includes('>Open</button>') &&
-        html.includes('>Delete</button>'),
+        html.includes("task-row:hover .task-row-secondary-actions") &&
+        html.includes("task-row:focus-within .task-row-secondary-actions") &&
+        html.includes(">Edit</button>") &&
+        html.includes(">Open</button>") &&
+        html.includes(">Delete</button>"),
       "expected Edit, Open, and Delete to stay as secondary actions revealed by hover or focus-within",
     );
     assert.ok(
-      html.includes('task-row-saved') &&
+      html.includes("task-row-saved") &&
         html.includes('tabindex="-1"') &&
         html.includes('class="task-row-toggle-entry"') &&
         html.includes('class="task-row-title-entry"'),
       "expected checkbox and title entry points to reveal secondary actions for keyboard users",
     );
     // At narrow widths, secondary actions collapse into a More menu
-    const narrowMoreMenuRule = /@media \(max-width: 720px\) \{[\s\S]*?\.task-row-secondary-actions \{[\s\S]*?display: none;[\s\S]*?\.task-row-more-menu \{[\s\S]*?display: block;[\s\S]*?\}/;
+    const narrowMoreMenuRule =
+      /@media \(max-width: 720px\) \{[\s\S]*?\.task-row-secondary-actions \{[\s\S]*?display: none;[\s\S]*?\.task-row-more-menu \{[\s\S]*?display: block;[\s\S]*?\}/;
     assert.ok(
       narrowMoreMenuRule.test(html),
       "expected narrow layouts to collapse secondary actions into a More menu for touch access",
@@ -1177,17 +1265,15 @@ suite("Extension Test Suite", () => {
 
     // More menu is hidden at desktop widths
     assert.ok(
-      html.includes('.task-row-more-menu { display: none; position: relative; }') ||
-        html.includes('.task-row-more-menu{display:none;position:relative}'),
+      html.includes(".task-row-more-menu { display: none; position: relative; }") ||
+        html.includes(".task-row-more-menu{display:none;position:relative}"),
       "expected More menu to be hidden at desktop widths",
     );
 
     // More menu becomes visible at narrow widths, secondary actions hide
-    const narrowMoreMenuRule = /@media \(max-width: 720px\) \{[\s\S]*?\.task-row-more-menu \{[\s\S]*?display: block;[\s\S]*?\}/;
-    assert.ok(
-      narrowMoreMenuRule.test(html),
-      "expected More menu to be visible at narrow widths",
-    );
+    const narrowMoreMenuRule =
+      /@media \(max-width: 720px\) \{[\s\S]*?\.task-row-more-menu \{[\s\S]*?display: block;[\s\S]*?\}/;
+    assert.ok(narrowMoreMenuRule.test(html), "expected More menu to be visible at narrow widths");
 
     // Each saved-task row has a More button
     assert.ok(
@@ -1197,7 +1283,7 @@ suite("Extension Test Suite", () => {
 
     // More dropdown contains Edit, Open, Delete
     assert.ok(
-      html.includes('task-row-more-dropdown') || html.includes('task-row-more-menu'),
+      html.includes("task-row-more-dropdown") || html.includes("task-row-more-menu"),
       "expected More dropdown to exist",
     );
   });
@@ -1206,59 +1292,80 @@ suite("Extension Test Suite", () => {
     const html = renderDashboardWebviewHtml();
 
     assert.ok(
-      html.includes('function renderCandidateItem(task, index)') &&
-        html.includes('task-row-candidate') &&
+      html.includes("function renderCandidateItem(task, index)") &&
+        html.includes("task-row-candidate") &&
         html.includes('badge task-row-label">Candidate</span>'),
       "expected candidate rows to render with proper styling",
     );
     assert.ok(
-      html.includes('>Already exists</span>') &&
+      html.includes(">Already exists</span>") &&
         html.includes('data-action="dismiss-candidate"') &&
         html.includes('data-action="add-candidate"') &&
         html.includes(' data-index="') &&
-        html.includes(' disabled') &&
-        html.includes('>Add</button>'),
+        html.includes(" disabled") &&
+        html.includes(">Add</button>"),
       "expected duplicate candidate rows to keep Dismiss, keep Add visible but disabled, and still communicate Already exists",
     );
     assert.ok(
-      html.includes('.task-row-candidate .task-row-title {') &&
-        html.includes('white-space: normal;') &&
-        html.includes('-webkit-line-clamp: 2;') &&
-        html.includes('display: -webkit-box;'),
+      html.includes(".task-row-candidate .task-row-title {") &&
+        html.includes("white-space: normal;") &&
+        html.includes("-webkit-line-clamp: 2;") &&
+        html.includes("display: -webkit-box;"),
       "expected candidate row titles to stay readable with a compact two-line clamp",
     );
-    assert.ok(html.includes('.task-row-candidate .task-row-title {'), "expected candidate title rule");
-    assert.ok(html.includes('cursor: default;'), "expected non-clickable candidate cursor");
-    assert.ok(!html.includes('.task-row-candidate .task-row-title:hover {'), "expected no candidate-specific hover rule");
-    assert.ok(html.includes('.task-row-saved .task-row-title:hover {'), "expected saved-task hover rule to remain");
-    assert.ok(!/^\s*\.task-row-title:hover \{/m.test(html), "expected shared hover rule to be removed");
+    assert.ok(
+      html.includes(".task-row-candidate .task-row-title {"),
+      "expected candidate title rule",
+    );
+    assert.ok(html.includes("cursor: default;"), "expected non-clickable candidate cursor");
+    assert.ok(
+      !html.includes(".task-row-candidate .task-row-title:hover {"),
+      "expected no candidate-specific hover rule",
+    );
+    assert.ok(
+      html.includes(".task-row-saved .task-row-title:hover {"),
+      "expected saved-task hover rule to remain",
+    );
+    assert.ok(
+      !/^\s*\.task-row-title:hover \{/m.test(html),
+      "expected shared hover rule to be removed",
+    );
   });
 
   test("dashboard webview keeps dense metadata priority for saved and candidate rows", () => {
     const html = renderDashboardWebviewHtml();
 
-    assert.ok(html.includes('class="task-row-meta task-row-meta-saved"'), "expected saved-task metadata container");
     assert.ok(
-      html.indexOf('task-row-meta-date') < html.indexOf('task-row-meta-tag') &&
-        html.indexOf('task-row-meta-tag') < html.indexOf('task-row-meta-source-saved'),
+      html.includes('class="task-row-meta task-row-meta-saved"'),
+      "expected saved-task metadata container",
+    );
+    assert.ok(
+      html.indexOf("task-row-meta-date") < html.indexOf("task-row-meta-tag") &&
+        html.indexOf("task-row-meta-tag") < html.indexOf("task-row-meta-source-saved"),
       "expected saved-task rows to keep date and due metadata before tags before source",
     );
-    assert.ok(html.includes('task-row-meta-due'), "expected saved-task due metadata class");
-    assert.ok(html.includes('class="task-row-meta task-row-meta-candidate"'), "expected candidate metadata container");
+    assert.ok(html.includes("task-row-meta-due"), "expected saved-task due metadata class");
     assert.ok(
-      html.indexOf('task-row-meta-candidate-due') < html.indexOf('task-row-meta-category') &&
-        html.indexOf('task-row-meta-category') < html.indexOf('task-row-meta-source-candidate'),
+      html.includes('class="task-row-meta task-row-meta-candidate"'),
+      "expected candidate metadata container",
+    );
+    assert.ok(
+      html.indexOf("task-row-meta-candidate-due") < html.indexOf("task-row-meta-category") &&
+        html.indexOf("task-row-meta-category") < html.indexOf("task-row-meta-source-candidate"),
       "expected candidate rows to keep due/date before category or priority before source",
     );
-    assert.ok(html.includes('task-row-meta-priority'), "expected candidate priority metadata class");
     assert.ok(
-      html.includes('.task-row-meta {') &&
-        html.includes('flex-wrap: nowrap;') &&
-        html.includes('overflow: hidden;') &&
-        html.includes('.task-row-meta-source {') &&
-        html.includes('min-width: 0;') &&
-        html.includes('text-overflow: ellipsis;') &&
-        html.includes('white-space: nowrap;'),
+      html.includes("task-row-meta-priority"),
+      "expected candidate priority metadata class",
+    );
+    assert.ok(
+      html.includes(".task-row-meta {") &&
+        html.includes("flex-wrap: nowrap;") &&
+        html.includes("overflow: hidden;") &&
+        html.includes(".task-row-meta-source {") &&
+        html.includes("min-width: 0;") &&
+        html.includes("text-overflow: ellipsis;") &&
+        html.includes("white-space: nowrap;"),
       "expected source metadata to truncate first without uncontrolled wrapping that destroys density",
     );
   });
@@ -1268,8 +1375,8 @@ suite("Extension Test Suite", () => {
 
     // Analytics strip removed for cleaner, action-focused UI
     assert.ok(!html.includes('id="analytics-strip"'), "expected analytics strip to be removed");
-    assert.ok(!html.includes('week-chart'), "expected week chart to be removed");
-    assert.ok(!html.includes('category-list'), "expected category list to be removed");
+    assert.ok(!html.includes("week-chart"), "expected week chart to be removed");
+    assert.ok(!html.includes("category-list"), "expected category list to be removed");
   });
 
   test("dashboard list view model uses final compact empty-state messaging", () => {
@@ -1280,29 +1387,20 @@ suite("Extension Test Suite", () => {
     );
 
     const noToday = buildDashboardListViewModel([], "today", "");
-    assert.strictEqual(
-      noToday.emptyMessage,
-      "Nothing scheduled for today",
-    );
+    assert.strictEqual(noToday.emptyMessage, "Nothing scheduled for today");
 
     const noPlanned = buildDashboardListViewModel([], "planned", "");
-    assert.strictEqual(
-      noPlanned.emptyMessage,
-      "No planned tasks",
-    );
+    assert.strictEqual(noPlanned.emptyMessage, "No planned tasks");
 
     const noDone = buildDashboardListViewModel([], "done", "");
-    assert.strictEqual(
-      noDone.emptyMessage,
-      "No completed tasks",
-    );
+    assert.strictEqual(noDone.emptyMessage, "No completed tasks");
   });
 
   test("dashboard webview renders final compact empty-state copy for All", () => {
     const html = renderDashboardWebviewHtml();
 
     assert.ok(
-      html.includes('function renderEmptyState(message) {') &&
+      html.includes("function renderEmptyState(message) {") &&
         html.includes('class="empty-state-title"') &&
         html.includes('class="empty-state-body"'),
       "expected empty states to render compact structured messaging",
@@ -1350,13 +1448,21 @@ suite("Extension Test Suite", () => {
       "expected dashboard webview script to stay parseable for runtime initialization",
     );
     assert.ok(
-      script.includes('document.getElementById("btn-create-task").addEventListener("click", function () {') &&
-        script.includes('document.getElementById("btn-ai-extract").addEventListener("click", function () {') &&
-        script.includes('document.getElementById("btn-extract-notes").addEventListener("click", function () {'),
+      script.includes(
+        'document.getElementById("btn-create-task").addEventListener("click", function () {',
+      ) &&
+        script.includes(
+          'document.getElementById("btn-ai-extract").addEventListener("click", function () {',
+        ) &&
+        script.includes(
+          'document.getElementById("btn-extract-notes").addEventListener("click", function () {',
+        ),
       "expected dashboard webview script to keep all primary button handlers registered",
     );
     assert.ok(
-      script.includes('throw new Error("Task Dashboard failed to initialize required webview controls.");'),
+      script.includes(
+        'throw new Error("Task Dashboard failed to initialize required webview controls.");',
+      ),
       "expected dashboard webview script to fail loudly when required controls are missing",
     );
   });
@@ -1373,7 +1479,9 @@ suite("Extension Test Suite", () => {
         "utf8",
       );
 
-      (harness.panel as unknown as { _handleMessage(message: Record<string, unknown>): void })._handleMessage({
+      (
+        harness.panel as unknown as { _handleMessage(message: Record<string, unknown>): void }
+      )._handleMessage({
         command: "addExtractedTask",
         text: "Send report",
         dueDate: "2026-03-31",
@@ -1391,7 +1499,11 @@ suite("Extension Test Suite", () => {
   test("addExtractedTask posts a failure ACK when createTask fails", async () => {
     const harness = createDashboardPanelMessageHarness();
     const panelWithPrivates = harness.panel as unknown as {
-      _createTask: (text: string, targetDate: string | null, dueDate: string | null) => Promise<void>;
+      _createTask: (
+        text: string,
+        targetDate: string | null,
+        dueDate: string | null,
+      ) => Promise<void>;
       _handleMessage(message: Record<string, unknown>): void;
     };
     const originalCreateTask = panelWithPrivates._createTask;
@@ -1719,11 +1831,15 @@ suite("Extension Test Suite", () => {
       "expected browser-side failure ACK handling for extracted candidate adds",
     );
     assert.ok(
-      html.includes("candidate.order === pending.order ? { ...candidate, added: false } : candidate"),
+      html.includes(
+        "candidate.order === pending.order ? { ...candidate, added: false } : candidate",
+      ),
       "expected failure ACK handling to roll candidate rows back into view",
     );
     assert.ok(
-      !html.includes('if (state.filter === "candidate") {\n        state.candidateTasks = state.candidateTasks.filter'),
+      !html.includes(
+        'if (state.filter === "candidate") {\n        state.candidateTasks = state.candidateTasks.filter',
+      ),
       "expected optimistic add to keep candidate rows in state so failure rollback can restore them",
     );
     assert.ok(
@@ -1744,7 +1860,9 @@ suite("Extension Test Suite", () => {
       "expected candidate block to render error with candidate-block-error class",
     );
     assert.ok(
-      html.includes("candidateBlockError") && html.includes("next extract") || html.includes("extractResult") || html.includes("notesExtractResult"),
+      (html.includes("candidateBlockError") && html.includes("next extract")) ||
+        html.includes("extractResult") ||
+        html.includes("notesExtractResult"),
       "expected block error to clear on next extract from either source",
     );
   });
@@ -1802,9 +1920,15 @@ suite("Extension Test Suite", () => {
       "2026-03-27",
     );
 
-    assert.deepStrictEqual(result.visibleTasks.map((task) => task.text), ["Send report", "Review budget"]);
+    assert.deepStrictEqual(
+      result.visibleTasks.map((task) => task.text),
+      ["Send report", "Review budget"],
+    );
     assert.strictEqual((result.visibleTasks[0] as { existsAlready?: boolean }).existsAlready, true);
-    assert.strictEqual((result.visibleTasks[1] as { existsAlready?: boolean }).existsAlready, false);
+    assert.strictEqual(
+      (result.visibleTasks[1] as { existsAlready?: boolean }).existsAlready,
+      false,
+    );
     assert.strictEqual(result.hiddenExisting, 0);
     assert.strictEqual(result.hiddenDismissed, 1);
     assert.strictEqual(result.hiddenDuplicates, 1);
@@ -1863,13 +1987,16 @@ suite("Extension Test Suite", () => {
       "2026-03-27",
     );
 
-    assert.deepStrictEqual(result.visibleTasks.map((task) => task.text), [
-      "Send report",
-      "Review budget",
-    ]);
+    assert.deepStrictEqual(
+      result.visibleTasks.map((task) => task.text),
+      ["Send report", "Review budget"],
+    );
     assert.strictEqual("existsAlready" in result.visibleTasks[0], true);
     assert.strictEqual((result.visibleTasks[0] as { existsAlready?: boolean }).existsAlready, true);
-    assert.strictEqual((result.visibleTasks[1] as { existsAlready?: boolean }).existsAlready, false);
+    assert.strictEqual(
+      (result.visibleTasks[1] as { existsAlready?: boolean }).existsAlready,
+      false,
+    );
     assert.strictEqual(result.hiddenExisting, 0);
     assert.strictEqual(result.hiddenDismissed, 1);
     assert.strictEqual(result.hiddenDuplicates, 1);
@@ -1893,7 +2020,10 @@ suite("Extension Test Suite", () => {
 
     const result = filterExtractedTasksForDisplay(extracted, [], [], "2026-03-27");
 
-    assert.deepStrictEqual(result.visibleTasks.map((task) => task.text), ["Plan retro"]);
+    assert.deepStrictEqual(
+      result.visibleTasks.map((task) => task.text),
+      ["Plan retro"],
+    );
     assert.strictEqual(result.hiddenDismissed, 0);
     assert.strictEqual(result.hiddenDuplicates, 0);
   });
@@ -1915,17 +2045,20 @@ suite("Extension Test Suite", () => {
     );
 
     assert.strictEqual(
-      canAddDashboardCandidate({
-        kind: "candidate",
-        text: "Review budget",
-        dueDate: null,
-        category: "work",
-        priority: "medium",
-        timeEstimateMin: 20,
-        source: "moments",
-        sourceLabel: "Moments",
-        existsAlready: false,
-      }, new Set([normalizeExtractedTaskIdentity("Review budget @2026-03-31")])),
+      canAddDashboardCandidate(
+        {
+          kind: "candidate",
+          text: "Review budget",
+          dueDate: null,
+          category: "work",
+          priority: "medium",
+          timeEstimateMin: 20,
+          source: "moments",
+          sourceLabel: "Moments",
+          existsAlready: false,
+        },
+        new Set([normalizeExtractedTaskIdentity("Review budget @2026-03-31")]),
+      ),
       false,
     );
 
@@ -1978,7 +2111,10 @@ suite("Extension Test Suite", () => {
     assert.strictEqual(result.visibleTasks[0].sourceLabel, "projects/retro.md");
     assert.strictEqual(result.visibleTasks[0].existsAlready, true);
     assert.strictEqual(
-      canAddDashboardCandidate(result.visibleTasks[0], new Set([normalizeExtractedTaskIdentity("Plan retro")])) ,
+      canAddDashboardCandidate(
+        result.visibleTasks[0],
+        new Set([normalizeExtractedTaskIdentity("Plan retro")]),
+      ),
       false,
     );
   });
@@ -2067,7 +2203,14 @@ suite("Extension Test Suite", () => {
       ["Done saved"],
     );
 
-    for (const filter of ["overdue", "today", "upcoming", "scheduled", "backlog", "done"] as const) {
+    for (const filter of [
+      "overdue",
+      "today",
+      "upcoming",
+      "scheduled",
+      "backlog",
+      "done",
+    ] as const) {
       assert.strictEqual(
         listItems.some(
           (item: DashboardListItem) =>
@@ -2357,9 +2500,7 @@ suite("Extension Test Suite", () => {
         title: section.title,
         items: section.items.map((item) => item.text),
       })),
-      [
-        { title: "Today", items: ["Alpha overdue", "Alpha today"] },
-      ],
+      [{ title: "Today", items: ["Alpha overdue", "Alpha today"] }],
     );
   });
 
@@ -2487,7 +2628,11 @@ suite("Extension Test Suite", () => {
       "2026-03-27",
     );
 
-    const viewModel = buildDashboardListViewModel(buildDashboardListItems(savedTasks, []), "all", "missing");
+    const viewModel = buildDashboardListViewModel(
+      buildDashboardListItems(savedTasks, []),
+      "all",
+      "missing",
+    );
     assert.deepStrictEqual(viewModel.sections, []);
     assert.strictEqual(viewModel.emptyMessage, "No matching tasks");
   });
@@ -2509,18 +2654,24 @@ suite("Extension Test Suite", () => {
     assert.strictEqual(todaySearchEmpty.emptyMessage, "Nothing scheduled for today");
 
     const allWithItemsNoMatch = buildDashboardListViewModel(
-      buildDashboardListItems(buildDashboardTaskViews([
-        {
-          id: "tasks/2026-03-27.md:1",
-          filePath: "/tmp/notes/tasks/2026-03-27.md",
-          lineIndex: 1,
-          text: "Something saved",
-          done: false,
-          date: "2026-03-27",
-          dueDate: "2026-03-27",
-          tags: [],
-        },
-      ], "2026-03-27"), []),
+      buildDashboardListItems(
+        buildDashboardTaskViews(
+          [
+            {
+              id: "tasks/2026-03-27.md:1",
+              filePath: "/tmp/notes/tasks/2026-03-27.md",
+              lineIndex: 1,
+              text: "Something saved",
+              done: false,
+              date: "2026-03-27",
+              dueDate: "2026-03-27",
+              tags: [],
+            },
+          ],
+          "2026-03-27",
+        ),
+        [],
+      ),
       "all",
       "missing",
     );

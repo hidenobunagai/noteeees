@@ -458,15 +458,14 @@ export function activate(context: vscode.ExtensionContext) {
   const openNoteFileDisposable = vscode.commands.registerCommand(
     "notes.openNoteFile",
     async (filePath: string) => {
-      if (typeof filePath !== "string" || !filePath) { return; }
+      if (typeof filePath !== "string" || !filePath) {
+        return;
+      }
       const notesDir = getNotesDir();
       if (notesDir) {
         const resolved = path.resolve(filePath);
         const resolvedNotes = path.resolve(notesDir);
-        if (
-          resolved !== resolvedNotes &&
-          !resolved.startsWith(`${resolvedNotes}${path.sep}`)
-        ) {
+        if (resolved !== resolvedNotes && !resolved.startsWith(`${resolvedNotes}${path.sep}`)) {
           return;
         }
       }

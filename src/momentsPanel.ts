@@ -18,10 +18,7 @@ export {
   normalizeMomentsFeedDayCount,
   getNextInboxFilter,
 } from "./moments/config.js";
-export {
-  parseDueDate,
-  getDueDateStatus,
-} from "./moments/dueDates.js";
+export { parseDueDate, getDueDateStatus } from "./moments/dueDates.js";
 export {
   buildMomentsFeedDates,
   mapMomentBodyIndexToFileLine,

@@ -100,10 +100,7 @@ export class WikiLinkDocumentLinkProvider implements vscode.DocumentLinkProvider
 
       const start = document.positionAt(match.index!);
       const end = document.positionAt(match.index! + match[0].length);
-      const link = new vscode.DocumentLink(
-        new vscode.Range(start, end),
-        vscode.Uri.file(filePath),
-      );
+      const link = new vscode.DocumentLink(new vscode.Range(start, end), vscode.Uri.file(filePath));
       link.tooltip = `Open: ${path.basename(filePath)}`;
       links.push(link);
     }

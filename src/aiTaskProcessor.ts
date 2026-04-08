@@ -18,7 +18,10 @@ export interface NoteContent {
 }
 
 export interface McpClient {
-  callTool(name: string, args: Record<string, unknown>): Promise<{
+  callTool(
+    name: string,
+    args: Record<string, unknown>,
+  ): Promise<{
     content: Array<{ type: string; text: string }>;
   }>;
 }
@@ -64,7 +67,7 @@ async function getModel(modelId?: string): Promise<vscode.LanguageModelChat | nu
     if (models.length === 0) {
       return null;
     }
-    
+
     // If a specific model is requested, try to find it
     if (modelId) {
       const selectedModel = models.find((m) => m.id === modelId);
@@ -72,7 +75,7 @@ async function getModel(modelId?: string): Promise<vscode.LanguageModelChat | nu
         return selectedModel;
       }
     }
-    
+
     // Default to first available model
     return models[0];
   } catch {

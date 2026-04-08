@@ -267,25 +267,37 @@ export class DashboardPanel {
         return;
 
       case "toggleTask": {
-        if (typeof message.taskId !== "string" || typeof message.done !== "boolean") { return; }
+        if (typeof message.taskId !== "string" || typeof message.done !== "boolean") {
+          return;
+        }
         this._toggleTask(message.taskId, message.done);
         return;
       }
 
       case "openFile": {
-        if (typeof message.filePath !== "string" || typeof message.lineIndex !== "number") { return; }
+        if (typeof message.filePath !== "string" || typeof message.lineIndex !== "number") {
+          return;
+        }
         void this._openFile(message.filePath, message.lineIndex);
         return;
       }
 
       case "createTask": {
-        if (typeof message.text !== "string") { return; }
-        void this._createTask(message.text, normalizeOptionalDate(message.targetDate as string | null | undefined), normalizeOptionalDate(message.dueDate as string | null | undefined));
+        if (typeof message.text !== "string") {
+          return;
+        }
+        void this._createTask(
+          message.text,
+          normalizeOptionalDate(message.targetDate as string | null | undefined),
+          normalizeOptionalDate(message.dueDate as string | null | undefined),
+        );
         return;
       }
 
       case "addExtractedTask": {
-        if (typeof message.text !== "string") { return; }
+        if (typeof message.text !== "string") {
+          return;
+        }
         void this._addExtractedTask({
           text: message.text,
           targetDate: normalizeOptionalDate(message.targetDate as string | null | undefined),
@@ -296,8 +308,14 @@ export class DashboardPanel {
       }
 
       case "updateTask": {
-        if (typeof message.taskId !== "string" || typeof message.text !== "string") { return; }
-        this._updateTask(message.taskId, message.text, normalizeOptionalDate(message.dueDate as string | null | undefined));
+        if (typeof message.taskId !== "string" || typeof message.text !== "string") {
+          return;
+        }
+        this._updateTask(
+          message.taskId,
+          message.text,
+          normalizeOptionalDate(message.dueDate as string | null | undefined),
+        );
         return;
       }
 
@@ -309,20 +327,34 @@ export class DashboardPanel {
       }
 
       case "deleteTask": {
-        if (typeof message.taskId !== "string") { return; }
+        if (typeof message.taskId !== "string") {
+          return;
+        }
         this._deleteTask(message.taskId);
         return;
       }
 
       case "aiExtract": {
-        if (typeof message.fromDate !== "string" || typeof message.toDate !== "string") { return; }
-        void this._runAiExtract(message.fromDate, message.toDate, typeof message.modelId === "string" ? message.modelId : undefined);
+        if (typeof message.fromDate !== "string" || typeof message.toDate !== "string") {
+          return;
+        }
+        void this._runAiExtract(
+          message.fromDate,
+          message.toDate,
+          typeof message.modelId === "string" ? message.modelId : undefined,
+        );
         return;
       }
 
       case "extractFromNotes": {
-        if (typeof message.fromDate !== "string" || typeof message.toDate !== "string") { return; }
-        void this._extractFromNotes(message.fromDate, message.toDate, typeof message.modelId === "string" ? message.modelId : undefined);
+        if (typeof message.fromDate !== "string" || typeof message.toDate !== "string") {
+          return;
+        }
+        void this._extractFromNotes(
+          message.fromDate,
+          message.toDate,
+          typeof message.modelId === "string" ? message.modelId : undefined,
+        );
         return;
       }
     }
@@ -606,7 +638,11 @@ export class DashboardPanel {
     }
   }
 
-  private async _extractFromNotes(fromDate: string, toDate: string, modelId?: string): Promise<void> {
+  private async _extractFromNotes(
+    fromDate: string,
+    toDate: string,
+    modelId?: string,
+  ): Promise<void> {
     this._cancelToken?.cancel();
     this._cancelToken = new vscode.CancellationTokenSource();
     const token = this._cancelToken.token;
@@ -660,7 +696,10 @@ export class DashboardPanel {
         status: "done",
         message: `${noteContents.length}件のノートから${filtered.visibleTasks.length}件のタスク候補を抽出しました。`,
       });
-      void this._panel.webview.postMessage({ type: "notesExtractResult", tasks: filtered.visibleTasks });
+      void this._panel.webview.postMessage({
+        type: "notesExtractResult",
+        tasks: filtered.visibleTasks,
+      });
     } finally {
       DashboardPanel._statusListener?.(false);
     }
@@ -768,11 +807,14 @@ export class DashboardPanel {
     const categoryHtml = categoryOrder
       .map((key) => {
         const count = data.catCount[key] ?? 0;
-        const width = Math.max(count === 0 ? 0 : Math.round((count / categoryMax) * 100), count > 0 ? 12 : 0);
+        const width = Math.max(
+          count === 0 ? 0 : Math.round((count / categoryMax) * 100),
+          count > 0 ? 12 : 0,
+        );
         return `<div class="category-row">
   <div class="category-label"><span class="category-icon">${escHtml(categoryIcons[key])}</span>${escHtml(
-          categoryLabels[key],
-        )}</div>
+    categoryLabels[key],
+  )}</div>
   <div class="category-track" data-empty="${count === 0}"><div class="category-fill${count === 0 ? " is-zero" : ""}" style="width:${width}%"></div></div>
   <div class="category-count">${count}</div>
 </div>`;

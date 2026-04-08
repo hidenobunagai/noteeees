@@ -92,7 +92,12 @@ export function buildDashboardListViewModel(
 
     const sections: DashboardListSectionView[] = [];
 
-    const simplifiedSectionOrder: Array<"today" | "planned" | "unsorted" | "done"> = ["today", "planned", "unsorted", "done"];
+    const simplifiedSectionOrder: Array<"today" | "planned" | "unsorted" | "done"> = [
+      "today",
+      "planned",
+      "unsorted",
+      "done",
+    ];
     const simplifiedSectionTitles: Record<string, string> = {
       today: "Today",
       planned: "Planned",
@@ -113,7 +118,8 @@ export function buildDashboardListViewModel(
       }
 
       const taskItems = visibleItems.filter(
-        (item): item is DashboardTaskView => item.kind === "task" && internalSections.includes(item.section),
+        (item): item is DashboardTaskView =>
+          item.kind === "task" && internalSections.includes(item.section),
       );
       if (!normalizedSearch || taskItems.length > 0) {
         sections.push({

@@ -11,7 +11,11 @@ import type {
   DismissedExtractedTask,
   ExtractedTaskFilterResult,
 } from "./dashboardTypes.js";
-import type { ExtractedTask, ExtractedTaskWithSource, ExtractTasksFailureReason } from "./aiTaskProcessor.js";
+import type {
+  ExtractedTask,
+  ExtractedTaskWithSource,
+  ExtractTasksFailureReason,
+} from "./aiTaskProcessor.js";
 
 export const TASK_RE = /^- \[([ xX])\] (.+)$/;
 export const TAG_RE = /#[\w\u3040-\u9FFF\u4E00-\u9FFF-]+/g;
@@ -181,8 +185,14 @@ export function normalizeDashboardCandidateTask(value: unknown): DashboardCandid
     kind: "candidate",
     text,
     dueDate: normalizeOptionalDate(task.dueDate),
-    category: typeof task.category === "string" && task.category.trim().length > 0 ? task.category : "other",
-    priority: typeof task.priority === "string" && task.priority.trim().length > 0 ? task.priority : "medium",
+    category:
+      typeof task.category === "string" && task.category.trim().length > 0
+        ? task.category
+        : "other",
+    priority:
+      typeof task.priority === "string" && task.priority.trim().length > 0
+        ? task.priority
+        : "medium",
     timeEstimateMin:
       typeof task.timeEstimateMin === "number" && Number.isFinite(task.timeEstimateMin)
         ? task.timeEstimateMin
@@ -402,10 +412,7 @@ export function buildDashboardEmptyMessage(filter: DashboardListFilter): string 
 }
 
 export function escHtml(s: string): string {
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
 export function escAttr(s: string): string {

@@ -8,7 +8,7 @@ function getDefaultDate(daysAgo: number): string {
 
 export function buildDashboardExtractSectionHtml(today: string): string {
   const defaultFromDate = getDefaultDate(7);
-  
+
   return `
     <section class="dash-extract-row-compact">
       <div class="dash-extract-main">

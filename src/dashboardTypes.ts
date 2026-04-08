@@ -50,12 +50,7 @@ export type DashboardTaskSection =
   | "unsorted"
   | "done";
 
-export type DashboardListFilter =
-  | "all"
-  | "today"
-  | "planned"
-  | "done"
-  | DashboardTaskSection;
+export type DashboardListFilter = "all" | "today" | "planned" | "done" | DashboardTaskSection;
 
 export interface DashboardTaskView extends DashTask {
   kind: "task";

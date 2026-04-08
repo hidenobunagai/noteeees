@@ -108,7 +108,7 @@ describe("sanitizeTitle", () => {
   });
 
   test("handles backslashes and special chars", () => {
-    expect(sanitizeTitle('file\\name*here?yes|no')).toBe("file_name_here_yes_no");
+    expect(sanitizeTitle("file\\name*here?yes|no")).toBe("file_name_here_yes_no");
   });
 
   test("handles empty string", () => {

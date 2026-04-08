@@ -38,7 +38,10 @@ function compareOpenTaskOverview<T extends { date: string; time: string; done?: 
 }
 
 function normalizeMomentTextForSearch(text: string): string {
-  return text.replace(/\s*\n+\s*/g, " ").replace(/\s+/g, " ").trim();
+  return text
+    .replace(/\s*\n+\s*/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 export function sortOpenTaskOverview<T extends { date: string; time: string; done?: boolean }>(
