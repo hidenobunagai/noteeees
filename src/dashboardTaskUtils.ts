@@ -1,4 +1,4 @@
-import * as fs from "fs";
+import * as fs from "fs/promises";
 import * as path from "path";
 import type {
   DashTask,
@@ -113,12 +113,17 @@ export function buildTaskFileHeader(targetDate: string | null): string {
     : `---\ntype: tasks\n---\n\n`;
 }
 
-export function ensureDashboardTaskFile(notesDir: string, targetDate: string | null): string {
+export async function ensureDashboardTaskFile(
+  notesDir: string,
+  targetDate: string | null,
+): Promise<string> {
   const filePath = resolveDashboardTaskFile(notesDir, targetDate);
-  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  await fs.mkdir(path.dirname(filePath), { recursive: true });
 
-  if (!fs.existsSync(filePath)) {
-    fs.writeFileSync(filePath, buildTaskFileHeader(targetDate), "utf8");
+  try {
+    await fs.access(filePath);
+  } catch {
+    await fs.writeFile(filePath, buildTaskFileHeader(targetDate), "utf8");
   }
 
   return filePath;

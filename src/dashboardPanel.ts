@@ -1,5 +1,5 @@
 import * as crypto from "crypto";
-import * as fs from "fs";
+import * as fs from "fs/promises";
 import * as path from "path";
 import * as vscode from "vscode";
 import { buildDashboardExtractSectionHtml } from "./dashboardExtractLayout.js";
@@ -239,7 +239,7 @@ export class DashboardPanel {
     const momentsSubfolder =
       vscode.workspace.getConfiguration("notes").get<string>("momentsSubfolder") || "moments";
 
-    const tasks = collectTasksFromNotes(notesDir, momentsSubfolder);
+    const tasks = await collectTasksFromNotes(notesDir, momentsSubfolder);
     const today = todayDateString();
     const week = buildUpcomingWeek(tasks, today);
 
@@ -260,7 +260,7 @@ export class DashboardPanel {
     });
   }
 
-  private _handleMessage(message: Record<string, unknown>): void {
+  private async _handleMessage(message: Record<string, unknown>): Promise<void> {
     switch (message.command) {
       case "refresh":
         void this._update();
@@ -270,7 +270,7 @@ export class DashboardPanel {
         if (typeof message.taskId !== "string" || typeof message.done !== "boolean") {
           return;
         }
-        this._toggleTask(message.taskId, message.done);
+        void this._toggleTask(message.taskId, message.done);
         return;
       }
 
@@ -311,7 +311,7 @@ export class DashboardPanel {
         if (typeof message.taskId !== "string" || typeof message.text !== "string") {
           return;
         }
-        this._updateTask(
+        void this._updateTask(
           message.taskId,
           message.text,
           normalizeOptionalDate(message.dueDate as string | null | undefined),
@@ -330,7 +330,7 @@ export class DashboardPanel {
         if (typeof message.taskId !== "string") {
           return;
         }
-        this._deleteTask(message.taskId);
+        void this._deleteTask(message.taskId);
         return;
       }
 
@@ -360,18 +360,24 @@ export class DashboardPanel {
     }
   }
 
-  private _toggleTask(taskId: string, done: boolean): void {
+  private async _toggleTask(taskId: string, done: boolean): Promise<void> {
     const notesDir = this._getNotesDir();
     if (!notesDir) {
       return;
     }
 
     const ref = resolveTaskRef(notesDir, taskId);
-    if (!ref || !fs.existsSync(ref.filePath)) {
+    if (!ref) {
       return;
     }
 
-    const lines = fs.readFileSync(ref.filePath, "utf8").split("\n");
+    try {
+      await fs.access(ref.filePath);
+    } catch {
+      return;
+    }
+
+    const lines = (await fs.readFile(ref.filePath, "utf8")).split("\n");
     const line = lines[ref.lineIndex];
     if (!line) {
       return;
@@ -383,11 +389,11 @@ export class DashboardPanel {
     }
 
     lines[ref.lineIndex] = buildTaskMarkdownLine(done, match[2].trim());
-    fs.writeFileSync(ref.filePath, lines.join("\n"), "utf8");
+    await fs.writeFile(ref.filePath, lines.join("\n"), "utf8");
     void this._update();
   }
 
-  private _updateTask(taskId: string, text: string, dueDate: string | null): void {
+  private async _updateTask(taskId: string, text: string, dueDate: string | null): Promise<void> {
     const notesDir = this._getNotesDir();
     if (!notesDir) {
       return;
@@ -400,11 +406,17 @@ export class DashboardPanel {
     }
 
     const ref = resolveTaskRef(notesDir, taskId);
-    if (!ref || !fs.existsSync(ref.filePath)) {
+    if (!ref) {
       return;
     }
 
-    const lines = fs.readFileSync(ref.filePath, "utf8").split("\n");
+    try {
+      await fs.access(ref.filePath);
+    } catch {
+      return;
+    }
+
+    const lines = (await fs.readFile(ref.filePath, "utf8")).split("\n");
     const line = lines[ref.lineIndex];
     if (!line) {
       return;
@@ -416,29 +428,35 @@ export class DashboardPanel {
     }
 
     lines[ref.lineIndex] = buildTaskMarkdownLine(match[1].toLowerCase() === "x", normalizedText);
-    fs.writeFileSync(ref.filePath, lines.join("\n"), "utf8");
+    await fs.writeFile(ref.filePath, lines.join("\n"), "utf8");
     void this._update();
   }
 
-  private _deleteTask(taskId: string): void {
+  private async _deleteTask(taskId: string): Promise<void> {
     const notesDir = this._getNotesDir();
     if (!notesDir) {
       return;
     }
 
     const ref = resolveTaskRef(notesDir, taskId);
-    if (!ref || !fs.existsSync(ref.filePath)) {
+    if (!ref) {
       return;
     }
 
-    const lines = fs.readFileSync(ref.filePath, "utf8").split("\n");
+    try {
+      await fs.access(ref.filePath);
+    } catch {
+      return;
+    }
+
+    const lines = (await fs.readFile(ref.filePath, "utf8")).split("\n");
     const line = lines[ref.lineIndex];
     if (!line || !TASK_RE.exec(line)) {
       return;
     }
 
     lines.splice(ref.lineIndex, 1);
-    fs.writeFileSync(ref.filePath, lines.join("\n"), "utf8");
+    await fs.writeFile(ref.filePath, lines.join("\n"), "utf8");
     void this._update();
   }
 
@@ -458,10 +476,10 @@ export class DashboardPanel {
       return false;
     }
 
-    const taskFile = ensureDashboardTaskFile(notesDir, targetDate);
-    const existing = fs.readFileSync(taskFile, "utf8");
+    const taskFile = await ensureDashboardTaskFile(notesDir, targetDate);
+    const existing = await fs.readFile(taskFile, "utf8");
     const prefix = existing.endsWith("\n") ? "" : "\n";
-    fs.writeFileSync(
+    await fs.writeFile(
       taskFile,
       `${existing}${prefix}${buildTaskMarkdownLine(false, normalizedText)}\n`,
       "utf8",
@@ -471,15 +489,14 @@ export class DashboardPanel {
     return true;
   }
 
-  private _hasExistingExtractedTask(notesDir: string, text: string): boolean {
+  private async _hasExistingExtractedTask(notesDir: string, text: string): Promise<boolean> {
     const targetKey = normalizeExtractedTaskIdentity(text);
     if (!targetKey) {
       return false;
     }
 
-    return collectTasksFromNotes(notesDir).some(
-      (task) => normalizeExtractedTaskIdentity(task.text) === targetKey,
-    );
+    const tasks = await collectTasksFromNotes(notesDir);
+    return tasks.some((task) => normalizeExtractedTaskIdentity(task.text) === targetKey);
   }
 
   private async _addExtractedTask({
@@ -499,7 +516,7 @@ export class DashboardPanel {
       return;
     }
 
-    if (this._hasExistingExtractedTask(notesDir, text)) {
+    if (await this._hasExistingExtractedTask(notesDir, text)) {
       void this._update();
       this._postCandidateAddResult({ requestId, status: "exists" });
       return;
@@ -537,7 +554,9 @@ export class DashboardPanel {
   }
 
   private async _openFile(filePath: string, lineIndex: number): Promise<void> {
-    if (!fs.existsSync(filePath)) {
+    try {
+      await fs.access(filePath);
+    } catch {
       return;
     }
 
@@ -579,8 +598,16 @@ export class DashboardPanel {
         const dateStr = d.toISOString().split("T")[0];
         const momentsFile = path.join(notesDir, momentsSubfolder, `${dateStr}.md`);
 
-        if (fs.existsSync(momentsFile)) {
-          const content = fs.readFileSync(momentsFile, "utf8");
+        let fileExists = false;
+        try {
+          await fs.access(momentsFile);
+          fileExists = true;
+        } catch {
+          /* not found */
+        }
+
+        if (fileExists) {
+          const content = await fs.readFile(momentsFile, "utf8");
           const body = content.replace(/^---[\s\S]*?---\s*/m, "").trim();
           const cleanText = body
             .split("\n")
@@ -608,7 +635,7 @@ export class DashboardPanel {
       const combinedText = allCleanTexts.join("\n\n");
       const extractionResult = await extractTasksFromTextWithStatus(combinedText, token, modelId);
       const extracted = extractionResult.tasks;
-      const existingTasks = collectTasksFromNotes(notesDir, momentsSubfolder);
+      const existingTasks = await collectTasksFromNotes(notesDir, momentsSubfolder);
       const filtered = filterExtractedTasksForDisplay(
         extracted,
         existingTasks,
@@ -675,7 +702,7 @@ export class DashboardPanel {
       const momentsSubfolder =
         vscode.workspace.getConfiguration("notes").get<string>("momentsSubfolder") || "moments";
       const extracted = await extractTasksFromNotes(noteContents, token, modelId);
-      const existingTasks = collectTasksFromNotes(notesDir, momentsSubfolder);
+      const existingTasks = await collectTasksFromNotes(notesDir, momentsSubfolder);
       const filtered = filterExtractedTasksForDisplay(
         extracted,
         existingTasks,
@@ -713,23 +740,21 @@ export class DashboardPanel {
 
     const results: NoteContent[] = [];
 
-    const collectFiles = (dir: string) => {
-      const entries = fs.readdirSync(dir, { withFileTypes: true });
+    const collectFiles = async (dir: string) => {
+      const entries = await fs.readdir(dir, { withFileTypes: true });
       for (const entry of entries) {
         const fullPath = path.join(dir, entry.name);
         if (entry.isDirectory()) {
-          // Skip moments directory to avoid duplicate extraction
           if (entry.name !== "moments") {
-            collectFiles(fullPath);
+            await collectFiles(fullPath);
           }
         } else if (entry.name.endsWith(".md")) {
-          // Extract date from filename
           const dateMatch = entry.name.match(/(\d{4}-\d{2}-\d{2})/);
           if (dateMatch) {
             const fileDate = dateMatch[1];
             if (fileDate >= fromDate && fileDate <= toDate) {
               try {
-                const content = fs.readFileSync(fullPath, "utf8");
+                const content = await fs.readFile(fullPath, "utf8");
                 results.push({
                   filename: path.relative(notesDir, fullPath),
                   title: entry.name.replace(/\.md$/, ""),
@@ -745,7 +770,7 @@ export class DashboardPanel {
       }
     };
 
-    collectFiles(notesDir);
+    await collectFiles(notesDir);
     return results.sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
   }
 

@@ -1,20 +1,19 @@
-import * as fs from "fs";
+import * as fs from "fs/promises";
 import * as path from "path";
 import type { DashTask } from "./dashboardTypes.js";
 import { TASK_RE, TAG_RE, DUE_DATE_RE, dateFromFilePath } from "./dashboardTaskUtils.js";
 
-export function collectTasksFromNotes(notesDir: string, momentsSubfolder = "moments"): DashTask[] {
+export async function collectTasksFromNotes(
+  notesDir: string,
+  momentsSubfolder = "moments",
+): Promise<DashTask[]> {
   const tasks: DashTask[] = [];
   const momentsAbsPath = path.resolve(notesDir, momentsSubfolder);
 
-  function walk(dir: string): void {
-    if (!fs.existsSync(dir)) {
-      return;
-    }
-
-    let entries: fs.Dirent[];
+  async function walk(dir: string): Promise<void> {
+    let entries;
     try {
-      entries = fs.readdirSync(dir, { withFileTypes: true });
+      entries = await fs.readdir(dir, { withFileTypes: true });
     } catch {
       return;
     }
@@ -25,7 +24,7 @@ export function collectTasksFromNotes(notesDir: string, momentsSubfolder = "mome
         if (path.resolve(fullPath) === momentsAbsPath) {
           continue;
         }
-        walk(fullPath);
+        await walk(fullPath);
         continue;
       }
 
@@ -36,7 +35,7 @@ export function collectTasksFromNotes(notesDir: string, momentsSubfolder = "mome
       const date = dateFromFilePath(fullPath);
       let content: string;
       try {
-        content = fs.readFileSync(fullPath, "utf8");
+        content = await fs.readFile(fullPath, "utf8");
       } catch {
         continue;
       }
@@ -66,6 +65,6 @@ export function collectTasksFromNotes(notesDir: string, momentsSubfolder = "mome
     }
   }
 
-  walk(notesDir);
+  await walk(notesDir);
   return tasks;
 }
