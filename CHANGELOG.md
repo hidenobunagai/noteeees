@@ -6,24 +6,49 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-04-08
+
+### Added
+
+- **CI/CD pipeline**: GitHub Actions workflow for automated typecheck, lint, format, and MCP tests on every push/PR.
+- **Prettier code formatting**: Integrated Prettier with ESLint-Prettier config; all files formatted with `format`/`format:check` scripts.
+- **Security tests**: 14 new tests for webview message validation and MCP path traversal protection.
+- **MCP server tests**: Expanded from 22 to 36 tests covering tag extraction, search ranking, and edge cases.
+
+### Changed
+
+- **Async I/O migration**: Converted all synchronous `fs` operations to async `fs/promises` across both the MCP server and VS Code extension, preventing extension host thread blocking during file reads/writes.
+- **Dashboard panel modularization**: Split the 4000+ line `dashboardPanel.ts` monolith into 7 focused modules (`dashboardTaskCollector`, `dashboardTaskUtils`, `dashboardExtractLayout`, etc.).
+- **Shared utilities consolidated**: Deduplicated `escAttr` function across dashboard and moments panels; unified MCP `TAG_RE` regex with CJK character range support.
+- **MCP path traversal protection**: Added `isPathInside()` and `resolveSafeFilePath()` validation to all MCP tool handlers; SQL LIMIT clauses parameterized; deprecated `is_task` parameter removed from `add_moment`.
+- **Webview message validation**: Replaced unsafe `as` type casts with `typeof` runtime checks across all webview message handlers; `openNoteFile` restricted to notes directory paths.
+
+### Fixed
+
+- **MCP tag regex**: CJK character range (`\u3040-\u9FFF`) was missing from the tag extraction regex, causing Japanese hashtags to not be matched correctly in some edge cases.
+
 ## [0.8.5] - 2026-04-08
 
 ### Fixed
+
 - **Delete button not working**: Fixed an issue where the Delete button on tasks was unresponsive due to `window.confirm()` being blocked in VS Code's sandboxed webview. Removed the confirmation dialog; tasks are now deleted immediately when the Delete button is clicked.
 
 ## [0.8.4] - 2026-04-08
 
 ### Fixed
+
 - **Moments extraction range**: Fixed "From Moments" to properly extract from all dates in the selected range (default 7 days) instead of only checking the first date.
 
 ## [0.8.3] - 2026-04-08
 
 ### Fixed
+
 - **Extract button regression**: Fixed v0.8.2 regression where "From Moments" and "From Notes" buttons were unresponsive due to browser script referencing a removed DOM element.
 
 ## [0.8.2] - 2026-04-06
 
 ### Changed
+
 - **Task Dashboard polished design**: VS Code-native dark theme styling with improved buttons, inputs, and transitions.
 - **Extract default range**: Changed from single-day to past 7 days by default, with advanced panel for custom ranges.
 - **AI Model selection**: Added dropdown to select from available GitHub Copilot models (auto-select by default).
@@ -31,102 +56,122 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 ## [0.8.1] - 2026-04-06
 
 ### Fixed
+
 - **Task Dashboard initialization**: Fixed a JavaScript error where `syncHeaderDate()` was called but the function no longer existed, preventing the task list from rendering on initial load.
 
 ## [0.8.0] - 2026-04-05
 
 ### Changed
+
 - **Task Dashboard minimal redesign**: Ultra-compact action-first UI. Single-line task input with Enter-to-add. Compact inline extract controls (`From Moments`, `From Notes`). Removed analytics strip, date labels, and heavy card layouts for maximum clarity. All saved tasks visible immediately with simplified filter bar.
 
 ## [0.7.0] - 2026-04-05
 
 ### Changed
+
 - **Task Dashboard simplified redesign**: Rebuilt the dashboard into a calmer, action-first workspace. Filters reduced from 9 to 4 (`All`, `Today`, `Planned`, `Done`). Extracted candidates now appear inline directly below `Extract` instead of inside the main task list. Header KPI chips are now non-interactive summary displays. Added candidate persistence with re-extract ordering, block-level candidate failure display with dismiss button, and narrow-width `More` menu for saved-task rows at ≤720px.
 
 ## [0.6.3] - 2026-04-04
 
 ### Fixed
+
 - **Task Dashboard actions**: Fixed a webview inline-script syntax error that prevented the dashboard from finishing initialization, which could make `Add Task`, `Extract`, `Refresh`, and other click actions appear completely inert.
 - **Dashboard regression coverage**: Added a parseability test for the generated dashboard webview script so future template changes cannot silently ship another initialization-breaking script error.
 
 ## [0.6.2] - 2026-04-04
 
 ### Fixed
+
 - **Task Dashboard extract feedback**: When `From Moments` cannot use GitHub Copilot Chat or the extraction request fails, the dashboard now shows an explicit status message instead of silently ending with no visible candidates.
 - **Candidate empty-state clarity**: The `Candidate` view now explains that saved tasks remain available in other filters, which reduces the confusion when `OPEN` counts remain non-zero while no extracted candidates are visible.
 
 ## [0.6.1] - 2026-04-04
 
 ### Fixed
+
 - **Task Dashboard extract stability**: Hardened candidate-state migration and extract-result filtering so malformed persisted or extracted candidate data no longer breaks the dashboard webview or makes `From Moments` extraction appear inert.
 - **Legacy candidate migration**: Preserved legacy Notes candidate source metadata from both `sourceLabel` and `sourceNote` while keeping malformed candidate entries safely ignored during migration.
 
 ## [0.6.0] - 2026-04-03
 
 ### Changed
+
 - **Task Dashboard listboard redesign**: Rebuilt the dashboard into a denser list-first workspace with `All` as the default view, a dedicated top `Candidates` section, compact KPI chips, and a thin analytics strip so the full task landscape is visible immediately.
 - **Task Dashboard capture flow**: Moved `Quick Add` and AI extraction into a shared top action bar, tightened saved-task and candidate rows into a denser two-line rhythm, and kept duplicate candidates dismissible while clearly disabling duplicate adds.
 
 ### Fixed
+
 - **Task Dashboard empty states**: Added clearer empty-state guidance for `All`, `Attention`, and `Candidate`, preserved legacy `focus` compatibility during the filter transition, and kept zero-value analytics visuals visible instead of collapsing away.
 
 ## [0.5.1] - 2026-04-03
 
 ### Fixed
+
 - **Extension packaging**: Excluded local `.worktrees/` directories from the published VSIX so marketplace releases no longer ship temporary development worktrees or their extra weight.
 
 ## [0.5.0] - 2026-04-03
 
 ### Changed
+
 - **Task Dashboard redesign**: Rebuilt the dashboard as a denser command-center workspace with a compact header, KPI strip, unified task/candidate list, and analytics moved into a supporting lower band for faster scanning.
 - **AI candidate intake**: Moments and Notes candidates now live directly in the main list with a dedicated `Candidate` filter, shared duplicate handling, and rollback-safe add behavior when saving fails.
 
 ## [0.4.13] - 2026-04-02
 
 ### Changed
+
 - **Extension packaging**: Trimmed the published VSIX by excluding `.opencode/`, `AGENTS.md`, and source maps from marketplace builds so installs stay cleaner and lighter.
 
 ### Fixed
+
 - **Build quality**: Removed the remaining ESLint curly-brace warnings so the extension now packages with a clean lint pass.
 
 ## [0.4.12] - 2026-04-02
 
 ### Fixed
+
 - **Task Dashboard UI**: Reworked the AI Extract inputs so each `Extract` button now sits on its own row below the date field(s). This avoids the cramped side-by-side layout in the Composer sidebar and keeps clear spacing even in narrow panel widths.
 
 ## [0.4.11] - 2026-04-02
 
 ### Fixed
+
 - **Task Dashboard UI**: Fixed flexbox spacing issues where "Extract" buttons and calendar inputs touched each other without a margin. Used native `gap` and `flex-shrink: 0` to ensure buttons remain correctly sized without squishing in narrow panels.
 
 ## [0.4.10] - 2026-04-02
 
 ### Fixed
+
 - **Task Dashboard UI**: Fixed spacing and alignment issues for date input fields and "Extract" buttons in the "From Moments" and "From Notes" sections within the Composer card. The input boxes and buttons no longer touch each other, and layout components behave as expected without flexbox spacing squish issues.
 
 ## [0.4.9] - 2026-04-01
 
 ### Fixed
+
 - **Task Dashboard UI**: Fixed layout issues in the AI Extracted Tasks results. Titles, metadata, and badges are now stacked vertically, and action buttons cleanly align to the bottom right. Input fields in the "From Notes" section now scale correctly without horizontal squishing or unwanted wrapping.
 
 ## [0.4.8] - 2026-04-01
 
 ### Changed
+
 - **Task Dashboard UI**: Merged the "Extract from Moments" and "Extract from Notes" cards into the main Composer section. The unified interface is cleaner and makes it easier to add new tasks or pull candidates via AI without jumping between separate cards.
 
 ## [0.4.7] - 2026-04-01
 
 ### Fixed
+
 - **Task Dashboard layout**: Extracted the Analytics section (Next 7 days & Category balance) out of the right side-column. It now spans horizontally below the top summary metrics to balance the page weight. The layout is significantly cleaner and more structured, preventing all cards from stacking awkwardly in a single column when the main task workspace is short.
 
 ## [0.4.6] - 2026-04-01
 
 ### Fixed
+
 - **Task Dashboard layout**: Fixed "Next 7 days" card spacing and alignment. The right sidebar width is now correctly constrained, and the graph layout expands naturally without artificial gaps. Unused spacing variables for zero-value tasks in charts were also refined for a cleaner look.
 
 ## [0.4.5] - 2026-04-01
 
 ### Fixed
+
 - **Task Dashboard card spacing**: Removed duplicate spacing caused by `.card + .card` margin-top conflicting with flex `gap` in `.analytics-grid`. Removed extra `margin-top` inline style from "Notes Intake" card for consistent 16px spacing throughout.
 - **Composer card spacing**: Introduced `.composer-body` flex wrapper with uniform `gap: 12px`, eliminating inconsistent spacing from mixed `margin-bottom` and inline `margin-top` styles.
 - **Task add bug**: After clicking "Add Task", the textarea is now immediately cleared. The filter automatically switches to `backlog` (date-less tasks) or `all` (dated tasks) so the newly created task is always visible instead of being hidden by the default Attention filter.
@@ -134,96 +179,115 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 ## [0.4.4] - 2026-03-30
 
 ### Fixed
+
 - **Task Dashboard spacing**: Added `margin-top` to `.analytics-grid` for proper spacing above "Next 7 days" card. Unified `.inline-fields` margin-bottom to 12px for consistent button spacing.
 
 ## [0.4.3] - 2026-03-30
 
 ### Fixed
+
 - **Task Dashboard spacing**: Added `margin-bottom: 12px` to `.field-compact` and `margin-bottom: 16px` to `.inline-fields` CSS classes to ensure proper spacing between input fields and buttons.
 
 ## [0.4.1] - 2026-03-30
 
 ### Fixed
+
 - **Task Dashboard spacing**: Increased margin-top for "Extract Tasks" and "Extract from Notes" buttons from 16px to 24px for better visual separation from input fields.
 
 ## [0.4.0] - 2026-03-29
 
 ### Added
+
 - **Extract from Notes**: New AI feature to extract tasks from regular notes (not just Moments) with date range filtering. The Task Dashboard now includes a "Notes Intake" section alongside "Moments Intake" for extracting actionable items from your note archives.
 - Cross-source deduplication: Tasks extracted from notes are automatically checked against existing tasks to prevent duplicates, using the same filtering logic as Moments extraction.
 
 ### Changed
+
 - AI Extract functionality now supports both Moments and regular notes as sources, using the same UI patterns and extraction logic for consistency.
 
 ## [0.3.1] - 2026-03-29
 
 ### Fixed
+
 - **Task Dashboard layout**: Added proper spacing between the "Moments Source Date" field and the "Extract Tasks" button for better visual separation.
 
 ## [0.3.0] - 2026-03-28
 
 ### Changed
+
 - **Task Dashboard simplification**: Removed the `Plan My Day` workflow and refocused the dashboard on manual task management, workload visibility, and task extraction from Moments.
 - **Task dashboard naming**: The main dashboard entry points now use `Task Dashboard` / `Tasks` labels for a simpler mental model in the command palette, status bar, and Moments shortcut.
 
 ## [0.2.4] - 2026-03-28
 
 ### Changed
+
 - **Upcoming load chart**: The dashboard's weekly analytics card now shows the next 7 days of scheduled task load instead of the previous 7 days, using each task's due date when present so forward planning is more actionable.
 
 ## [0.2.3] - 2026-03-27
 
 ### Fixed
+
 - **Moments inline due date highlighting**: `@YYYY-MM-DD` mentions in Moments now render with the same inline highlight treatment that was intended for due dates inside the feed cards.
 
 ## [0.2.2] - 2026-03-27
 
 ### Changed
+
 - **AI Extract de-duplication**: Extracted task candidates now suppress items that already exist in your task files, so older posts do not keep resurfacing as the same suggestion.
 - **Candidate snoozing**: AI Extract now lets you hide a suggestion for now, and the dashboard remembers that choice per notes vault for 30 days.
 
 ### Fixed
+
 - **Workspace noise**: Removed the tracked `excalidraw.log` file from the repository and added it to `.gitignore`, because it is an external Excalidraw MCP runtime log rather than an extension asset.
 
 ## [0.2.1] - 2026-03-27
 
 ### Changed
+
 - **Extension icon refresh**: Replaced the previous rounded-square app tile with a transparent layered-notes icon so the marketplace listing reads more like a native extension icon.
 
 ## [0.2.0] - 2026-03-27
 
 ### Added
+
 - **AI Task Composer**: Create new tasks directly from the dashboard into `tasks/inbox.md` or any `tasks/YYYY-MM-DD.md` file, so task capture is no longer limited to the current day.
 - **Dashboard task triage**: Tasks are now grouped into Overdue, Today, Upcoming, Scheduled, Backlog, and Done sections with search and one-tap filters for faster review.
 - **Dashboard editing workflow**: Existing tasks can now be edited inline, including text and due date updates, then opened at the source line when deeper editing is needed.
 
 ### Changed
+
 - **AI Task Dashboard rebuilt**: The dashboard is now a full task cockpit instead of a passive summary panel, with clearer hierarchy, compact analytics, and dedicated creation / AI assist areas.
 - **Plan My Day**: Planning now prioritizes overdue, current, upcoming, and backlog work instead of only tasks tied to today's note.
 - **AI Extract**: You can now choose which day's Moments file to analyze and add extracted tasks into the current dashboard save target.
 
 ### Fixed
+
 - **Task management bottlenecks**: Resolved the practical blockers where tasks could only be added for the current day, could not be edited from the dashboard, and were hard to scan in larger lists.
 
 ## [0.1.21] - 2026-03-27
 
 ### Fixed
+
 - **Moments due date highlighting**: `@YYYY-MM-DD` due dates in Moments entries are now displayed with an inline orange pill badge, matching the style of `#tag` highlighting.
 
 ## [0.1.17] - 2026-03-26
 
 ### Added
+
 - **Due date syntax in Moments**: Write `@2026-03-31` anywhere in a Moments entry (or existing `📅YYYY-MM-DD` / `due:YYYY-MM-DD`) to set a due date. The date is shown as a badge in the AI Task Dashboard and is preserved when adding extracted tasks to `tasks/YYYY-MM-DD.md`.
 - AI Extract now returns a `dueDate` field for each task and includes the date in the AI prompt context.
 
 ## [0.1.16] - 2026-03-26
 
 ### Fixed
+
 - **AI Task Dashboard buttons**: Refresh, Plan My Day, AI Extract, and Add task buttons were silently blocked by Content Security Policy. Replaced all inline `onclick`/`onchange` event handlers with `addEventListener` and event delegation to comply with the webview CSP.
 
 ## [0.1.15] - 2026-03-26
 
 ### Added
+
 - **AI Task Dashboard** (`Cmd+Shift+T`): New editor panel showing today's tasks, a 7-day weekly overview bar chart, and category breakdown from all your Notes files. Powered by GitHub Copilot — no separate API key required.
 - **Plan My Day**: Button inside the dashboard that asks Copilot to generate a time-blocked schedule from today's open tasks.
 - **AI Extract**: Button inside the dashboard that scans today's Moments for hidden action items and adds them to `tasks/YYYY-MM-DD.md`.
@@ -234,97 +298,116 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 - New commands: `Noteeees: AI - Plan My Day` and `Noteeees: AI - Extract Tasks from Today's Moments`.
 
 ### Changed
+
 - **Moments**: Posts are now plain timeline entries (`- HH:MM text`) with no checkboxes. Task management moves entirely to the AI Task Dashboard. Existing `- [ ]` / `- [x]` entries remain readable but are no longer created by the composer.
 
 ## [0.1.14] - 2026-03-25
 
 ### Changed
+
 - **Moments composer**: The quick-capture input now stays pinned directly below the topbar, so posting feels more like a social feed while the timeline scrolls underneath it.
 
 ## [0.1.13] - 2026-03-21
 
 ### Changed
+
 - **Moments cards**: Task checkboxes now align with the header metadata instead of sitting in a separate left gutter, which improves scanability in the narrow panel.
 - **Moments polish**: The active hashtag filter now appears as a chip beside search, and the time / due / action header treatments are more compact and consistent in the narrow webview.
 
 ### Fixed
+
 - **Moments setup edge cases**: Infinite scroll no longer gets stuck, and task toggles now surface a setup error instead of appearing to succeed when the notes directory has not been configured yet.
 
 ## [0.1.12] - 2026-03-19
 
 ### Fixed
+
 - **Moments feed performance**: Lazy loading no longer reads every older Moments file on each refresh, which keeps the feed responsive on larger histories.
 
 ## [0.1.11] - 2026-03-19
 
 ### Changed
+
 - **Moments feed**: Older days load automatically as you scroll downward, so the recent feed is no longer capped to a fixed day window.
 
 ## [0.1.10] - 2026-03-19
 
 ### Changed
+
 - **Moments**: Multiline posts now preserve internal line breaks in the feed, editor, and inbox instead of losing everything after the first line.
 - **Moments header**: The All, Open, and Inbox controls now use compact icon buttons so hashtag filters have more room.
 
 ### Fixed
+
 - **Moments parsing**: Entry parsing and mutation now treat a post as a block, so editing and deleting multiline entries keeps the full text intact.
 
 ## [0.1.9] - 2026-03-18
 
 ### Fixed
+
 - **Extension packaging**: The published VSIX now excludes local-only `.github/` and `.superset/` folders, so marketplace packages no longer ship machine-specific tooling metadata.
 
 ## [0.1.8] - 2026-03-18
 
 ### Changed
+
 - **Moments card actions**: Regular posts now show `Edit`, `Pin`, and `Delete` in a steadier order, and the Pin action stays subtly visible at rest so the header no longer leaves a dead gap on the far right.
 - **Pinned Moments**: The active Pin button keeps its accent treatment while sharing the same tighter header rhythm as regular posts.
 
 ## [0.1.7] - 2026-03-18
 
 ### Changed
+
 - **Moments cards**: Edit, Delete, and Pin controls now sit in the card header beside the time metadata, keeping actions in the top-right while preserving the left checkbox column.
 - **Pinned Moments**: Pinned cards follow the same header action placement as regular Moments cards for a more consistent layout.
 
 ## [0.1.6] - 2026-03-18
 
 ### Fixed
+
 - **Pinned Moments**: Pinned posts now keep the same checkbox column and left alignment as regular Moments entries, so pinning no longer makes checkability disappear or shifts content left.
 - **Pinned state sync**: Pinned posts now resolve their latest text, time, and open/done state from the live Moments feed, keeping the pinned section visually consistent with the source entry.
 
 ## [0.1.5] - 2026-03-18
 
 ### Changed
+
 - **Moments**: Every Moment is now treated as a checkable post, so the feed keeps a consistent left edge and any item can be marked open or done inline.
 - **Moments Inbox**: The `Open` view and Inbox now work from post completion state instead of a separate task-only entry type.
 
 ### Fixed
+
 - **Moments compatibility**: Legacy `- HH:mm text` lines are still read as unchecked posts, but new writes and edits normalize to checkbox-based lines so the format stays consistent over time.
 - **MCP write path**: `add_moment` now writes the unified checkbox-based Moments format instead of reintroducing legacy non-checkbox lines.
 
 ## [0.1.4] - 2026-03-14
 
 ### Changed
+
 - **Moments**: Pinned entries are now hidden from the regular timeline. They appear only in the Pinned section at the top. Day sections where all entries are pinned are omitted entirely.
 
 ## [0.1.3] - 2026-03-14
 
 ### Changed
+
 - **Moments**: Each entry is now displayed as a card with a border and rounded corners, matching the input area style. Cards have horizontal margins and gap between them for clearer visual separation.
 
 ## [0.1.2] - 2026-03-14
 
 ### Fixed
+
 - **Moments**: Pinned entries now show a uniform blue highlight on all 4 sides. Previously `border-left: 2px` caused an L-shaped artifact (left + bottom corner appeared blue; top and right had nothing) and slightly reduced inner content width. Replaced with `box-shadow: inset` which is layout-neutral.
 
 ## [0.1.1] - 2026-03-14
 
 ### Fixed
+
 - **Moments**: Clicking Send no longer fails to post. A missing `if (editingEntryKey)` guard in the render loop caused a JavaScript ReferenceError on every panel update, preventing entries from appearing after sending.
 
 ## [0.1.0] - 2026-03-14
 
 ### Added
+
 - **Wiki-style links**: `[[Note Title]]` syntax with click navigation, Cmd+Click definition provider, `[[` autocomplete, and a Backlinks sidebar panel showing all notes that link to the current file (#2)
 - **Full-text search in Moments**: Real-time search box in the Moments panel header; works alongside hashtag filters with AND logic (#3)
 - **Moments → Note export**: Select mode with per-entry checkboxes; "Export as Note" creates a grouped markdown note and opens it in the editor (#5)
@@ -338,43 +421,51 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 - **Moments archiving**: `notes.archiveMoments` command moves Moments files older than `notes.momentsArchiveAfterDays` (default 90) to `moments/archive/YYYY-MM/` (#13)
 
 ### Changed
+
 - **`momentsPanel.ts` refactored**: Split 1800-line file into `src/moments/types.ts`, `config.ts`, `fileIo.ts`, `taskOverview.ts`, `dueDates.ts`, and `panel.ts`; `momentsPanel.ts` is now a re-export barrel (#7)
 - **Timestamp collision prevention**: Note filenames now include seconds (`HH-mm-ss`); a `-2`, `-3`… suffix is appended if a collision still occurs (#14)
 - **Inbox filter cycle extended**: "All → Open → Done → Overdue → All"
 
 ### Fixed
+
 - Increased unit test coverage for pure functions in `noteCommands.ts`, `moments/fileIo.ts`, `moments/config.ts`, and `moments/dueDates.ts` (#11)
 
 ## [0.0.47] - 2026-03-13
 
 ### Fixed
+
 - **Moments UI**: Fixed an alignment issue where the task checkbox got pinned to the top instead of remaining vertically centered with the text.
 
 ## [0.0.46] - 2026-03-13
 
 ### Changed
+
 - **Moments UX**: Unified the Enter-key behavior: Editing a moment now follows your configured "Send on Enter" setting (matching the new message input area).
 - **Moments UI**: Removed redundant hints about shortcut keys to clean up vertical space.
 
 ## [0.0.45] - 2026-03-13
 
 ### Changed
+
 - **Moments UI**: Aligned non-task moments text with tasks for a cleaner feed and replaced inline action text buttons ("Edit", "Delete", "Make Task") with sleek SVG icons corresponding to native VS Code Codicons.
 
 ## [0.0.44] - 2026-03-13
 
 ### Changed
+
 - **Moments UI**: Redesigned the Moments input area to a modern, unified container, mimicking the GitHub Copilot Chat layout. Features a clean outline focus state, an embedded "Add as task" checkbox, and a send icon button.
 
 ## [0.0.43] - 2026-03-13
 
 ### Added
+
 - **Walkthrough Guide**: Added a welcoming step-by-step walkthrough to help new users configure settings and start taking notes quickly.
 - **Improved Empty States**: Moments panel now displays better empty states and clearer instructional hints.
 - **Search and Create Flow**: You can now seamlessly create a new note directly from the Quick Pick search if no matching note exists.
 - **Rich Sidebar Tooltips**: Extension sidebar now uses Markdown to preview file paths, tags, recent updates, and excerpts neatly while hovering.
 
 ### Improved
+
 - Webview UI Toolkit was integrated into the Moments UI for better native VS Code feeling.
 - Various icons across the sidebar (Pinned/Recent/Tags) have been updated to represent content types correctly.
 - Action icons correctly display inline and hover correctly for standard Context Menus.
@@ -497,6 +588,7 @@ line position, which matches what `toggleTask` computes.
 
 The `□` in "□ Task" button was static HTML (`&#9744;`) and never changed on click.
 Only the button color changed (blue `.active` class). Fixed by:
+
 - Removing the static `□` from the HTML
 - Updating `textContent` in the click handler: inactive = `Task`, active = `✓ Task`
 
@@ -507,6 +599,7 @@ Only the button color changed (blue `.active` class). Fixed by:
 Previous Unicode character approach (`☑`/`☐`) was unreliable because VS Code WebView's
 default font does not include these characters (rendered as tofu □). Replaced with inline SVG
 drawn via `createElementNS` — completely font-independent:
+
 - Undone: hollow rounded square outline
 - Done: filled rounded square with white polyline checkmark
 
@@ -542,6 +635,7 @@ when a task is marked done.
 ### New feature: Moments
 
 A quick-capture timeline panel inspired by stream-of-consciousness note-taking tools.
+
 - **Activity Bar entry**: A dedicated lightning-bolt icon opens the Moments panel from any context.
 - **Timeline view**: Timestamped entries displayed in chronological order (chat-style, newest at bottom).
 - **Quick input**: Type a thought and press Enter (or Cmd+Enter) to save instantly.
@@ -580,7 +674,7 @@ A quick-capture timeline panel inspired by stream-of-consciousness note-taking t
 
 ## [0.0.19] - 2026-02-11
 
-- Fix: Snippet name prefix mismatch (notes_ → noteeees_) causing template insertion to silently fail.
+- Fix: Snippet name prefix mismatch (notes* → noteeees*) causing template insertion to silently fail.
 - Always show template picker (Default / Empty / custom) when creating new notes.
 - Update default bundled snippet template with frontmatter (tags/title/date).
 
