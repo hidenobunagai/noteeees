@@ -1,4 +1,4 @@
-import * as fs from "fs";
+import * as fs from "fs/promises";
 import * as path from "path";
 import * as vscode from "vscode";
 import { buildQueryExcerpt } from "../noteCommands.js";
@@ -110,13 +110,15 @@ function buildInboxFilterButton(filter: InboxTaskFilter): vscode.QuickInputButto
   };
 }
 
-function collectOpenTaskOverview(notesDir: string): TaskOverviewItem[] {
+async function collectOpenTaskOverview(notesDir: string): Promise<TaskOverviewItem[]> {
   const momentsDir = getMomentsDirectory(notesDir);
-  if (!fs.existsSync(momentsDir)) {
+  try {
+    await fs.access(momentsDir);
+  } catch {
     return [];
   }
 
-  const files = fs.readdirSync(momentsDir, { withFileTypes: true });
+  const files = await fs.readdir(momentsDir, { withFileTypes: true });
   const items: TaskOverviewItem[] = [];
 
   for (const file of files) {
@@ -130,8 +132,8 @@ function collectOpenTaskOverview(notesDir: string): TaskOverviewItem[] {
     }
 
     const filePath = path.join(momentsDir, file.name);
-    const raw = fs.readFileSync(filePath, "utf8");
-    const entries = readMoments(notesDir, date);
+    const raw = await fs.readFile(filePath, "utf8");
+    const entries = await readMoments(notesDir, date);
 
     for (const entry of entries) {
       items.push({
@@ -161,12 +163,15 @@ function openOpenTaskItem(item: TaskOverviewItem): Thenable<vscode.TextEditor> {
   });
 }
 
-function toggleTaskAtFileLine(filePath: string, fileLineIndex: number): boolean {
-  if (!fs.existsSync(filePath)) {
+async function toggleTaskAtFileLine(filePath: string, fileLineIndex: number): Promise<boolean> {
+  try {
+    await fs.access(filePath);
+  } catch {
     return false;
   }
 
-  const lines = fs.readFileSync(filePath, "utf8").split("\n");
+  const content = await fs.readFile(filePath, "utf8");
+  const lines = content.split("\n");
   if (fileLineIndex < 0 || fileLineIndex >= lines.length) {
     return false;
   }
@@ -177,7 +182,7 @@ function toggleTaskAtFileLine(filePath: string, fileLineIndex: number): boolean 
   }
 
   lines[fileLineIndex] = result.line;
-  fs.writeFileSync(filePath, lines.join("\n"), "utf8");
+  await fs.writeFile(filePath, lines.join("\n"), "utf8");
   return true;
 }
 
@@ -189,8 +194,8 @@ export async function showOpenTasksOverview(notesDir: string): Promise<void> {
   quickPick.matchOnDetail = true;
   quickPick.buttons = [buildInboxFilterButton(activeFilter)];
 
-  const refreshItems = (query: string = quickPick.value): number => {
-    const items = collectOpenTaskOverview(notesDir);
+  const refreshItems = async (query: string = quickPick.value): Promise<number> => {
+    const items = await collectOpenTaskOverview(notesDir);
     const filteredItems = filterTaskOverviewItems(items, activeFilter);
     quickPick.title = `Moments Inbox • ${getInboxFilterLabel(activeFilter)}`;
     quickPick.buttons = [buildInboxFilterButton(activeFilter)];
@@ -207,7 +212,7 @@ export async function showOpenTasksOverview(notesDir: string): Promise<void> {
     return items.length;
   };
 
-  if (refreshItems() === 0) {
+  if ((await refreshItems()) === 0) {
     quickPick.dispose();
     vscode.window.showInformationMessage("No moments found across all days.");
     return;
@@ -224,22 +229,22 @@ export async function showOpenTasksOverview(notesDir: string): Promise<void> {
   });
 
   quickPick.onDidChangeValue((value) => {
-    refreshItems(value);
+    void refreshItems(value);
   });
 
   quickPick.onDidTriggerButton(() => {
     activeFilter = getNextInboxFilter(activeFilter);
     void persistInboxTaskFilter(activeFilter);
-    refreshItems(quickPick.value);
+    void refreshItems(quickPick.value);
   });
 
-  quickPick.onDidTriggerItemButton((event) => {
+  quickPick.onDidTriggerItemButton(async (event) => {
     quickPick.busy = true;
     quickPick.enabled = false;
 
     try {
-      toggleTaskAtFileLine(event.item.task.filePath, event.item.task.fileLineIndex);
-      refreshItems(quickPick.value);
+      await toggleTaskAtFileLine(event.item.task.filePath, event.item.task.fileLineIndex);
+      await refreshItems(quickPick.value);
     } finally {
       quickPick.busy = false;
       quickPick.enabled = true;

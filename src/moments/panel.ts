@@ -1,4 +1,4 @@
-import * as fs from "fs";
+import * as fs from "fs/promises";
 import * as path from "path";
 import * as vscode from "vscode";
 import {
@@ -55,7 +55,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
 
     webviewView.webview.html = this._getHtml(webviewView.webview);
 
-    webviewView.webview.onDidReceiveMessage((message) => {
+    webviewView.webview.onDidReceiveMessage(async (message) => {
       const notesDir = this._getNotesDir();
       switch (message.command) {
         case "ready":
@@ -83,7 +83,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
             this._showError("Moment text must not be empty.");
             return;
           }
-          appendMoment(notesDir, formatDate(new Date()), message.text);
+          await appendMoment(notesDir, formatDate(new Date()), message.text);
           this._sendEntries();
           break;
         }
@@ -100,12 +100,12 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
           }
 
           if (
-            !saveMomentEdit(
+            !(await saveMomentEdit(
               notesDir,
               message.date ?? formatDate(new Date()),
               message.index,
               message.text,
-            )
+            ))
           ) {
             this._showError("Could not save that Moment entry.");
             return;
@@ -126,13 +126,17 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
 
           void vscode.window
             .showWarningMessage("Delete this Moment entry?", { modal: true }, "Delete")
-            .then((selection) => {
+            .then(async (selection) => {
               if (selection !== "Delete") {
                 return;
               }
 
               if (
-                !deleteMomentEntry(notesDir, message.date ?? formatDate(new Date()), message.index)
+                !(await deleteMomentEntry(
+                  notesDir,
+                  message.date ?? formatDate(new Date()),
+                  message.index,
+                ))
               ) {
                 this._showError("Could not delete that Moment entry.");
                 return;
@@ -149,8 +153,10 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
           }
           const currentDate = formatDate(new Date());
           const filePath = getMomentsFilePath(notesDir, currentDate);
-          if (!fs.existsSync(filePath)) {
-            ensureMomentsFile(notesDir, currentDate);
+          try {
+            await fs.access(filePath);
+          } catch {
+            await ensureMomentsFile(notesDir, currentDate);
           }
           vscode.workspace.openTextDocument(filePath).then((doc) => {
             vscode.window.showTextDocument(doc);
@@ -207,7 +213,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
           const fileName = `${stamp}_exported-moments.md`;
           const filePath = path.join(notesDir, fileName);
 
-          fs.writeFileSync(filePath, content, "utf8");
+          await fs.writeFile(filePath, content, "utf8");
 
           void vscode.workspace.openTextDocument(filePath).then((doc) => {
             void vscode.window.showTextDocument(doc);
@@ -258,7 +264,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     this._view?.show(true);
   }
 
-  private _sendEntries(): void {
+  private async _sendEntries(): Promise<void> {
     if (!this._view) {
       return;
     }
@@ -267,7 +273,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     const feedSectionCount = Math.max(this._feedSectionCount, getMomentsFeedDayCount());
     this._feedSectionCount = feedSectionCount;
     const feed = notesDir
-      ? collectMomentsFeed(notesDir, today, feedSectionCount)
+      ? await collectMomentsFeed(notesDir, today, feedSectionCount)
       : { sections: [], hasMoreOlder: false };
     const sections = feed.sections;
     const sendOnEnter = getSendOnEnter();

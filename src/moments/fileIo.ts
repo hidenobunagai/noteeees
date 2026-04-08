@@ -1,4 +1,4 @@
-import * as fs from "fs";
+import * as fs from "fs/promises";
 import * as path from "path";
 import * as vscode from "vscode";
 import {
@@ -44,15 +44,17 @@ export function getMomentsDirectory(notesDir: string): string {
   return path.join(notesDir, getMomentsSubfolder());
 }
 
-function listMomentFileDates(notesDir: string): string[] {
+async function listMomentFileDates(notesDir: string): Promise<string[]> {
   const momentsDir = getMomentsDirectory(notesDir);
-  if (!fs.existsSync(momentsDir)) {
+  try {
+    await fs.access(momentsDir);
+  } catch {
     return [];
   }
 
   const dateFilePattern = /^(\d{4}-\d{2}-\d{2})\.md$/;
-  return fs
-    .readdirSync(momentsDir, { withFileTypes: true })
+  const entries = await fs.readdir(momentsDir, { withFileTypes: true });
+  return entries
     .filter((entry) => entry.isFile())
     .map((entry) => entry.name.match(dateFilePattern)?.[1])
     .filter((date): date is string => Boolean(date))
@@ -180,13 +182,15 @@ export function buildMomentsFeedDates(
   return Array.from({ length: safeDayCount }, (_, index) => offsetDate(anchorDate, -index));
 }
 
-export function readMoments(notesDir: string, date: string): MomentEntry[] {
+export async function readMoments(notesDir: string, date: string): Promise<MomentEntry[]> {
   const filePath = getMomentsFilePath(notesDir, date);
-  if (!fs.existsSync(filePath)) {
+  try {
+    await fs.access(filePath);
+  } catch {
     return [];
   }
 
-  const raw = fs.readFileSync(filePath, "utf8");
+  const raw = await fs.readFile(filePath, "utf8");
   // Strip front matter only — do NOT trim, so line indices stay consistent with toggleTask
   const body = raw.replace(/^---\n[\s\S]*?\n---\n/, "");
   const lines = body.split("\n");
@@ -348,26 +352,27 @@ export interface MomentsFeedData {
   hasMoreOlder: boolean;
 }
 
-export function collectMomentsFeed(
+export async function collectMomentsFeed(
   notesDir: string,
   anchorDate: string,
   sectionCount: number = getMomentsFeedDayCount(),
-): MomentsFeedData {
+): Promise<MomentsFeedData> {
   const today = formatDate(new Date());
   const safeSectionCount = normalizeMomentsFeedDayCount(sectionCount);
-  const fileDates = listMomentFileDates(notesDir).filter((date) => date < anchorDate);
+  const fileDates = (await listMomentFileDates(notesDir)).filter((date) => date < anchorDate);
+  const firstEntries = await readMoments(notesDir, anchorDate);
   const sections: MomentDaySection[] = [
     {
       date: anchorDate,
       dateLabel: buildMomentsDateLabel(anchorDate, today),
       isToday: anchorDate === today,
-      entries: readMoments(notesDir, anchorDate),
+      entries: firstEntries,
     },
   ];
   let hasMoreOlder = false;
 
   for (const date of fileDates) {
-    const entries = readMoments(notesDir, date);
+    const entries = await readMoments(notesDir, date);
     if (entries.length === 0) {
       continue;
     }
@@ -392,41 +397,45 @@ export function collectMomentsFeed(
   };
 }
 
-export function ensureMomentsFile(notesDir: string, date: string): string {
+export async function ensureMomentsFile(notesDir: string, date: string): Promise<string> {
   const filePath = getMomentsFilePath(notesDir, date);
   const dir = path.dirname(filePath);
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
+  try {
+    await fs.access(dir);
+  } catch {
+    await fs.mkdir(dir, { recursive: true });
   }
 
-  if (!fs.existsSync(filePath)) {
-    fs.writeFileSync(filePath, `---\ntype: moments\ndate: ${date}\n---\n\n`, "utf8");
+  try {
+    await fs.access(filePath);
+  } catch {
+    await fs.writeFile(filePath, `---\ntype: moments\ndate: ${date}\n---\n\n`, "utf8");
   }
   return filePath;
 }
 
-export function appendMoment(notesDir: string, date: string, text: string): void {
-  const filePath = ensureMomentsFile(notesDir, date);
+export async function appendMoment(notesDir: string, date: string, text: string): Promise<void> {
+  const filePath = await ensureMomentsFile(notesDir, date);
   const time = formatTime(new Date());
   const entryText = text.replace(/\r\n/g, "\n").trim();
   const entry = `- ${time} ${entryText}\n`;
 
-  let content = fs.readFileSync(filePath, "utf8");
-  // Ensure ends with newline before appending
+  let content = await fs.readFile(filePath, "utf8");
   if (!content.endsWith("\n")) {
     content += "\n";
   }
-  fs.writeFileSync(filePath, content + entry, "utf8");
+  await fs.writeFile(filePath, content + entry, "utf8");
 }
 
-export function toggleTask(notesDir: string, date: string, index: number): void {
+export async function toggleTask(notesDir: string, date: string, index: number): Promise<void> {
   const filePath = getMomentsFilePath(notesDir, date);
-  if (!fs.existsSync(filePath)) {
+  try {
+    await fs.access(filePath);
+  } catch {
     return;
   }
 
-  const raw = fs.readFileSync(filePath, "utf8");
-  // Preserve front matter as-is; work on full file lines
+  const raw = await fs.readFile(filePath, "utf8");
   const lines = raw.split("\n");
   const fileLineIdx = mapMomentBodyIndexToFileLine(raw, index);
   if (fileLineIdx >= lines.length) {
@@ -440,21 +449,23 @@ export function toggleTask(notesDir: string, date: string, index: number): void 
 
   lines[fileLineIdx] = result.line;
 
-  fs.writeFileSync(filePath, lines.join("\n"), "utf8");
+  await fs.writeFile(filePath, lines.join("\n"), "utf8");
 }
 
-export function saveMomentEdit(
+export async function saveMomentEdit(
   notesDir: string,
   date: string,
   index: number,
   text: string,
-): boolean {
+): Promise<boolean> {
   const filePath = getMomentsFilePath(notesDir, date);
-  if (!fs.existsSync(filePath)) {
+  try {
+    await fs.access(filePath);
+  } catch {
     return false;
   }
 
-  const raw = fs.readFileSync(filePath, "utf8");
+  const raw = await fs.readFile(filePath, "utf8");
   const lines = raw.split("\n");
   const fileLineIdx = mapMomentBodyIndexToFileLine(raw, index);
   if (fileLineIdx < 0 || fileLineIdx >= lines.length) {
@@ -471,17 +482,23 @@ export function saveMomentEdit(
     return false;
   }
 
-  fs.writeFileSync(filePath, result.lines.join("\n"), "utf8");
+  await fs.writeFile(filePath, result.lines.join("\n"), "utf8");
   return true;
 }
 
-export function deleteMomentEntry(notesDir: string, date: string, index: number): boolean {
+export async function deleteMomentEntry(
+  notesDir: string,
+  date: string,
+  index: number,
+): Promise<boolean> {
   const filePath = getMomentsFilePath(notesDir, date);
-  if (!fs.existsSync(filePath)) {
+  try {
+    await fs.access(filePath);
+  } catch {
     return false;
   }
 
-  const raw = fs.readFileSync(filePath, "utf8");
+  const raw = await fs.readFile(filePath, "utf8");
   const lines = raw.split("\n");
   const fileLineIdx = mapMomentBodyIndexToFileLine(raw, index);
   const range = findMomentEntryRange(lines, fileLineIdx);
@@ -490,7 +507,7 @@ export function deleteMomentEntry(notesDir: string, date: string, index: number)
   }
 
   const nextLines = [...lines.slice(0, range.startIndex), ...lines.slice(range.endIndex)];
-  fs.writeFileSync(filePath, nextLines.join("\n"), "utf8");
+  await fs.writeFile(filePath, nextLines.join("\n"), "utf8");
   return true;
 }
 
@@ -501,7 +518,9 @@ export async function archiveMoments(
   const afterDays = Math.max(1, config.get<number>("momentsArchiveAfterDays") ?? 90);
 
   const momentsDir = getMomentsDirectory(notesDir);
-  if (!fs.existsSync(momentsDir)) {
+  try {
+    await fs.access(momentsDir);
+  } catch {
     return { archived: 0, skipped: 0 };
   }
 
@@ -509,7 +528,7 @@ export async function archiveMoments(
   cutoffDate.setDate(cutoffDate.getDate() - afterDays);
   const cutoffStr = formatDate(cutoffDate);
 
-  const entries = fs.readdirSync(momentsDir, { withFileTypes: true });
+  const entries = await fs.readdir(momentsDir, { withFileTypes: true });
   const dateFilePattern = /^(\d{4}-\d{2}-\d{2})\.md$/;
 
   let archived = 0;
@@ -532,13 +551,11 @@ export async function archiveMoments(
 
     const yearMonth = fileDate.slice(0, 7);
     const archiveDir = path.join(momentsDir, "archive", yearMonth);
-    if (!fs.existsSync(archiveDir)) {
-      fs.mkdirSync(archiveDir, { recursive: true });
-    }
+    await fs.mkdir(archiveDir, { recursive: true });
 
     const src = path.join(momentsDir, entry.name);
     const dest = path.join(archiveDir, entry.name);
-    fs.renameSync(src, dest);
+    await fs.rename(src, dest);
     archived++;
   }
 

@@ -1665,11 +1665,11 @@ suite("Extension Test Suite", () => {
     });
   });
 
-  test("multiline moments round-trip through append and read", () => {
+  test("multiline moments round-trip through append and read", async () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "noteeees-moments-"));
     try {
-      appendMoment(tmpDir, "2026-03-07", "First line\nSecond line\nThird line");
-      const entries = readMoments(tmpDir, "2026-03-07");
+      await appendMoment(tmpDir, "2026-03-07", "First line\nSecond line\nThird line");
+      const entries = await readMoments(tmpDir, "2026-03-07");
 
       assert.strictEqual(entries.length, 1);
       assert.strictEqual(entries[0].text, "First line\nSecond line\nThird line");
@@ -1679,7 +1679,7 @@ suite("Extension Test Suite", () => {
     }
   });
 
-  test("multiline moments save and delete operate on full blocks", () => {
+  test("multiline moments save and delete operate on full blocks", async () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "noteeees-moments-"));
     const date = "2026-03-07";
     const filePath = getMomentsFilePath(tmpDir, date);
@@ -1692,14 +1692,17 @@ suite("Extension Test Suite", () => {
         "utf8",
       );
 
-      assert.strictEqual(saveMomentEdit(tmpDir, date, 1, "Updated first\nUpdated second"), true);
-      let entries = readMoments(tmpDir, date);
+      assert.strictEqual(
+        await saveMomentEdit(tmpDir, date, 1, "Updated first\nUpdated second"),
+        true,
+      );
+      let entries = await readMoments(tmpDir, date);
       assert.strictEqual(entries.length, 2);
       assert.strictEqual(entries[0].text, "Updated first\nUpdated second");
       assert.strictEqual(entries[1].text, "Next entry");
 
-      assert.strictEqual(deleteMomentEntry(tmpDir, date, 1), true);
-      entries = readMoments(tmpDir, date);
+      assert.strictEqual(await deleteMomentEntry(tmpDir, date, 1), true);
+      entries = await readMoments(tmpDir, date);
       assert.deepStrictEqual(entries, [
         {
           index: 1,
@@ -1714,7 +1717,7 @@ suite("Extension Test Suite", () => {
     }
   });
 
-  test("moments feed can load older visible days incrementally", () => {
+  test("moments feed can load older visible days incrementally", async () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "noteeees-moments-"));
     const today = formatDate(new Date());
     const [todayDate, yesterdayDate, twoDaysAgoDate, threeDaysAgoDate] = buildMomentsFeedDates(
@@ -1740,14 +1743,14 @@ suite("Extension Test Suite", () => {
         "utf8",
       );
 
-      const initial = collectMomentsFeed(tmpDir, today, 2);
+      const initial = await collectMomentsFeed(tmpDir, today, 2);
       assert.deepStrictEqual(
         initial.sections.map((section) => section.date),
         [todayDate, twoDaysAgoDate],
       );
       assert.strictEqual(initial.hasMoreOlder, true);
 
-      const expanded = collectMomentsFeed(tmpDir, today, 3);
+      const expanded = await collectMomentsFeed(tmpDir, today, 3);
       assert.deepStrictEqual(
         expanded.sections.map((section) => section.date),
         [todayDate, twoDaysAgoDate, threeDaysAgoDate],
