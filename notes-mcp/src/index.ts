@@ -34,7 +34,22 @@ function getNotesDir(): string {
   if (!notesDir) {
     throw new Error("NOTES_DIRECTORY environment variable not set");
   }
-  return notesDir;
+  return path.resolve(notesDir);
+}
+
+function isPathInside(parentDir: string, candidatePath: string): boolean {
+  const resolvedParent = path.resolve(parentDir);
+  const resolvedCandidate = path.resolve(candidatePath);
+  return (
+    resolvedCandidate === resolvedParent ||
+    resolvedCandidate.startsWith(`${resolvedParent}${path.sep}`)
+  );
+}
+
+function resolveSafeFilePath(notesDir: string, relativePath: string): string | null {
+  const resolved = path.resolve(notesDir, relativePath);
+  if (!isPathInside(notesDir, resolved)) return null;
+  return resolved;
 }
 
 function pad(n: number): string {
@@ -306,10 +321,6 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
         type: "object" as const,
         properties: {
           text: { type: "string", description: "The moment text to record" },
-          is_task: {
-            type: "boolean",
-            description: "Deprecated. Moments are now always created as unchecked posts.",
-          },
           date: {
             type: "string",
             description: "Target date in YYYY-MM-DD format. Defaults to today if omitted.",
@@ -571,6 +582,16 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
     case "get_note_content": {
       const { filename } = request.params.arguments as { filename: string };
+      if (!resolveSafeFilePath(notesDir, filename)) {
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify({ error: `Invalid filename: ${filename}` }),
+            },
+          ],
+        };
+      }
       const entry = entries.find((e) => e.filename === filename);
       if (!entry) {
         return {
@@ -595,10 +616,31 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         subfolder?: string;
       };
 
+      if (!title.trim()) {
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify({ error: "Title must not be empty" }),
+            },
+          ],
+        };
+      }
+
       const timestamp = nowTimestamp();
       const safeName = sanitizeTitle(title);
       const filename = `${timestamp}_${safeName}.md`;
       const targetDir = subfolder ? path.join(notesDir, subfolder) : notesDir;
+      if (!isPathInside(notesDir, targetDir)) {
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify({ error: `Invalid subfolder: ${subfolder}` }),
+            },
+          ],
+        };
+      }
       fs.mkdirSync(targetDir, { recursive: true });
       const filePath = path.join(targetDir, filename);
       const body = buildNoteContent(title, content, tags);
@@ -621,7 +663,17 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         content: string;
       };
 
-      const filePath = path.join(notesDir, targetFilename);
+      const filePath = resolveSafeFilePath(notesDir, targetFilename);
+      if (!filePath) {
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify({ error: `Invalid filename: ${targetFilename}` }),
+            },
+          ],
+        };
+      }
       if (!fs.existsSync(filePath)) {
         return {
           content: [
@@ -651,12 +703,31 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     case "add_moment": {
       const { text, date } = request.params.arguments as {
         text: string;
-        is_task?: boolean;
         date?: string;
       };
 
       const targetDate = date ?? todayDate();
+      if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify({ error: `Invalid date format: ${date}. Use YYYY-MM-DD.` }),
+            },
+          ],
+        };
+      }
       const filePath = getMomentsFilePath(notesDir, targetDate);
+      if (!isPathInside(notesDir, filePath)) {
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify({ error: `Invalid moments path for date: ${targetDate}` }),
+            },
+          ],
+        };
+      }
       ensureMomentsFile(filePath, targetDate);
 
       const time = currentTime();
@@ -717,18 +788,27 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
           ],
         };
       }
-      const filePath = task.filePath;
-      if (!fs.existsSync(filePath)) {
+      if (!isPathInside(notesDir, task.filePath)) {
         return {
           content: [
             {
               type: "text" as const,
-              text: JSON.stringify({ error: `File not found: ${filePath}` }),
+              text: JSON.stringify({ error: `Invalid file path for task: ${task_id}` }),
             },
           ],
         };
       }
-      const fileLines = fs.readFileSync(filePath, "utf8").split("\n");
+      if (!fs.existsSync(task.filePath)) {
+        return {
+          content: [
+            {
+              type: "text" as const,
+              text: JSON.stringify({ error: `File not found: ${task.filePath}` }),
+            },
+          ],
+        };
+      }
+      const fileLines = fs.readFileSync(task.filePath, "utf8").split("\n");
       const line = fileLines[task.lineIndex];
       if (!line) {
         return {
@@ -744,7 +824,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         ? line.replace(/^- \[ \]/, "- [x]")
         : line.replace(/^- \[[xX]\]/, "- [ ]");
       fileLines[task.lineIndex] = updatedLine;
-      fs.writeFileSync(filePath, fileLines.join("\n"), "utf8");
+      fs.writeFileSync(task.filePath, fileLines.join("\n"), "utf8");
       setTaskDone(notesDir, task_id, done);
       clearSearchIndexCache();
       return {
