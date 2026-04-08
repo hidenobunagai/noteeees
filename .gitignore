@@ -11,3 +11,4 @@ excalidraw.log
 .cline/
 .vscode/settings.json
 docs/
+.playwright-mcp/
