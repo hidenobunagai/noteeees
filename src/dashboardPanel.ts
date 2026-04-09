@@ -2654,10 +2654,15 @@ ${buildDashboardExtractSectionHtml(data.today)}
         if (!actionEl) {
           return;
         }
-        if (actionEl.dataset.action === "dismiss-candidate-error") {
+        var action = actionEl.dataset.action;
+        if (action === "dismiss-candidate-error") {
           state.candidateBlockError = "";
           persistState();
           rerender();
+        } else if (action === "add-extracted" || action === "add-candidate") {
+          handleAddExtractedAction(actionEl);
+        } else if (action === "dismiss-extracted" || action === "dismiss-candidate") {
+          handleDismissExtractedAction(actionEl);
         }
       });
     }

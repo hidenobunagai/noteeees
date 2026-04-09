@@ -6,6 +6,13 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.9.2] - 2026-04-09
+
+### Fixed
+
+- **Candidate Add/Dismiss buttons unresponsive**: Fixed a bug where clicking "Add" or "Dismiss" on AI-extracted candidate tasks had no effect because the candidate block's click listener only handled error dismissals. The handler now also delegates `add-candidate` and `dismiss-candidate` actions.
+- **Task edit "Task text cannot be empty" error**: Fixed a bug where clicking Save on an edited task always showed "Task text cannot be empty" because `closest("[data-task-id]")` returned the Save button itself instead of the parent `<article>`, causing the textarea lookup to fail.
+
 ## [0.9.1] - 2026-04-09
 
 ### Fixed
