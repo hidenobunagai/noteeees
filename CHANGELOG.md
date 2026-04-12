@@ -6,6 +6,12 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.9.3] - 2026-04-12
+
+### Changed
+
+- **Dashboard action icons**: Saved task rows in the Task Dashboard now use compact icon buttons for `Edit`, `Open`, and `Delete`, matching the existing Moments action style while keeping the narrow `More` menu text-based.
+
 ## [0.9.2] - 2026-04-09
 
 ### Fixed
