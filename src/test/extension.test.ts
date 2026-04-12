@@ -1221,6 +1221,9 @@ suite("Extension Test Suite", () => {
 
   test("dashboard webview keeps saved-row interaction rules in dense listboard rows", () => {
     const html = renderDashboardWebviewHtml();
+    const secondaryActionsClusterMatch = html.match(
+      /<div class="task-row-secondary-actions">([\s\S]*?)<\/div>/,
+    );
 
     assert.ok(
       html.includes('class="task-row-toggle"') &&
@@ -1234,15 +1237,22 @@ suite("Extension Test Suite", () => {
         !html.includes('class="task-row-title" data-action="edit"'),
       "expected the task title to remain the Open control",
     );
-    // At desktop widths, secondary actions are revealed by hover/focus
+    // At desktop widths, secondary actions are revealed by hover/focus as icon-only buttons
     assert.ok(
       html.includes('class="task-row-secondary-actions"') &&
         html.includes("task-row:hover .task-row-secondary-actions") &&
         html.includes("task-row:focus-within .task-row-secondary-actions") &&
-        html.includes(">Edit</button>") &&
-        html.includes(">Open</button>") &&
-        html.includes(">Delete</button>"),
-      "expected Edit, Open, and Delete to stay as secondary actions revealed by hover or focus-within",
+        secondaryActionsClusterMatch !== null &&
+        secondaryActionsClusterMatch[1].includes('class="task-row-action-icon" data-action="edit"') &&
+        secondaryActionsClusterMatch[1].includes('class="task-row-action-icon" data-action="open"') &&
+        secondaryActionsClusterMatch[1].includes('class="task-row-action-icon" data-action="delete"') &&
+        secondaryActionsClusterMatch[1].includes('aria-label="Edit"') &&
+        secondaryActionsClusterMatch[1].includes('aria-label="Open"') &&
+        secondaryActionsClusterMatch[1].includes('aria-label="Delete"') &&
+        !secondaryActionsClusterMatch[1].includes('>Edit</button>') &&
+        !secondaryActionsClusterMatch[1].includes('>Open</button>') &&
+        !secondaryActionsClusterMatch[1].includes('>Delete</button>'),
+      "expected saved-row secondary actions to render as icon buttons with Edit/Open/Delete aria labels when revealed by hover or focus-within",
     );
     assert.ok(
       html.includes("task-row-saved") &&
@@ -1262,6 +1272,9 @@ suite("Extension Test Suite", () => {
 
   test("dashboard webview shows narrow-width More menu for saved-task rows", () => {
     const html = renderDashboardWebviewHtml();
+    const moreDropdownMarkupMatch = html.match(
+      /<div class="task-row-more-dropdown" data-more-dropdown="[^"]+">([\s\S]*?)<\/div>/,
+    );
 
     // More menu is hidden at desktop widths
     assert.ok(
@@ -1281,10 +1294,16 @@ suite("Extension Test Suite", () => {
       "expected saved-task rows to have a More button",
     );
 
-    // More dropdown contains Edit, Open, Delete
+    // More dropdown contains visible Edit, Open, Delete text actions
     assert.ok(
-      html.includes("task-row-more-dropdown") || html.includes("task-row-more-menu"),
-      "expected More dropdown to exist",
+      moreDropdownMarkupMatch !== null &&
+        moreDropdownMarkupMatch[1].includes('data-action="edit"') &&
+        moreDropdownMarkupMatch[1].includes('>Edit</button>') &&
+        moreDropdownMarkupMatch[1].includes('data-action="open"') &&
+        moreDropdownMarkupMatch[1].includes('>Open</button>') &&
+        moreDropdownMarkupMatch[1].includes('data-action="delete"') &&
+        moreDropdownMarkupMatch[1].includes('>Delete</button>'),
+      "expected More dropdown to keep visible Edit, Open, and Delete text actions at narrow widths",
     );
   });
 
