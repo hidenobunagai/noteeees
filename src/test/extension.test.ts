@@ -1310,15 +1310,21 @@ suite("Extension Test Suite", () => {
         html.includes("task-row:hover .task-row-secondary-actions") &&
         html.includes("task-row:focus-within .task-row-secondary-actions") &&
         secondaryActionsClusterMatch !== null &&
-        secondaryActionsClusterMatch[1].includes('class="task-row-action-icon" data-action="edit"') &&
-        secondaryActionsClusterMatch[1].includes('class="task-row-action-icon" data-action="open"') &&
-        secondaryActionsClusterMatch[1].includes('class="task-row-action-icon" data-action="delete"') &&
+        secondaryActionsClusterMatch[1].includes(
+          'class="task-row-action-icon" data-action="edit"',
+        ) &&
+        secondaryActionsClusterMatch[1].includes(
+          'class="task-row-action-icon" data-action="open"',
+        ) &&
+        secondaryActionsClusterMatch[1].includes(
+          'class="task-row-action-icon" data-action="delete"',
+        ) &&
         secondaryActionsClusterMatch[1].includes('aria-label="Edit"') &&
         secondaryActionsClusterMatch[1].includes('aria-label="Open"') &&
         secondaryActionsClusterMatch[1].includes('aria-label="Delete"') &&
-        !secondaryActionsClusterMatch[1].includes('>Edit</button>') &&
-        !secondaryActionsClusterMatch[1].includes('>Open</button>') &&
-        !secondaryActionsClusterMatch[1].includes('>Delete</button>'),
+        !secondaryActionsClusterMatch[1].includes(">Edit</button>") &&
+        !secondaryActionsClusterMatch[1].includes(">Open</button>") &&
+        !secondaryActionsClusterMatch[1].includes(">Delete</button>"),
       "expected saved-row secondary actions to render as icon buttons with Edit/Open/Delete aria labels when revealed by hover or focus-within",
     );
     assert.ok(
@@ -1365,11 +1371,11 @@ suite("Extension Test Suite", () => {
     assert.ok(
       moreDropdownMarkupMatch !== null &&
         moreDropdownMarkupMatch[1].includes('data-action="edit"') &&
-        moreDropdownMarkupMatch[1].includes('>Edit</button>') &&
+        moreDropdownMarkupMatch[1].includes(">Edit</button>") &&
         moreDropdownMarkupMatch[1].includes('data-action="open"') &&
-        moreDropdownMarkupMatch[1].includes('>Open</button>') &&
+        moreDropdownMarkupMatch[1].includes(">Open</button>") &&
         moreDropdownMarkupMatch[1].includes('data-action="delete"') &&
-        moreDropdownMarkupMatch[1].includes('>Delete</button>'),
+        moreDropdownMarkupMatch[1].includes(">Delete</button>"),
       "expected More dropdown to keep visible Edit, Open, and Delete text actions at narrow widths",
     );
   });
