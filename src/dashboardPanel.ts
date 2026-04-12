@@ -1415,6 +1415,43 @@ export class DashboardPanel {
     pointer-events: auto;
   }
 
+  .task-row-action-icon {
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border-radius: 999px;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 150ms ease, background-color 150ms ease, border-color 150ms ease;
+  }
+
+  .task-row-action-icon:hover {
+    color: var(--text);
+    background: var(--vscode-toolbar-hoverBackground, color-mix(in srgb, var(--border) 50%, transparent));
+    border-color: color-mix(in srgb, var(--border) 70%, transparent);
+  }
+
+  .task-row-action-icon[data-action="delete"] {
+    color: color-mix(in srgb, var(--danger) 78%, var(--muted));
+  }
+
+  .task-row-action-icon[data-action="delete"]:hover {
+    color: var(--danger);
+    background: color-mix(in srgb, var(--danger) 12%, transparent);
+    border-color: color-mix(in srgb, var(--danger) 32%, transparent);
+  }
+
+  .task-row-action-icon svg {
+    width: 14px;
+    height: 14px;
+    display: block;
+  }
+
   .task-row-more-menu { display: none; position: relative; }
   .task-row-more-btn {
     border-radius: 999px;
@@ -2514,6 +2551,15 @@ ${buildDashboardExtractSectionHtml(data.today)}
       return '<div class="task-row-meta task-row-meta-candidate">' + badges.join("") + "</div>";
     }
 
+    function renderTaskActionIcon(action) {
+      const icons = {
+        edit: '<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path fill="currentColor" d="M11.7 1.3a1 1 0 0 1 1.4 0l1.6 1.6a1 1 0 0 1 0 1.4l-8 8L4 13l.7-2.7 8-8Zm-7 10.3 1.6-.4 6.9-6.9-1.2-1.2-6.9 6.9-.4 1.6Z"/></svg>',
+        open: '<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path fill="currentColor" d="M9 2h5v5h-1.5V4.6l-5.7 5.7-1-1 5.7-5.8H9V2Z"/><path fill="currentColor" d="M3 4.5A1.5 1.5 0 0 1 4.5 3H8v1.5H4.5v7h7V8H13v3.5A1.5 1.5 0 0 1 11.5 13h-7A1.5 1.5 0 0 1 3 11.5v-7Z"/></svg>',
+        delete: '<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path fill="currentColor" d="M6.5 2h3l.5 1H13v1.5H3V3h2.5l.5-1ZM4.5 6h1.5v6H4.5V6Zm3 0H9v6H7.5V6Zm3 0H12v6h-1.5V6Z"/><path fill="currentColor" d="M4 4.5h8V13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V4.5Z" fill-opacity="0.18"/></svg>',
+      };
+      return icons[action] || "";
+    }
+
     function renderTaskItem(task) {
       const itemClasses = [
         "task-row",
@@ -2560,9 +2606,9 @@ ${buildDashboardExtractSectionHtml(data.today)}
           '<div class="task-row-main">' +
             '<div class="task-row-title-entry"><button type="button" class="task-row-title" data-action="open" data-file="' + esc(task.filePath) + '" data-line="' + task.lineIndex + '">' + esc(task.text) + "</button></div>" +
             '<div class="task-row-secondary-actions">' +
-              '<button type="button" class="text-btn" data-action="edit" data-task-id="' + esc(task.id) + '">Edit</button>' +
-              '<button type="button" class="text-btn" data-action="open" data-file="' + esc(task.filePath) + '" data-line="' + task.lineIndex + '">Open</button>' +
-              '<button type="button" class="text-btn is-danger" data-action="delete" data-task-id="' + esc(task.id) + '">Delete</button>' +
+              '<button type="button" class="task-row-action-icon" data-action="edit" data-task-id="' + esc(task.id) + '" title="Edit" aria-label="Edit">' + renderTaskActionIcon("edit") + '</button>' +
+              '<button type="button" class="task-row-action-icon" data-action="open" data-file="' + esc(task.filePath) + '" data-line="' + task.lineIndex + '" title="Open" aria-label="Open">' + renderTaskActionIcon("open") + '</button>' +
+              '<button type="button" class="task-row-action-icon" data-action="delete" data-task-id="' + esc(task.id) + '" title="Delete" aria-label="Delete">' + renderTaskActionIcon("delete") + '</button>' +
             "</div>" +
             '<div class="task-row-more-menu">' +
               '<button type="button" class="task-row-more-btn" data-action="more" data-task-id="' + esc(task.id) + '">More</button>' +
