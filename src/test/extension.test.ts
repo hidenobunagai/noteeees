@@ -221,6 +221,73 @@ function renderDashboardWebviewHtml(
   }
 }
 
+async function renderSettledDashboardWebviewHtml(
+  seed?: (notesDir: string) => void,
+  stateStore: vscode.Memento = createMementoStub(),
+): Promise<string> {
+  const notesDir = fs.mkdtempSync(path.join(os.tmpdir(), "noteeees-dashboard-"));
+  const webview: Pick<
+    vscode.Webview,
+    "cspSource" | "html" | "options" | "asWebviewUri" | "onDidReceiveMessage" | "postMessage"
+  > = {
+    cspSource: "vscode-webview-resource://test",
+    html: "",
+    options: {},
+    asWebviewUri(uri: vscode.Uri): vscode.Uri {
+      return uri;
+    },
+    onDidReceiveMessage<T>(_listener: (e: T) => unknown): vscode.Disposable {
+      return new vscode.Disposable(() => undefined);
+    },
+    postMessage(): Thenable<boolean> {
+      return Promise.resolve(true);
+    },
+  };
+
+  const panel = {
+    webview,
+    onDidDispose(_listener: () => void): vscode.Disposable {
+      return new vscode.Disposable(() => undefined);
+    },
+    reveal(): void {
+      return;
+    },
+    dispose(): void {
+      return;
+    },
+  } satisfies Pick<vscode.WebviewPanel, "webview" | "onDidDispose" | "reveal" | "dispose">;
+
+  const DashboardPanelCtor = DashboardPanel as unknown as {
+    new (
+      panel: vscode.WebviewPanel,
+      getNotesDir: () => string | undefined,
+      extensionUri: vscode.Uri,
+      stateStore: vscode.Memento,
+    ): unknown;
+  };
+
+  try {
+    seed?.(notesDir);
+    new DashboardPanelCtor(
+      panel as vscode.WebviewPanel,
+      () => notesDir,
+      vscode.Uri.file(notesDir),
+      stateStore,
+    );
+
+    for (let attempt = 0; attempt < 10; attempt += 1) {
+      if (webview.html.length > 0) {
+        return webview.html;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+
+    return webview.html;
+  } finally {
+    fs.rmSync(notesDir, { recursive: true, force: true });
+  }
+}
+
 function createDashboardPanelTestHarness(): {
   notesDir: string;
   panel: DashboardPanel;
@@ -1219,8 +1286,8 @@ suite("Extension Test Suite", () => {
     );
   });
 
-  test("dashboard webview keeps saved-row interaction rules in dense listboard rows", () => {
-    const html = renderDashboardWebviewHtml();
+  test("dashboard webview keeps saved-row interaction rules in dense listboard rows", async () => {
+    const html = await renderSettledDashboardWebviewHtml();
     const secondaryActionsClusterMatch = html.match(
       /<div class="task-row-secondary-actions">([\s\S]*?)<\/div>/,
     );
@@ -1270,8 +1337,8 @@ suite("Extension Test Suite", () => {
     );
   });
 
-  test("dashboard webview shows narrow-width More menu for saved-task rows", () => {
-    const html = renderDashboardWebviewHtml();
+  test("dashboard webview shows narrow-width More menu for saved-task rows", async () => {
+    const html = await renderSettledDashboardWebviewHtml();
     const moreDropdownMarkupMatch = html.match(
       /<div class="task-row-more-dropdown" data-more-dropdown="[^"]+">([\s\S]*?)<\/div>/,
     );
