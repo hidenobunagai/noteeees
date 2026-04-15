@@ -737,8 +737,8 @@ suite("Extension Test Suite", () => {
     );
   });
 
-  test("dashboard webview persists notes extraction state alongside moments state", () => {
-    const html = renderDashboardWebviewHtml();
+  test("dashboard webview persists notes extraction state alongside moments state", async () => {
+    const html = await renderSettledDashboardWebviewHtml();
 
     assert.ok(
       html.includes("notesFromDate: state.notesFromDate"),
@@ -766,8 +766,8 @@ suite("Extension Test Suite", () => {
     );
   });
 
-  test("dashboard webview defines a browser-side candidate add guard", () => {
-    const html = renderDashboardWebviewHtml();
+  test("dashboard webview defines a browser-side candidate add guard", async () => {
+    const html = await renderSettledDashboardWebviewHtml();
 
     assert.ok(
       html.includes("function canAddDashboardCandidate(task, existingTaskKeys)"),
@@ -779,8 +779,8 @@ suite("Extension Test Suite", () => {
     );
   });
 
-  test("dashboard webview defines browser-side merged list helpers", () => {
-    const html = renderDashboardWebviewHtml();
+  test("dashboard webview defines browser-side merged list helpers", async () => {
+    const html = await renderSettledDashboardWebviewHtml();
 
     assert.ok(
       html.includes("function matchesDashboardListItemFilter(item, filter)"),
@@ -792,8 +792,8 @@ suite("Extension Test Suite", () => {
     );
   });
 
-  test("dashboard webview uses a flat list render path for non-All Task 1 listboard views", () => {
-    const html = renderDashboardWebviewHtml();
+  test("dashboard webview uses a flat list render path for non-All Task 1 listboard views", async () => {
+    const html = await renderSettledDashboardWebviewHtml();
 
     assert.ok(
       html.includes("if (viewModel.flatItems && viewModel.flatItems.length > 0)"),
@@ -801,8 +801,8 @@ suite("Extension Test Suite", () => {
     );
   });
 
-  test("dashboard webview defaults the listboard filter to All and renders the full chip set", () => {
-    const html = renderDashboardWebviewHtml();
+  test("dashboard webview defaults the listboard filter to All and renders the full chip set", async () => {
+    const html = await renderSettledDashboardWebviewHtml();
 
     assert.ok(
       html.includes("const filterDefinitions = ["),
@@ -839,8 +839,8 @@ suite("Extension Test Suite", () => {
     }
   });
 
-  test("simplified filter set is exactly All/Today/Planned/Done", () => {
-    const html = renderDashboardWebviewHtml();
+  test("simplified filter set is exactly All/Today/Planned/Done", async () => {
+    const html = await renderSettledDashboardWebviewHtml();
 
     assert.ok(html.includes('{ id: "all", label: "All"'), "expected All filter chip");
     assert.ok(html.includes('{ id: "today", label: "Today"'), "expected Today filter chip");
@@ -872,8 +872,8 @@ suite("Extension Test Suite", () => {
     );
   });
 
-  test("simplified section model under All renders Today/Planned/Unsorted/Done", () => {
-    const html = renderDashboardWebviewHtml();
+  test("simplified section model under All renders Today/Planned/Unsorted/Done", async () => {
+    const html = await renderSettledDashboardWebviewHtml();
 
     assert.ok(html.includes('today: "Today"'), "expected Today section title mapping");
     assert.ok(html.includes('planned: "Planned"'), "expected Planned section title mapping");
@@ -897,8 +897,8 @@ suite("Extension Test Suite", () => {
     );
   });
 
-  test("dashboard webview switches to All after extraction and tracks locally added candidate keys", () => {
-    const html = renderDashboardWebviewHtml();
+  test("dashboard webview switches to All after extraction and tracks locally added candidate keys", async () => {
+    const html = await renderSettledDashboardWebviewHtml();
 
     assert.ok(
       html.includes("addedCandidateKeys: state.addedCandidateKeys"),
@@ -927,8 +927,8 @@ suite("Extension Test Suite", () => {
     );
   });
 
-  test("dashboard webview flat filter subtitles never render undefined in Task 1 listboard views", () => {
-    const html = renderDashboardWebviewHtml();
+  test("dashboard webview flat filter subtitles never render undefined in Task 1 listboard views", async () => {
+    const html = await renderSettledDashboardWebviewHtml();
 
     assert.ok(
       html.includes('const subtitle = state.filter === "all"') &&
@@ -938,8 +938,8 @@ suite("Extension Test Suite", () => {
     );
   });
 
-  test("dashboard webview All grouped subtitles keep section-specific copy in Task 1 listboard views", () => {
-    const html = renderDashboardWebviewHtml();
+  test("dashboard webview All grouped subtitles keep section-specific copy in Task 1 listboard views", async () => {
+    const html = await renderSettledDashboardWebviewHtml();
 
     assert.ok(
       html.includes('state.filter === "all"') &&
@@ -948,8 +948,8 @@ suite("Extension Test Suite", () => {
     );
   });
 
-  test("dashboard webview restores notes extraction inputs and status from persisted state", () => {
-    const html = renderDashboardWebviewHtml(
+  test("dashboard webview restores notes extraction inputs and status from persisted state", async () => {
+    const html = await renderSettledDashboardWebviewHtml(
       undefined,
       createMementoStubWithValues({
         notesFromDate: "2026-03-20",
@@ -981,8 +981,8 @@ suite("Extension Test Suite", () => {
     );
   });
 
-  test("dashboard webview migrates legacy added extracted keys into unified candidate keys", () => {
-    const html = renderDashboardWebviewHtml(
+  test("dashboard webview migrates legacy added extracted keys into unified candidate keys", async () => {
+    const html = await renderSettledDashboardWebviewHtml(
       undefined,
       createMementoStubWithValues({
         extractedTasks: [
@@ -1022,8 +1022,8 @@ suite("Extension Test Suite", () => {
     );
   });
 
-  test("dashboard webview browser migration guards malformed persisted candidates", () => {
-    const html = renderDashboardWebviewHtml();
+  test("dashboard webview browser migration guards malformed persisted candidates", async () => {
+    const html = await renderSettledDashboardWebviewHtml();
 
     assert.ok(
       html.includes("function normalizeStoredCandidateTask(") &&
@@ -1035,8 +1035,8 @@ suite("Extension Test Suite", () => {
     );
   });
 
-  test("dashboard webview renders the minimal shell in the approved order", () => {
-    const html = renderDashboardWebviewHtml();
+  test("dashboard webview renders the minimal shell in the approved order", async () => {
+    const html = await renderSettledDashboardWebviewHtml();
 
     const headerIndex = html.indexOf('id="dashboard-header"');
     const addRowIndex = html.indexOf('id="dash-add-row"');
@@ -1071,8 +1071,8 @@ suite("Extension Test Suite", () => {
     assert.ok(listBarIndex < listIndex, "expected list bar before main list");
   });
 
-  test("dashboard webview removes the old hero-first shell and attention KPI chip", () => {
-    const html = renderDashboardWebviewHtml((notesDir) => {
+  test("dashboard webview removes the old hero-first shell and attention KPI chip", async () => {
+    const html = await renderSettledDashboardWebviewHtml((notesDir) => {
       const overdueDate = new Date();
       overdueDate.setDate(overdueDate.getDate() - 1);
       const overdueYmd = formatDateYMD(overdueDate);
@@ -1101,8 +1101,8 @@ suite("Extension Test Suite", () => {
     assert.ok(!html.includes(">Attention<"), "expected Attention label to be removed from header");
   });
 
-  test("dashboard webview persists extracted results immediately on message receipt", () => {
-    const html = renderDashboardWebviewHtml();
+  test("dashboard webview persists extracted results immediately on message receipt", async () => {
+    const html = await renderSettledDashboardWebviewHtml();
 
     assert.ok(
       html.includes(
@@ -1118,8 +1118,8 @@ suite("Extension Test Suite", () => {
     );
   });
 
-  test("dashboard webview keeps the support rail free of candidate cards", () => {
-    const html = renderDashboardWebviewHtml();
+  test("dashboard webview keeps the support rail free of candidate cards", async () => {
+    const html = await renderSettledDashboardWebviewHtml();
 
     assert.ok(
       !html.includes('class="ai-result" id="ai-result"'),
@@ -1131,8 +1131,8 @@ suite("Extension Test Suite", () => {
     );
   });
 
-  test("dashboard webview renders an inline candidate block below Extract", () => {
-    const html = renderDashboardWebviewHtml();
+  test("dashboard webview renders an inline candidate block below Extract", async () => {
+    const html = await renderSettledDashboardWebviewHtml();
 
     assert.ok(
       html.includes('id="candidate-block"'),
@@ -1152,8 +1152,8 @@ suite("Extension Test Suite", () => {
     );
   });
 
-  test("dashboard webview renders non-interactive header KPI chips", () => {
-    const html = renderDashboardWebviewHtml();
+  test("dashboard webview renders non-interactive header KPI chips", async () => {
+    const html = await renderSettledDashboardWebviewHtml();
 
     assert.ok(html.includes('id="dashboard-kpi-open"'), "expected Open KPI chip");
     assert.ok(html.includes('id="dashboard-kpi-today"'), "expected Today KPI chip");
@@ -1168,8 +1168,8 @@ suite("Extension Test Suite", () => {
     );
   });
 
-  test("dashboard webview keeps minimal header with KPI chips only", () => {
-    const html = renderDashboardWebviewHtml();
+  test("dashboard webview keeps minimal header with KPI chips only", async () => {
+    const html = await renderSettledDashboardWebviewHtml();
 
     assert.ok(html.includes('id="dashboard-header"'), "expected header marker");
     assert.ok(
@@ -1208,8 +1208,8 @@ suite("Extension Test Suite", () => {
     );
   });
 
-  test("dashboard webview uses compact single-line add and extract rows", () => {
-    const html = renderDashboardWebviewHtml();
+  test("dashboard webview uses compact single-line add and extract rows", async () => {
+    const html = await renderSettledDashboardWebviewHtml();
 
     // Single-line add row with input + button
     assert.ok(
@@ -1222,8 +1222,10 @@ suite("Extension Test Suite", () => {
     // Compact extract row
     assert.ok(
       html.includes('id="dash-extract-row"') &&
-        html.includes('data-extract-group="moments"') &&
-        html.includes('data-extract-group="notes"'),
+        html.includes('id="btn-ai-extract"') &&
+        html.includes('id="btn-extract-notes"') &&
+        html.includes('id="btn-extract-advanced"') &&
+        html.includes('id="extract-advanced-panel"'),
       "expected compact extract row",
     );
 
@@ -1272,8 +1274,8 @@ suite("Extension Test Suite", () => {
     );
   });
 
-  test("dashboard action bar stacks only below 1000px", () => {
-    const html = renderDashboardWebviewHtml();
+  test("dashboard action bar stacks only below 1000px", async () => {
+    const html = await renderSettledDashboardWebviewHtml();
 
     assert.ok(
       html.includes("@media (width < 1000px) {") &&
@@ -1380,8 +1382,8 @@ suite("Extension Test Suite", () => {
     );
   });
 
-  test("dashboard webview renders candidate rows with duplicate handling", () => {
-    const html = renderDashboardWebviewHtml();
+  test("dashboard webview renders candidate rows with duplicate handling", async () => {
+    const html = await renderSettledDashboardWebviewHtml();
 
     assert.ok(
       html.includes("function renderCandidateItem(task, index)") &&
@@ -1424,8 +1426,8 @@ suite("Extension Test Suite", () => {
     );
   });
 
-  test("dashboard webview keeps dense metadata priority for saved and candidate rows", () => {
-    const html = renderDashboardWebviewHtml();
+  test("dashboard webview keeps dense metadata priority for saved and candidate rows", async () => {
+    const html = await renderSettledDashboardWebviewHtml();
 
     assert.ok(
       html.includes('class="task-row-meta task-row-meta-saved"'),
@@ -1462,8 +1464,8 @@ suite("Extension Test Suite", () => {
     );
   });
 
-  test("dashboard webview removes analytics strip for minimal UI", () => {
-    const html = renderDashboardWebviewHtml();
+  test("dashboard webview removes analytics strip for minimal UI", async () => {
+    const html = await renderSettledDashboardWebviewHtml();
 
     // Analytics strip removed for cleaner, action-focused UI
     assert.ok(!html.includes('id="analytics-strip"'), "expected analytics strip to be removed");
@@ -1488,8 +1490,8 @@ suite("Extension Test Suite", () => {
     assert.strictEqual(noDone.emptyMessage, "No completed tasks");
   });
 
-  test("dashboard webview renders final compact empty-state copy for All", () => {
-    const html = renderDashboardWebviewHtml();
+  test("dashboard webview renders final compact empty-state copy for All", async () => {
+    const html = await renderSettledDashboardWebviewHtml();
 
     assert.ok(
       html.includes("function renderEmptyState(message) {") &&
@@ -1503,8 +1505,8 @@ suite("Extension Test Suite", () => {
     );
   });
 
-  test("dashboard webview renders simplified empty-state messages for all filters", () => {
-    const html = renderDashboardWebviewHtml();
+  test("dashboard webview renders simplified empty-state messages for all filters", async () => {
+    const html = await renderSettledDashboardWebviewHtml();
 
     assert.ok(
       html.includes('"Nothing scheduled for today"'),
@@ -1528,8 +1530,8 @@ suite("Extension Test Suite", () => {
     );
   });
 
-  test("dashboard webview script keeps interactive controls wired after initial render", () => {
-    const html = renderDashboardWebviewHtml();
+  test("dashboard webview script keeps interactive controls wired after initial render", async () => {
+    const html = await renderSettledDashboardWebviewHtml();
 
     const scriptMatch = html.match(/<script nonce="[^"]+">([\s\S]*)<\/script>/);
     assert.ok(scriptMatch, "expected dashboard webview to include an inline script block");
@@ -1818,7 +1820,7 @@ suite("Extension Test Suite", () => {
     );
 
     try {
-      appendMoment(tmpDir, todayDate, "Today entry");
+      await appendMoment(tmpDir, todayDate, "Today entry");
       fs.writeFileSync(
         getMomentsFilePath(tmpDir, yesterdayDate),
         `---\ntype: moments\ndate: ${yesterdayDate}\n---\n\n`,
@@ -1901,8 +1903,8 @@ suite("Extension Test Suite", () => {
     );
   });
 
-  test("dashboard webview aligns browser-side candidate identity normalization with multiline task sanitization", () => {
-    const html = renderDashboardWebviewHtml();
+  test("dashboard webview aligns browser-side candidate identity normalization with multiline task sanitization", async () => {
+    const html = await renderSettledDashboardWebviewHtml();
 
     assert.ok(
       html.includes("function sanitizeBrowserTaskText(text)"),
@@ -1914,8 +1916,8 @@ suite("Extension Test Suite", () => {
     );
   });
 
-  test("dashboard webview defines candidate add ACK handlers with rollback support", () => {
-    const html = renderDashboardWebviewHtml();
+  test("dashboard webview defines candidate add ACK handlers with rollback support", async () => {
+    const html = await renderSettledDashboardWebviewHtml();
 
     assert.ok(
       html.includes('if (message.type === "candidateAddResult")'),
@@ -1943,8 +1945,8 @@ suite("Extension Test Suite", () => {
     );
   });
 
-  test("candidate block failure displays error message at top of block and clears on next success", () => {
-    const html = renderDashboardWebviewHtml();
+  test("candidate block failure displays error message at top of block and clears on next success", async () => {
+    const html = await renderSettledDashboardWebviewHtml();
 
     assert.ok(
       html.includes("state.candidateBlockError"),
@@ -2796,6 +2798,58 @@ suite("Extension Test Suite", () => {
     }
   });
 
+  test("extractTasksFromTextWithStatus accepts JSON wrapped in explanatory text", async () => {
+    const lmApi = vscode.lm as typeof vscode.lm & {
+      selectChatModels: typeof vscode.lm.selectChatModels;
+    };
+    const originalSelectChatModels = lmApi.selectChatModels;
+    const chunks = [
+      "以下が抽出結果です。\n\n```json\n",
+      '[{"text":"請求書を送る","category":"work","priority":"high","timeEstimateMin":15,"dueDate":null}]',
+      "\n```",
+    ];
+
+    lmApi.selectChatModels = async () => [
+      {
+        id: "copilot-test",
+        name: "Copilot Test",
+        vendor: "copilot",
+        family: "gpt-test",
+        async sendRequest() {
+          return {
+            text: (async function* () {
+              for (const chunk of chunks) {
+                yield chunk;
+              }
+            })(),
+          };
+        },
+      } as unknown as vscode.LanguageModelChat,
+    ];
+
+    try {
+      const result = await extractTasksFromTextWithStatus(
+        "- 09:00 明日の請求書を送る",
+        new vscode.CancellationTokenSource().token,
+      );
+
+      assert.deepStrictEqual(result, {
+        tasks: [
+          {
+            text: "請求書を送る",
+            category: "work",
+            priority: "high",
+            timeEstimateMin: 15,
+            dueDate: null,
+          },
+        ],
+        failureReason: null,
+      });
+    } finally {
+      lmApi.selectChatModels = originalSelectChatModels;
+    }
+  });
+
   test("migrateDashboardCandidateState converts legacy extracted state into unified candidate state", () => {
     const migrated = migrateDashboardCandidateState({
       extractedTasks: [
@@ -3131,33 +3185,33 @@ suite("Extension Test Suite", () => {
     assert.strictEqual(formatDateYMD(new Date(2000, 0, 1)), "2000-01-01");
   });
 
-  test("resolveUniqueFilePath returns original path when no collision", () => {
+  test("resolveUniqueFilePath returns original path when no collision", async () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "noteeees-test-"));
     try {
-      const result = resolveUniqueFilePath(tmpDir, "note.md");
+      const result = await resolveUniqueFilePath(tmpDir, "note.md");
       assert.strictEqual(result, path.join(tmpDir, "note.md"));
     } finally {
       fs.rmSync(tmpDir, { recursive: true });
     }
   });
 
-  test("resolveUniqueFilePath appends -2 suffix on single collision", () => {
+  test("resolveUniqueFilePath appends -2 suffix on single collision", async () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "noteeees-test-"));
     try {
       fs.writeFileSync(path.join(tmpDir, "note.md"), "");
-      const result = resolveUniqueFilePath(tmpDir, "note.md");
+      const result = await resolveUniqueFilePath(tmpDir, "note.md");
       assert.strictEqual(result, path.join(tmpDir, "note-2.md"));
     } finally {
       fs.rmSync(tmpDir, { recursive: true });
     }
   });
 
-  test("resolveUniqueFilePath increments counter past all existing suffixes", () => {
+  test("resolveUniqueFilePath increments counter past all existing suffixes", async () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "noteeees-test-"));
     try {
       fs.writeFileSync(path.join(tmpDir, "note.md"), "");
       fs.writeFileSync(path.join(tmpDir, "note-2.md"), "");
-      const result = resolveUniqueFilePath(tmpDir, "note.md");
+      const result = await resolveUniqueFilePath(tmpDir, "note.md");
       assert.strictEqual(result, path.join(tmpDir, "note-3.md"));
     } finally {
       fs.rmSync(tmpDir, { recursive: true });
@@ -3242,8 +3296,8 @@ suite("Extension Test Suite", () => {
   // Candidate persistence tests (Task 4)
   // ---------------------------------------------------------------------------
 
-  test("dashboard webview persists candidateTasks with extractRunAt timestamps", () => {
-    const html = renderDashboardWebviewHtml();
+  test("dashboard webview persists candidateTasks with extractRunAt timestamps", async () => {
+    const html = await renderSettledDashboardWebviewHtml();
 
     assert.ok(
       html.includes("extractRunAt"),
@@ -3251,9 +3305,9 @@ suite("Extension Test Suite", () => {
     );
   });
 
-  test("dashboard webview restores unresolved candidates with extractRunAt on reopen", () => {
+  test("dashboard webview restores unresolved candidates with extractRunAt on reopen", async () => {
     const extractRunAt = "2026-04-01T10:00:00.000Z";
-    const html = renderDashboardWebviewHtml(
+    const html = await renderSettledDashboardWebviewHtml(
       undefined,
       createMementoStubWithValues({
         candidateTasks: [
@@ -3291,8 +3345,8 @@ suite("Extension Test Suite", () => {
     );
   });
 
-  test("dashboard webview preserves stored display order when restoring persisted candidates", () => {
-    const html = renderDashboardWebviewHtml(
+  test("dashboard webview preserves stored display order when restoring persisted candidates", async () => {
+    const html = await renderSettledDashboardWebviewHtml(
       undefined,
       createMementoStubWithValues({
         candidateTasks: [
@@ -3344,8 +3398,8 @@ suite("Extension Test Suite", () => {
   // Re-extract rules tests (Task 4)
   // ---------------------------------------------------------------------------
 
-  test("dashboard webview script defines mergeCandidateBatch with extractRunAt ordering", () => {
-    const html = renderDashboardWebviewHtml();
+  test("dashboard webview script defines mergeCandidateBatch with extractRunAt ordering", async () => {
+    const html = await renderSettledDashboardWebviewHtml();
 
     assert.ok(
       html.includes("extractRunAt"),
@@ -3353,8 +3407,8 @@ suite("Extension Test Suite", () => {
     );
   });
 
-  test("dashboard webview getVisibleCandidates sorts by extractRunAt desc then order", () => {
-    const html = renderDashboardWebviewHtml();
+  test("dashboard webview getVisibleCandidates sorts by extractRunAt desc then order", async () => {
+    const html = await renderSettledDashboardWebviewHtml();
 
     assert.ok(
       html.includes("extractRunAt"),

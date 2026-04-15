@@ -47,6 +47,41 @@ function stripJsonFences(text: string): string {
     .trim();
 }
 
+function extractJsonPayload(text: string): string {
+  const trimmed = text.trim();
+  if (!trimmed) {
+    return trimmed;
+  }
+
+  const fencedMatches = Array.from(trimmed.matchAll(/```(?:json)?\s*([\s\S]*?)```/gi));
+  for (const match of fencedMatches) {
+    const candidate = stripJsonFences(match[0]);
+    if (candidate.startsWith("[") || candidate.startsWith("{")) {
+      return candidate;
+    }
+  }
+
+  const arrayStart = trimmed.indexOf("[");
+  const objectStart = trimmed.indexOf("{");
+  const startCandidates = [arrayStart, objectStart].filter((index) => index >= 0);
+
+  if (startCandidates.length === 0) {
+    return trimmed;
+  }
+
+  return trimmed.slice(Math.min(...startCandidates)).trim();
+}
+
+function parseExtractedTasks(raw: string): ExtractedTask[] | null {
+  const parsed = JSON.parse(extractJsonPayload(raw)) as unknown;
+
+  if (Array.isArray(parsed)) {
+    return parsed as ExtractedTask[];
+  }
+
+  return null;
+}
+
 export async function listCopilotModels(): Promise<CopilotModel[]> {
   try {
     const models = await vscode.lm.selectChatModels({ vendor: "copilot" });
@@ -131,15 +166,15 @@ ${text}`;
     for await (const chunk of response.text) {
       raw += chunk;
     }
-    const parsed = JSON.parse(stripJsonFences(raw)) as unknown;
-    if (!Array.isArray(parsed)) {
+    const parsed = parseExtractedTasks(raw);
+    if (!parsed) {
       return {
         tasks: [],
         failureReason: "requestFailed",
       };
     }
     return {
-      tasks: parsed as ExtractedTask[],
+      tasks: parsed,
       failureReason: null,
     };
   } catch {
