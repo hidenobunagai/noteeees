@@ -6,6 +6,12 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.9.4] - 2026-04-15
+
+### Fixed
+
+- **Moments AI extraction parsing**: Fixed `From Moments` failing with "AI抽出に失敗しました。少し待ってからもう一度お試しください。" when GitHub Copilot returned a valid JSON array wrapped in explanatory text or a fenced `json` block.
+
 ## [0.9.3] - 2026-04-12
 
 ### Changed
