@@ -8,6 +8,7 @@ AGENTS.md
 .vscode-test/
 .vscode-test.mjs
 .worktrees/
+.playwright-mcp/
 
 # Build tooling
 node_modules/

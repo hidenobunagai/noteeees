@@ -6,6 +6,12 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.9.5] - 2026-04-15
+
+### Fixed
+
+- **Extension packaging**: Excluded local `.playwright-mcp/` artifacts from the published VSIX so marketplace releases no longer ship Playwright MCP session files.
+
 ## [0.9.4] - 2026-04-15
 
 ### Fixed
