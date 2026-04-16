@@ -1,12 +1,3 @@
-import type {
-  MomentDaySection,
-  MomentEntry,
-  TaskOverviewItem,
-  MomentFilter,
-  InboxTaskFilter,
-  PinnedEntryData,
-  ResolvedPinnedEntryData,
-} from "./types.js";
 import {
   getMomentsFeedDaysSetting,
   getMomentsInboxFilterSetting,
@@ -15,6 +6,15 @@ import {
   updateMomentsInboxFilterSetting,
 } from "../notesConfig.js";
 import { parseDueDate } from "./dueDates.js";
+import type {
+  InboxTaskFilter,
+  MomentDaySection,
+  MomentEntry,
+  MomentFilter,
+  PinnedEntryData,
+  ResolvedPinnedEntryData,
+  TaskOverviewItem,
+} from "./types.js";
 
 export const MOMENTS_FEED_DAY_COUNT = 7;
 export const MOMENT_TAG_PATTERN = String.raw`#[\p{L}\p{M}\p{N}_\p{Pd}]+`;

@@ -1,6 +1,5 @@
 import * as fs from "fs/promises";
 import * as path from "path";
-import * as vscode from "vscode";
 import { getMomentsArchiveAfterDaysSetting } from "../notesConfig.js";
 import {
   extractMomentTags,

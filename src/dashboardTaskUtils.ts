@@ -1,18 +1,21 @@
 import * as fs from "fs/promises";
 import * as path from "path";
 import type {
-  ExtractTasksFailureReason,
-  ExtractedTask,
-  ExtractedTaskWithSource,
-} from "./aiTaskProcessor.js";
-import type {
   DashTask,
   DashboardCandidateTask,
+  DashboardCandidateView,
   DashboardListFilter,
+  DashboardListSectionView,
+  DashboardListViewModel,
   DashboardTaskSection,
   DismissedExtractedTask,
   ExtractedTaskFilterResult,
 } from "./dashboardTypes.js";
+import type {
+  ExtractedTask,
+  ExtractedTaskWithSource,
+  ExtractTasksFailureReason,
+} from "./aiTaskProcessor.js";
 import { stripDueDateTokens } from "./taskSyntax.js";
 export { DUE_DATE_RE, TAG_RE, TASK_RE } from "./taskSyntax.js";
 

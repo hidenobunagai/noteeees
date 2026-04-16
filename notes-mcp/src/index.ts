@@ -14,6 +14,7 @@ import {
   stopFileWatcher,
   syncTasksForFile,
 } from "./db.js";
+import { isPathInside, resolveSafeFilePath, sanitizeTitle } from "./pathSafety.js";
 import {
   clearSearchIndexCache,
   executeStructuredSearch,
@@ -28,7 +29,6 @@ import {
   type SearchWeights,
 } from "./search.js";
 import { extractDueDate, parseTasksFromFile, syncTasksIndex } from "./tasks.js";
-import { isPathInside, resolveSafeFilePath, sanitizeTitle } from "./pathSafety.js";
 import { MCP_TOOL_DEFINITIONS } from "./toolDefinitions.js";
 
 function getNotesDir(): string {
