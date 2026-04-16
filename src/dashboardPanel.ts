@@ -3,6 +3,7 @@ import * as fs from "fs/promises";
 import * as path from "path";
 import * as vscode from "vscode";
 import { buildDashboardLoadingHtml, buildDashboardPanelHtml } from "./dashboardPanelHtml.js";
+import { getMomentsSubfolderSetting } from "./notesConfig.js";
 import {
   extractTasksFromTextWithStatus,
   extractTasksFromNotes,
@@ -233,8 +234,7 @@ export class DashboardPanel {
       return;
     }
 
-    const momentsSubfolder =
-      vscode.workspace.getConfiguration("notes").get<string>("momentsSubfolder") || "moments";
+    const momentsSubfolder = getMomentsSubfolderSetting();
 
     const tasks = await collectTasksFromNotes(notesDir, momentsSubfolder);
     const today = todayDateString();
@@ -582,8 +582,7 @@ export class DashboardPanel {
         return;
       }
 
-      const momentsSubfolder =
-        vscode.workspace.getConfiguration("notes").get<string>("momentsSubfolder") || "moments";
+      const momentsSubfolder = getMomentsSubfolderSetting();
 
       // Collect content from all dates in the range
       const allCleanTexts: string[] = [];
@@ -696,8 +695,7 @@ export class DashboardPanel {
         return;
       }
 
-      const momentsSubfolder =
-        vscode.workspace.getConfiguration("notes").get<string>("momentsSubfolder") || "moments";
+      const momentsSubfolder = getMomentsSubfolderSetting();
       const extracted = await extractTasksFromNotes(noteContents, token, modelId);
       const existingTasks = await collectTasksFromNotes(notesDir, momentsSubfolder);
       const filtered = filterExtractedTasksForDisplay(

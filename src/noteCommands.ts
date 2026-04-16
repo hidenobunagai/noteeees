@@ -1,6 +1,13 @@
 import * as fs from "fs/promises";
 import * as path from "path";
 import * as vscode from "vscode";
+import {
+  getDefaultNoteTitleSetting,
+  getDefaultSnippetSetting,
+  getMomentsSubfolderSetting,
+  getNoteTitleConvertSpacesSetting,
+  getTemplatesSetting,
+} from "./notesConfig.js";
 
 const SNIPPET_PREFIX = "noteeees_template_";
 
@@ -135,9 +142,8 @@ function formatDateTimeToken(format: string, date: Date): string {
 }
 
 function resolveFilename(titleInput: string, now: Date): string {
-  const config = vscode.workspace.getConfiguration("notes");
-  const titleFormat = config.get<string>("defaultNoteTitle") || "{dt}_{title}.{ext}";
-  const convertSpaces = config.get<string>("noteTitleConvertSpaces") ?? "_";
+  const titleFormat = getDefaultNoteTitleSetting();
+  const convertSpaces = getNoteTitleConvertSpacesSetting();
 
   let filename = titleFormat;
 
@@ -452,9 +458,8 @@ export async function createNewNote(notesDir: string, initialTitle?: string): Pr
   const editor = await vscode.window.showTextDocument(doc);
 
   // Step 7: Insert snippet template
-  const config = vscode.workspace.getConfiguration("notes");
-  const defaultSnippet = config.get<{ langId: string; name: string }>("defaultSnippet");
-  const templates = config.get<string[]>("templates") || [];
+  const defaultSnippet = getDefaultSnippetSetting();
+  const templates = getTemplatesSetting();
 
   if (!shouldPromptForTemplateSelection(templates)) {
     if (defaultSnippet?.name) {
@@ -564,8 +569,7 @@ export async function openDailyNote(notesDir: string, templatePath?: string): Pr
 }
 
 export async function listNotes(notesDir: string): Promise<void> {
-  const config = vscode.workspace.getConfiguration("notes");
-  const momentsSubfolder = config.get<string>("momentsSubfolder") || "moments";
+  const momentsSubfolder = getMomentsSubfolderSetting();
   const noteFiles = await collectNoteFiles(notesDir, notesDir, [momentsSubfolder]);
 
   if (noteFiles.length === 0) {

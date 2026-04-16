@@ -6,6 +6,7 @@ import {
   collectNoteFiles,
   type IndexedNote,
 } from "./noteCommands";
+import { getMomentsSubfolderSetting, getSidebarRecentLimitSetting } from "./notesConfig.js";
 
 export type SidebarTagSortMode = "frequency" | "alphabetical";
 export type MoveDirection = "up" | "down";
@@ -139,8 +140,7 @@ export function buildSidebarTagGroups(
 }
 
 function getRecentNotesLimit(): number {
-  const config = vscode.workspace.getConfiguration("notes");
-  return Math.max(0, config.get<number>("sidebarRecentLimit") ?? 20);
+  return getSidebarRecentLimitSetting();
 }
 
 function formatTagCount(count: number): string {
@@ -271,8 +271,7 @@ export class NotesTreeProvider implements vscode.TreeDataProvider<NoteTreeItem> 
   }
 
   private async _getSidebarNotes(notesDir: string): Promise<SidebarNoteItem[]> {
-    const config = vscode.workspace.getConfiguration("notes");
-    const momentsSubfolder = config.get<string>("momentsSubfolder") || "moments";
+    const momentsSubfolder = getMomentsSubfolderSetting();
     const noteFiles = await collectNoteFiles(notesDir, notesDir, [momentsSubfolder]);
     const indexedNotes = await buildIndexedNotes(noteFiles);
 

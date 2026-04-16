@@ -1,6 +1,7 @@
 import * as fs from "fs/promises";
 import * as path from "path";
 import * as vscode from "vscode";
+import { getMomentsArchiveAfterDaysSetting } from "../notesConfig.js";
 import {
   extractMomentTags,
   getMomentsFeedDayCount,
@@ -514,8 +515,7 @@ export async function deleteMomentEntry(
 export async function archiveMoments(
   notesDir: string,
 ): Promise<{ archived: number; skipped: number }> {
-  const config = vscode.workspace.getConfiguration("notes");
-  const afterDays = Math.max(1, config.get<number>("momentsArchiveAfterDays") ?? 90);
+  const afterDays = getMomentsArchiveAfterDaysSetting();
 
   const momentsDir = getMomentsDirectory(notesDir);
   try {

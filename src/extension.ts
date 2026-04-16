@@ -14,6 +14,18 @@ import {
   pickIndexedNote,
 } from "./noteCommands";
 import {
+  affectsNotesConfiguration,
+  getDailyNoteTemplateSetting,
+  getLegacyNotesDirectorySetting,
+  getMomentsArchiveAfterDaysSetting,
+  getMomentsSubfolderSetting,
+  getSidebarTagSortSetting,
+  getWorkspaceNotesDirectorySetting,
+  updateLegacyNotesDirectorySetting,
+  updateSidebarTagSortSetting,
+  updateWorkspaceNotesDirectorySetting,
+} from "./notesConfig.js";
+import {
   buildSidebarTagGroups,
   movePinnedItem,
   NotesTreeProvider,
@@ -76,15 +88,11 @@ export function buildTagSearchItems(
 
 export function activate(context: vscode.ExtensionContext) {
   function getConfiguredNotesDir(): string | undefined {
-    const configured = vscode.workspace.getConfiguration("notes").get<string>("notesDirectory");
-    return configured || undefined;
+    return getLegacyNotesDirectorySetting();
   }
 
   function getWorkspaceNotesDir(): string | undefined {
-    const workspaceConfig = vscode.workspace
-      .getConfiguration("notes")
-      .get<string>(WORKSPACE_NOTES_DIRECTORY_KEY);
-    return workspaceConfig || undefined;
+    return getWorkspaceNotesDirectorySetting();
   }
 
   function getNotesDir(): string | undefined {
@@ -100,18 +108,14 @@ export function activate(context: vscode.ExtensionContext) {
     scope: "global" | "workspace" = "global",
   ): Promise<void> {
     if (scope === "workspace") {
-      await vscode.workspace
-        .getConfiguration("notes")
-        .update(WORKSPACE_NOTES_DIRECTORY_KEY, notesDir, vscode.ConfigurationTarget.Workspace);
+      await updateWorkspaceNotesDirectorySetting(notesDir, vscode.ConfigurationTarget.Workspace);
       return;
     }
 
     await context.globalState.update(NOTES_DIRECTORY_STORAGE_KEY, notesDir);
 
     if (getConfiguredNotesDir()) {
-      await vscode.workspace
-        .getConfiguration("notes")
-        .update("notesDirectory", undefined, vscode.ConfigurationTarget.Global);
+      await updateLegacyNotesDirectorySetting(undefined, vscode.ConfigurationTarget.Global);
     }
   }
 
@@ -124,10 +128,7 @@ export function activate(context: vscode.ExtensionContext) {
   }
 
   function getSidebarTagSort(): SidebarTagSortMode {
-    return (
-      vscode.workspace.getConfiguration("notes").get<SidebarTagSortMode>("sidebarTagSort") ??
-      "frequency"
-    );
+    return getSidebarTagSortSetting();
   }
 
   async function migrateNotesDirectoryStorage(): Promise<void> {
@@ -140,9 +141,7 @@ export function activate(context: vscode.ExtensionContext) {
     }
 
     if (stored && configured) {
-      await vscode.workspace
-        .getConfiguration("notes")
-        .update("notesDirectory", undefined, vscode.ConfigurationTarget.Global);
+      await updateLegacyNotesDirectorySetting(undefined, vscode.ConfigurationTarget.Global);
     }
   }
 
@@ -179,8 +178,7 @@ export function activate(context: vscode.ExtensionContext) {
   }
 
   async function getIndexedNotes(notesDir: string) {
-    const momentsSubfolder =
-      vscode.workspace.getConfiguration("notes").get<string>("momentsSubfolder") || "moments";
+    const momentsSubfolder = getMomentsSubfolderSetting();
     const noteFiles = await collectNoteFiles(notesDir, notesDir, [momentsSubfolder]);
     return (await buildIndexedNotes(noteFiles)).sort((a, b) => b.mtime - a.mtime);
   }
@@ -326,8 +324,8 @@ export function activate(context: vscode.ExtensionContext) {
 
   const configChangeDisposable = vscode.workspace.onDidChangeConfiguration((event) => {
     if (
-      event.affectsConfiguration("notes.notesDirectory") ||
-      event.affectsConfiguration(`notes.${WORKSPACE_NOTES_DIRECTORY_KEY}`)
+      affectsNotesConfiguration(event, "notesDirectory") ||
+      affectsNotesConfiguration(event, WORKSPACE_NOTES_DIRECTORY_KEY)
     ) {
       void migrateNotesDirectoryStorage().then(() => {
         refreshMarkdownWatcher();
@@ -338,11 +336,11 @@ export function activate(context: vscode.ExtensionContext) {
     }
 
     if (
-      event.affectsConfiguration("notes.momentsSubfolder") ||
-      event.affectsConfiguration("notes.sidebarRecentLimit") ||
-      event.affectsConfiguration("notes.sidebarTagSort")
+      affectsNotesConfiguration(event, "momentsSubfolder") ||
+      affectsNotesConfiguration(event, "sidebarRecentLimit") ||
+      affectsNotesConfiguration(event, "sidebarTagSort")
     ) {
-      if (event.affectsConfiguration("notes.momentsSubfolder")) {
+      if (affectsNotesConfiguration(event, "momentsSubfolder")) {
         refreshMarkdownWatcher();
         refreshTaskWatcher();
       }
@@ -399,9 +397,7 @@ export function activate(context: vscode.ExtensionContext) {
       const nextMode: SidebarTagSortMode =
         getSidebarTagSort() === "frequency" ? "alphabetical" : "frequency";
 
-      await vscode.workspace
-        .getConfiguration("notes")
-        .update("sidebarTagSort", nextMode, vscode.ConfigurationTarget.Global);
+      await updateSidebarTagSortSetting(nextMode, vscode.ConfigurationTarget.Global);
 
       notesTreeProvider.refresh();
       vscode.window.showInformationMessage(`Sidebar tag sort: ${nextMode}`);
@@ -546,8 +542,7 @@ export function activate(context: vscode.ExtensionContext) {
         return;
       }
 
-      const templatePath =
-        vscode.workspace.getConfiguration("notes").get<string>("dailyNoteTemplate") || undefined;
+      const templatePath = getDailyNoteTemplateSetting();
 
       await openDailyNote(notesDir, templatePath);
       notesTreeProvider.refresh();
@@ -585,8 +580,7 @@ export function activate(context: vscode.ExtensionContext) {
         return;
       }
 
-      const config = vscode.workspace.getConfiguration("notes");
-      const afterDays = config.get<number>("momentsArchiveAfterDays") ?? 90;
+      const afterDays = getMomentsArchiveAfterDaysSetting();
 
       const confirm = await vscode.window.showWarningMessage(
         `Move Moments files older than ${afterDays} days to archive?`,

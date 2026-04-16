@@ -1,4 +1,3 @@
-import * as vscode from "vscode";
 import type {
   MomentDaySection,
   MomentEntry,
@@ -8,6 +7,13 @@ import type {
   PinnedEntryData,
   ResolvedPinnedEntryData,
 } from "./types.js";
+import {
+  getMomentsFeedDaysSetting,
+  getMomentsInboxFilterSetting,
+  getMomentsSendOnEnterSetting,
+  getMomentsSubfolderSetting,
+  updateMomentsInboxFilterSetting,
+} from "../notesConfig.js";
 import { parseDueDate } from "./dueDates.js";
 
 export const MOMENTS_FEED_DAY_COUNT = 7;
@@ -101,13 +107,11 @@ export function resolvePinnedEntries(
 }
 
 export function getMomentsSubfolder(): string {
-  const config = vscode.workspace.getConfiguration("notes");
-  return config.get<string>("momentsSubfolder") || "moments";
+  return getMomentsSubfolderSetting();
 }
 
 export function getSendOnEnter(): boolean {
-  const config = vscode.workspace.getConfiguration("notes");
-  return config.get<boolean>("momentsSendOnEnter") ?? true;
+  return getMomentsSendOnEnterSetting();
 }
 
 export function normalizeMomentsFeedDayCount(value: number | undefined): number {
@@ -119,20 +123,16 @@ export function normalizeMomentsFeedDayCount(value: number | undefined): number 
 }
 
 export function getMomentsFeedDayCount(): number {
-  const config = vscode.workspace.getConfiguration("notes");
-  return normalizeMomentsFeedDayCount(config.get<number>("momentsFeedDays"));
+  return normalizeMomentsFeedDayCount(getMomentsFeedDaysSetting());
 }
 
 export function getConfiguredInboxTaskFilter(): InboxTaskFilter {
-  const config = vscode.workspace.getConfiguration("notes");
-  return normalizeInboxTaskFilter(config.get<string>("momentsInboxFilter"));
+  return normalizeInboxTaskFilter(getMomentsInboxFilterSetting());
 }
 
 export function persistInboxTaskFilter(filter: InboxTaskFilter): Thenable<void> {
   lastInboxTaskFilter = filter;
-  return vscode.workspace
-    .getConfiguration("notes")
-    .update("momentsInboxFilter", filter, vscode.ConfigurationTarget.Global);
+  return updateMomentsInboxFilterSetting(filter);
 }
 
 export function getNextInboxFilter(filter: InboxTaskFilter): InboxTaskFilter {

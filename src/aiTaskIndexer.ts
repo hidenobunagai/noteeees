@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import { DashboardPanel } from "./dashboardPanel.js";
+import { getMomentsSubfolderSetting } from "./notesConfig.js";
 
 // ---------------------------------------------------------------------------
 // Debounced file-change handler that refreshes the Dashboard
@@ -23,8 +24,7 @@ export function createTaskFileWatcher(
 ): vscode.Disposable {
   // Watch for changes to any .md file outside the moments subfolder
   // Using a broad pattern and filtering in the handler
-  const momentsSubfolder =
-    vscode.workspace.getConfiguration("notes").get<string>("momentsSubfolder") || "moments";
+  const momentsSubfolder = getMomentsSubfolderSetting();
 
   const pattern = new vscode.RelativePattern(notesDir, "**/*.md");
   const watcher = vscode.workspace.createFileSystemWatcher(pattern);
