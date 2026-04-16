@@ -1,29 +1,8 @@
-import { describe, test, expect, beforeEach, afterEach } from "bun:test";
-import * as path from "path";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import * as fs from "fs";
 import * as os from "os";
-
-function isPathInside(parentDir: string, candidatePath: string): boolean {
-  const resolvedParent = path.resolve(parentDir);
-  const resolvedCandidate = path.resolve(candidatePath);
-  return (
-    resolvedCandidate === resolvedParent ||
-    resolvedCandidate.startsWith(`${resolvedParent}${path.sep}`)
-  );
-}
-
-function resolveSafeFilePath(notesDir: string, relativePath: string): string | null {
-  const resolved = path.resolve(notesDir, relativePath);
-  if (!isPathInside(notesDir, resolved)) return null;
-  return resolved;
-}
-
-function sanitizeTitle(title: string): string {
-  return title
-    .replace(/[/\\:*?"<>|]/g, "_")
-    .replace(/\s+/g, "_")
-    .slice(0, 80);
-}
+import * as path from "path";
+import { isPathInside, resolveSafeFilePath, sanitizeTitle } from "../src/pathSafety.js";
 
 describe("isPathInside", () => {
   let tmpDir: string;
