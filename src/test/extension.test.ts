@@ -2,31 +2,31 @@ import * as assert from "assert";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
+import { extractTasksFromTextWithStatus, type ExtractedTask } from "../aiTaskProcessor";
 import {
-  buildDashboardListViewModel,
   buildDashboardCandidateViews,
   buildDashboardListItems,
-  migrateDashboardCandidateState,
+  buildDashboardListViewModel,
   buildDashboardTaskViews,
-  countDashboardListItemsForFilter,
-  canAddDashboardCandidate,
   buildUpcomingWeek,
+  canAddDashboardCandidate,
   classifyDashboardTask,
+  countDashboardListItemsForFilter,
   DashboardPanel,
-  type DashboardListItem,
   filterExtractedTasksForDisplay,
   matchesDashboardListItemFilter,
-  normalizeExtractedTaskIdentity,
+  migrateDashboardCandidateState,
   normalizeDashboardTaskText,
+  normalizeExtractedTaskIdentity,
   resolveDashboardTaskFile,
   upsertDashboardDueDate,
+  type DashboardListItem,
 } from "../dashboardPanel";
 import {
   buildTagSearchItems,
   createNotesWatcherPattern,
   resolveNotesDirectory,
 } from "../extension";
-import { extractTasksFromTextWithStatus, type ExtractedTask } from "../aiTaskProcessor";
 import {
   appendMoment,
   collectMomentsFeed,
@@ -586,9 +586,10 @@ suite("Extension Test Suite", () => {
     assert.strictEqual(normalizeInboxTaskFilter(undefined), "all");
   });
 
-  test("parseDueDate extracts date from 📅, due:, and @ syntax", () => {
+  test("parseDueDate extracts date from 📅, due:, #due:, and @ syntax", () => {
     assert.strictEqual(parseDueDate("Fix bug 📅2025-01-15"), "2025-01-15");
     assert.strictEqual(parseDueDate("Write report due:2025-01-20"), "2025-01-20");
+    assert.strictEqual(parseDueDate("Triage #due:2025-01-25"), "2025-01-25");
     assert.strictEqual(parseDueDate("MTG with team @2026-03-31"), "2026-03-31");
     assert.strictEqual(parseDueDate("No date here"), null);
     assert.strictEqual(parseDueDate(""), null);
@@ -1888,6 +1889,10 @@ suite("Extension Test Suite", () => {
       upsertDashboardDueDate("Follow up due:2026-03-01 #work", "2026-03-05"),
       "Follow up #work @2026-03-05",
     );
+    assert.strictEqual(
+      upsertDashboardDueDate("Review sync #due:2026-03-01 #team", "2026-03-07"),
+      "Review sync #team @2026-03-07",
+    );
     assert.strictEqual(upsertDashboardDueDate("Review spec @2026-03-01", null), "Review spec");
   });
 
@@ -1897,6 +1902,7 @@ suite("Extension Test Suite", () => {
       "send report",
     );
     assert.strictEqual(normalizeExtractedTaskIdentity("整理する @2026-04-02"), "整理する");
+    assert.strictEqual(normalizeExtractedTaskIdentity("確認する #due:2026-04-03"), "確認する");
     assert.strictEqual(
       normalizeExtractedTaskIdentity("  First line  \n\n second line due:2026-04-02  "),
       "first line / second line",

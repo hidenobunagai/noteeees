@@ -59,6 +59,10 @@ describe("parseTasksFromFile", () => {
 });
 
 describe("extractDueDate", () => {
+  test("extracts 📅 marker", () => {
+    expect(extractDueDate("レポート提出 📅2026-04-04")).toBe("2026-04-04");
+  });
+
   test("extracts #due: tag", () => {
     expect(extractDueDate("レポート提出 #due:2026-04-05")).toBe("2026-04-05");
   });

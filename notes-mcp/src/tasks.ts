@@ -1,17 +1,15 @@
 import * as path from "path";
 import type { TaskRow } from "./db.js";
 import { deleteTasksByFile, getStoredTaskMtimes, upsertTask } from "./db.js";
+import {
+  extractDueDate as extractTaskDueDate,
+  TAG_RE,
+  TASK_RE,
+} from "./taskSyntax.js";
 
 // ---------------------------------------------------------------------------
 // task parser
 // ---------------------------------------------------------------------------
-
-// Matches: - [ ] text  and  - [x] text  (notes tasks)
-const TASK_RE = /^- \[([ xX])\] (.+)$/;
-// Matches #due:YYYY-MM-DD, due:YYYY-MM-DD, or @YYYY-MM-DD anywhere in text
-const DUE_TAG_RE = /(?:#?due:|@)(\d{4}-\d{2}-\d{2})/i;
-// Matches inline #tag tokens
-const TAG_RE = /#[\w\u3040-\u9FFF\u4E00-\u9FFF-]+/g;
 
 function extractDateFromFilename(filePath: string): string | null {
   const base = path.basename(filePath, ".md");
@@ -86,6 +84,5 @@ export function syncTasksIndex(
 // ---------------------------------------------------------------------------
 
 export function extractDueDate(text: string): string | null {
-  const m = DUE_TAG_RE.exec(text);
-  return m ? m[1] : null;
+  return extractTaskDueDate(text);
 }

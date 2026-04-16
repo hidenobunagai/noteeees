@@ -1,25 +1,21 @@
 import * as fs from "fs/promises";
 import * as path from "path";
 import type {
+  ExtractTasksFailureReason,
+  ExtractedTask,
+  ExtractedTaskWithSource,
+} from "./aiTaskProcessor.js";
+import type {
   DashTask,
   DashboardCandidateTask,
-  DashboardCandidateView,
   DashboardListFilter,
-  DashboardListSectionView,
-  DashboardListViewModel,
   DashboardTaskSection,
   DismissedExtractedTask,
   ExtractedTaskFilterResult,
 } from "./dashboardTypes.js";
-import type {
-  ExtractedTask,
-  ExtractedTaskWithSource,
-  ExtractTasksFailureReason,
-} from "./aiTaskProcessor.js";
+import { stripDueDateTokens } from "./taskSyntax.js";
+export { DUE_DATE_RE, TAG_RE, TASK_RE } from "./taskSyntax.js";
 
-export const TASK_RE = /^- \[([ xX])\] (.+)$/;
-export const TAG_RE = /#[\w\u3040-\u9FFF\u4E00-\u9FFF-]+/g;
-export const DUE_DATE_RE = /(?:📅|due:|@)(\d{4}-\d{2}-\d{2})/;
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const EXTRACTED_TASK_DISMISS_WINDOW_DAYS = 30;
 const MAX_DISMISSED_EXTRACTED_TASKS = 200;
@@ -85,10 +81,7 @@ export function normalizeExtractedTaskIdentity(text: string): string {
 }
 
 export function stripDashboardDueDate(text: string): string {
-  return sanitizeTaskInputText(text)
-    .replace(/\s*(?:📅|due:|@)(\d{4}-\d{2}-\d{2})\b/g, "")
-    .replace(/\s{2,}/g, " ")
-    .trim();
+  return stripDueDateTokens(sanitizeTaskInputText(text));
 }
 
 export function upsertDashboardDueDate(text: string, dueDate?: string | null): string {
