@@ -175,3 +175,69 @@ export async function renderSettledDashboardWebviewHtml(
     fs.rmSync(notesDir, { recursive: true, force: true });
   }
 }
+
+export function createDashboardPanelMessageHarness(): {
+  notesDir: string;
+  panel: DashboardPanel;
+  messages: Array<Record<string, unknown>>;
+  cleanup: () => void;
+} {
+  const notesDir = fs.mkdtempSync(path.join(os.tmpdir(), "noteeees-dashboard-"));
+  const messages: Array<Record<string, unknown>> = [];
+  const webview: Pick<
+    vscode.Webview,
+    "cspSource" | "html" | "options" | "asWebviewUri" | "onDidReceiveMessage" | "postMessage"
+  > = {
+    cspSource: "vscode-webview-resource://test",
+    html: "",
+    options: {},
+    asWebviewUri(uri: vscode.Uri): vscode.Uri {
+      return uri;
+    },
+    onDidReceiveMessage<T>(_listener: (e: T) => unknown): vscode.Disposable {
+      return new vscode.Disposable(() => undefined);
+    },
+    postMessage(message: Record<string, unknown>): Thenable<boolean> {
+      messages.push(message);
+      return Promise.resolve(true);
+    },
+  };
+
+  const panelStub = {
+    webview,
+    onDidDispose(_listener: () => void): vscode.Disposable {
+      return new vscode.Disposable(() => undefined);
+    },
+    reveal(): void {
+      return;
+    },
+    dispose(): void {
+      return;
+    },
+  } satisfies Pick<vscode.WebviewPanel, "webview" | "onDidDispose" | "reveal" | "dispose">;
+
+  const DashboardPanelCtor = DashboardPanel as unknown as {
+    new (
+      panel: vscode.WebviewPanel,
+      getNotesDir: () => string | undefined,
+      extensionUri: vscode.Uri,
+      stateStore: vscode.Memento,
+    ): DashboardPanel;
+  };
+
+  const panel = new DashboardPanelCtor(
+    panelStub as vscode.WebviewPanel,
+    () => notesDir,
+    vscode.Uri.file(notesDir),
+    createMementoStub(),
+  );
+
+  return {
+    notesDir,
+    panel,
+    messages,
+    cleanup() {
+      fs.rmSync(notesDir, { recursive: true, force: true });
+    },
+  };
+}

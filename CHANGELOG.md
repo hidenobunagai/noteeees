@@ -6,7 +6,14 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
-## [0.9.5] - 2026-04-15
+## [0.9.6] - 2026-04-17
+
+### Changed
+
+- **Shared task and due-date parser**: Centralized task and due-date syntax into a single shared module used by both the VS Code extension and the notes-mcp server, aligning the Dashboard and Moments webviews with the same parsing rules.
+- **Dashboard internals split**: Extracted task persistence, candidate extraction, and dismissed-task storage into dedicated modules (`dashboardTaskPersistence.ts`, `dashboardExtraction.ts`, `dashboardDismissedTasks.ts`) to keep `DashboardPanel` a thin coordinator.
+- **Test suite decomposition**: Moved Dashboard, Moments, and task-syntax tests into dedicated suites and stabilized the asynchronous candidate-add ACK test.
+- **Docs and scripts alignment**: Clarified `notes.notesDirectory` / `notes.workspaceNotesDirectory` behavior in the README and aligned packaging scripts with Bun usage.
 
 ### Fixed
 

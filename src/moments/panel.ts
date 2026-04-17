@@ -1,6 +1,7 @@
 import * as fs from "fs/promises";
 import * as path from "path";
 import * as vscode from "vscode";
+import { DUE_DATE_RE } from "../taskSyntax.js";
 import {
   MOMENT_TAG_PATTERN,
   getMomentsFeedDayCount,
@@ -304,6 +305,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     const toolkitUri = webview.asWebviewUri(
       vscode.Uri.joinPath(this._extensionUri, "assets", "toolkit.min.js"),
     );
+    const dueDatePatternSource = JSON.stringify(DUE_DATE_RE.source);
 
     return /* html */ `<!DOCTYPE html>
 <html lang="en">
@@ -1305,7 +1307,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
       const header = document.createElement('div');
       header.className = 'entry-header';
 
-      const dueDateMatch = entry.text.match(/(?:📅|due:)(\d{4}-\d{2}-\d{2})/);
+      const dueDateMatch = entry.text.match(new RegExp(${dueDatePatternSource}, "i"));
       const dueDate = dueDateMatch ? dueDateMatch[1] : null;
       if (dueDate) {
         let dueDateStatus = null;

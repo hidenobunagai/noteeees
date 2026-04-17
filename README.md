@@ -77,7 +77,7 @@ Moments are excluded from the regular Notes sidebar but are **fully searchable v
 2. Press `Cmd+Shift+N` to create a new note
 3. Browse notes in the Sidebar
 
-The notes directory selected by `Run Setup` is stored in extension-local machine storage, so you only need to choose it once per machine and it does not bounce across your devices through synced settings.
+The notes directory selected by `Run Setup` is stored in extension-local machine storage, so you only need to choose it once per machine and it does not bounce across your devices through synced settings. If you need a workspace-specific override, set `notes.workspaceNotesDirectory` in workspace settings. `notes.notesDirectory` remains only as a legacy fallback for older setups.
 
 ## Templates
 
@@ -141,7 +141,8 @@ When `notes.templates` is set, a picker will appear on note creation to choose b
 
 | Setting | Description |
 | --- | --- |
-| `notes.notesDirectory` | Directory where notes are stored |
+| `notes.notesDirectory` | Legacy fallback only. Older synced values can still be imported, but `Run Setup` now stores the directory in local extension storage. |
+| `notes.workspaceNotesDirectory` | Workspace-specific notes directory override. When set, it wins over the machine-global notes directory for the current workspace. |
 | `notes.defaultNoteTitle` | Filename format (`{dt}_{title}.{ext}`) |
 | `notes.noteTitleConvertSpaces` | Character to replace spaces (default: `_`) |
 | `notes.defaultSnippet` | Default snippet to insert (`{ langId, name }`) |

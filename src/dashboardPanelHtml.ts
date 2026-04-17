@@ -2,6 +2,7 @@ import * as crypto from "crypto";
 import { buildDashboardExtractSectionHtml } from "./dashboardExtractLayout.js";
 import { escAttr, escHtml, toScriptData } from "./dashboardTaskUtils.js";
 import type { DashboardData } from "./dashboardTypes.js";
+import { DUE_DATE_TOKEN_RE } from "./taskSyntax.js";
 
 export function buildDashboardLoadingHtml(message: string): string {
   return `<!DOCTYPE html><html><body style="padding:20px;font-family:var(--vscode-font-family);color:var(--vscode-foreground)"><p>${escHtml(
@@ -13,6 +14,7 @@ export function buildDashboardPanelHtml(data: DashboardData): string {
   const nonce = crypto.randomBytes(16).toString("hex");
   const weekMax = Math.max(...data.week.map((day) => day.open + day.done), 1);
   const payload = toScriptData(data);
+  const browserDueTokenPatternSource = JSON.stringify(DUE_DATE_TOKEN_RE.source);
 
   const weekBarsHtml = data.week
     .map((day) => {
@@ -1201,20 +1203,22 @@ ${buildDashboardExtractSectionHtml(data.today)}
           defaultOption.textContent = "自動選択";
           modelSelect.appendChild(defaultOption);
         }
-        
+
         dashboardData.availableModels.forEach(function(model) {
           const option = document.createElement("option");
           option.value = model.id;
           option.textContent = model.name;
           modelSelect.appendChild(option);
         });
-        
+
         // Restore selected model if any
         if (savedState.selectedModel) {
           modelSelect.value = savedState.selectedModel;
         }
       }
     })();
+
+    const browserDueTokenPattern = new RegExp(${browserDueTokenPatternSource}, "i");
 
     function sanitizeBrowserTaskText(text) {
       return String(text || "")
@@ -1235,12 +1239,7 @@ ${buildDashboardExtractSectionHtml(data.today)}
       return sanitizeBrowserTaskText(text)
         .split(" ")
         .filter(function (part) {
-          if (!(part.startsWith("📅") || part.startsWith("due:") || part.startsWith("@"))) {
-            return true;
-          }
-
-          const datePart = part.startsWith("due:") ? part.slice(4) : part.slice(1);
-          return !(datePart.length === 10 && datePart[4] === "-" && datePart[7] === "-");
+          return !browserDueTokenPattern.test(part);
         })
         .join(" ")
         .trim()

@@ -1,102 +1,71 @@
-import * as crypto from "crypto";
 import * as fs from "fs/promises";
-import * as path from "path";
 import * as vscode from "vscode";
-import { buildDashboardLoadingHtml, buildDashboardPanelHtml } from "./dashboardPanelHtml.js";
-import { getMomentsSubfolderSetting } from "./notesConfig.js";
+import { listCopilotModels } from "./aiTaskProcessor.js";
 import {
-  extractTasksFromTextWithStatus,
-  extractTasksFromNotes,
-  listCopilotModels,
-  type ExtractedTask,
-  type ExtractTasksFailureReason,
-  type NoteContent,
-  type ExtractedTaskWithSource,
-} from "./aiTaskProcessor.js";
+  dismissExtractedTask as dismissExtractedTaskInStore,
+  loadDismissedExtractedTasks,
+} from "./dashboardDismissedTasks.js";
+import {
+  extractDashboardMomentsCandidates,
+  extractDashboardNotesCandidates,
+} from "./dashboardExtraction.js";
+import { buildDashboardLoadingHtml, buildDashboardPanelHtml } from "./dashboardPanelHtml.js";
+import {
+  createDashboardTask,
+  deleteDashboardTask,
+  hasExistingDashboardTask,
+  toggleDashboardTask,
+  updateDashboardTask,
+} from "./dashboardTaskPersistence.js";
+import { normalizeOptionalDate, todayDateString } from "./dashboardTaskUtils.js";
+import type { DashboardCandidateAddAck, DashboardData } from "./dashboardTypes.js";
+import { getMomentsSubfolderSetting } from "./notesConfig.js";
+export { migrateDashboardCandidateState } from "./dashboardCandidateMigration.js";
+export {
+  buildDashboardCandidateViews,
+  buildDashboardTaskViews,
+  buildUpcomingWeek,
+  classifyDashboardTask,
+} from "./dashboardClassification.js";
+export {
+  buildDashboardListItems,
+  buildDashboardListViewModel,
+  countDashboardListItemsForFilter,
+  matchesDashboardListItemFilter,
+} from "./dashboardListViewModel.js";
+export { collectTasksFromNotes } from "./dashboardTaskCollector.js";
+export {
+  canAddDashboardCandidate,
+  filterExtractedTasksForDisplay,
+  normalizeDashboardTaskText,
+  normalizeExtractedTaskIdentity,
+  resolveDashboardTaskFile,
+  stripDashboardDueDate,
+  todayDateString,
+  upsertDashboardDueDate,
+} from "./dashboardTaskUtils.js";
 export type {
-  DashTask,
-  WeekDay,
-  DismissedExtractedTask,
+  DashboardCandidateAddAck,
+  DashboardCandidateStateMigration,
   DashboardCandidateTask,
-  ExtractedTaskFilterResult,
-  DashboardTaskSection,
-  DashboardListFilter,
-  DashboardTaskView,
   DashboardCandidateView,
+  DashboardData,
+  DashboardListFilter,
   DashboardListItem,
   DashboardListSectionView,
   DashboardListViewModel,
-  DashboardCandidateStateMigration,
-  DashboardCandidateAddAck,
   DashboardSummary,
-  DashboardData,
-} from "./dashboardTypes.js";
-import type {
-  DashboardCandidateAddAck,
-  DashboardData,
-  DashboardListFilter,
+  DashboardTaskSection,
   DashboardTaskView,
+  DashTask,
   DismissedExtractedTask,
+  ExtractedTaskFilterResult,
+  WeekDay,
 } from "./dashboardTypes.js";
-import {
-  canAddDashboardCandidate,
-  normalizeOptionalDate,
-  todayDateString,
-  normalizeDashboardTaskText,
-  normalizeExtractedTaskIdentity,
-  stripDashboardDueDate,
-  upsertDashboardDueDate,
-  resolveDashboardTaskFile,
-  ensureDashboardTaskFile,
-  resolveTaskRef,
-  buildTaskMarkdownLine,
-  shiftDate,
-  normalizeDismissedExtractedTasks,
-  pruneDismissedExtractedTasks,
-  filterExtractedTasksForDisplay,
-  buildExtractedTaskStatusMessage,
-  buildExtractedTaskFailureMessage,
-  TASK_RE,
-} from "./dashboardTaskUtils.js";
-export {
-  canAddDashboardCandidate,
-  todayDateString,
-  normalizeDashboardTaskText,
-  normalizeExtractedTaskIdentity,
-  stripDashboardDueDate,
-  upsertDashboardDueDate,
-  resolveDashboardTaskFile,
-  filterExtractedTasksForDisplay,
-} from "./dashboardTaskUtils.js";
-export { collectTasksFromNotes } from "./dashboardTaskCollector.js";
-export {
-  buildUpcomingWeek,
-  classifyDashboardTask,
-  buildDashboardTaskViews,
-  buildDashboardCandidateViews,
-} from "./dashboardClassification.js";
-export {
-  buildDashboardListItems,
-  matchesDashboardListItemFilter,
-  countDashboardListItemsForFilter,
-  buildDashboardListViewModel,
-} from "./dashboardListViewModel.js";
-export { migrateDashboardCandidateState } from "./dashboardCandidateMigration.js";
 
-import { buildSectionCounts, buildCategoryCounts, buildSummary } from "./dashboardAnalytics.js";
+import { buildCategoryCounts, buildSectionCounts, buildSummary } from "./dashboardAnalytics.js";
+import { buildDashboardTaskViews, buildUpcomingWeek } from "./dashboardClassification.js";
 import { collectTasksFromNotes } from "./dashboardTaskCollector.js";
-import {
-  buildUpcomingWeek,
-  buildDashboardTaskViews,
-  buildDashboardCandidateViews,
-} from "./dashboardClassification.js";
-import {
-  buildDashboardListItems,
-  matchesDashboardListItemFilter,
-  countDashboardListItemsForFilter,
-  buildDashboardListViewModel,
-} from "./dashboardListViewModel.js";
-import { migrateDashboardCandidateState } from "./dashboardCandidateMigration.js";
 
 // ---------------------------------------------------------------------------
 // Dashboard Panel class
@@ -178,41 +147,12 @@ export class DashboardPanel {
     void this._update();
   }
 
-  private _getDismissedExtractedStorageKey(notesDir: string): string {
-    const notesKey = crypto.createHash("sha1").update(path.resolve(notesDir)).digest("hex");
-    return `dashboard.dismissedExtracted.${notesKey}`;
-  }
-
-  private _loadDismissedExtractedTasks(notesDir: string): DismissedExtractedTask[] {
-    const storageKey = this._getDismissedExtractedStorageKey(notesDir);
-    const entries = normalizeDismissedExtractedTasks(this._stateStore.get(storageKey, []));
-    const pruned = pruneDismissedExtractedTasks(entries);
-
-    if (pruned.length !== entries.length) {
-      void this._stateStore.update(storageKey, pruned);
-    }
-
-    return pruned;
-  }
-
   private _dismissExtractedTask(text: string): void {
     const notesDir = this._getNotesDir();
     if (!notesDir) {
       return;
     }
-
-    const key = normalizeExtractedTaskIdentity(text);
-    if (!key) {
-      return;
-    }
-
-    const storageKey = this._getDismissedExtractedStorageKey(notesDir);
-    const nextEntries = pruneDismissedExtractedTasks(
-      this._loadDismissedExtractedTasks(notesDir)
-        .filter((entry) => entry.key !== key)
-        .concat([{ key, dismissedAt: todayDateString() }]),
-    );
-    void this._stateStore.update(storageKey, nextEntries);
+    dismissExtractedTaskInStore(this._stateStore, notesDir, text);
   }
 
   private dispose(): void {
@@ -363,31 +303,9 @@ export class DashboardPanel {
       return;
     }
 
-    const ref = resolveTaskRef(notesDir, taskId);
-    if (!ref) {
-      return;
+    if (await toggleDashboardTask(notesDir, taskId, done)) {
+      void this._update();
     }
-
-    try {
-      await fs.access(ref.filePath);
-    } catch {
-      return;
-    }
-
-    const lines = (await fs.readFile(ref.filePath, "utf8")).split("\n");
-    const line = lines[ref.lineIndex];
-    if (!line) {
-      return;
-    }
-
-    const match = TASK_RE.exec(line);
-    if (!match) {
-      return;
-    }
-
-    lines[ref.lineIndex] = buildTaskMarkdownLine(done, match[2].trim());
-    await fs.writeFile(ref.filePath, lines.join("\n"), "utf8");
-    void this._update();
   }
 
   private async _updateTask(taskId: string, text: string, dueDate: string | null): Promise<void> {
@@ -396,37 +314,15 @@ export class DashboardPanel {
       return;
     }
 
-    const normalizedText = upsertDashboardDueDate(text, dueDate);
-    if (!normalizedText) {
+    const result = await updateDashboardTask(notesDir, taskId, text, dueDate);
+    if (result === "invalid-text") {
       void vscode.window.showErrorMessage("Task text cannot be empty.");
       return;
     }
 
-    const ref = resolveTaskRef(notesDir, taskId);
-    if (!ref) {
-      return;
+    if (result === "updated") {
+      void this._update();
     }
-
-    try {
-      await fs.access(ref.filePath);
-    } catch {
-      return;
-    }
-
-    const lines = (await fs.readFile(ref.filePath, "utf8")).split("\n");
-    const line = lines[ref.lineIndex];
-    if (!line) {
-      return;
-    }
-
-    const match = TASK_RE.exec(line);
-    if (!match) {
-      return;
-    }
-
-    lines[ref.lineIndex] = buildTaskMarkdownLine(match[1].toLowerCase() === "x", normalizedText);
-    await fs.writeFile(ref.filePath, lines.join("\n"), "utf8");
-    void this._update();
   }
 
   private async _deleteTask(taskId: string): Promise<void> {
@@ -435,26 +331,9 @@ export class DashboardPanel {
       return;
     }
 
-    const ref = resolveTaskRef(notesDir, taskId);
-    if (!ref) {
-      return;
+    if (await deleteDashboardTask(notesDir, taskId)) {
+      void this._update();
     }
-
-    try {
-      await fs.access(ref.filePath);
-    } catch {
-      return;
-    }
-
-    const lines = (await fs.readFile(ref.filePath, "utf8")).split("\n");
-    const line = lines[ref.lineIndex];
-    if (!line || !TASK_RE.exec(line)) {
-      return;
-    }
-
-    lines.splice(ref.lineIndex, 1);
-    await fs.writeFile(ref.filePath, lines.join("\n"), "utf8");
-    void this._update();
   }
 
   private async _createTask(
@@ -467,33 +346,18 @@ export class DashboardPanel {
       return false;
     }
 
-    const normalizedText = upsertDashboardDueDate(text, dueDate);
-    if (!normalizedText) {
+    const result = await createDashboardTask(notesDir, text, targetDate, dueDate);
+    if (result === "invalid-text") {
       void vscode.window.showErrorMessage("Task text cannot be empty.");
       return false;
     }
-
-    const taskFile = await ensureDashboardTaskFile(notesDir, targetDate);
-    const existing = await fs.readFile(taskFile, "utf8");
-    const prefix = existing.endsWith("\n") ? "" : "\n";
-    await fs.writeFile(
-      taskFile,
-      `${existing}${prefix}${buildTaskMarkdownLine(false, normalizedText)}\n`,
-      "utf8",
-    );
 
     void this._update();
     return true;
   }
 
   private async _hasExistingExtractedTask(notesDir: string, text: string): Promise<boolean> {
-    const targetKey = normalizeExtractedTaskIdentity(text);
-    if (!targetKey) {
-      return false;
-    }
-
-    const tasks = await collectTasksFromNotes(notesDir);
-    return tasks.some((task) => normalizeExtractedTaskIdentity(task.text) === targetKey);
+    return hasExistingDashboardTask(notesDir, text);
   }
 
   private async _addExtractedTask({
@@ -565,100 +429,15 @@ export class DashboardPanel {
   }
 
   private async _runAiExtract(fromDate: string, toDate: string, modelId?: string): Promise<void> {
-    this._cancelToken?.cancel();
-    this._cancelToken = new vscode.CancellationTokenSource();
-    const token = this._cancelToken.token;
-
-    DashboardPanel._statusListener?.(true);
-    void this._panel.webview.postMessage({
-      type: "aiStatus",
-      status: "processing",
-      message: `${fromDate} ～ ${toDate} の Moments を分析しています...`,
+    await this._runCandidateExtraction({
+      fromDate,
+      toDate,
+      modelId,
+      statusType: "aiStatus",
+      resultType: "extractResult",
+      processingMessage: `${fromDate} ～ ${toDate} の Moments を分析しています...`,
+      extract: extractDashboardMomentsCandidates,
     });
-
-    try {
-      const notesDir = this._getNotesDir();
-      if (!notesDir) {
-        return;
-      }
-
-      const momentsSubfolder = getMomentsSubfolderSetting();
-
-      // Collect content from all dates in the range
-      const allCleanTexts: string[] = [];
-      const datesWithContent: string[] = [];
-      const startDate = new Date(fromDate);
-      const endDate = new Date(toDate);
-
-      for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
-        const dateStr = d.toISOString().split("T")[0];
-        const momentsFile = path.join(notesDir, momentsSubfolder, `${dateStr}.md`);
-
-        let fileExists = false;
-        try {
-          await fs.access(momentsFile);
-          fileExists = true;
-        } catch {
-          /* not found */
-        }
-
-        if (fileExists) {
-          const content = await fs.readFile(momentsFile, "utf8");
-          const body = content.replace(/^---[\s\S]*?---\s*/m, "").trim();
-          const cleanText = body
-            .split("\n")
-            .filter((line) => line.startsWith("- "))
-            .map((line) => line.replace(/^- (\d{2}:\d{2} )?/, "").trim())
-            .filter(Boolean)
-            .join("\n");
-
-          if (cleanText) {
-            allCleanTexts.push(`[${dateStr}]\n${cleanText}`);
-            datesWithContent.push(dateStr);
-          }
-        }
-      }
-
-      if (allCleanTexts.length === 0) {
-        void this._panel.webview.postMessage({
-          type: "aiStatus",
-          status: "error",
-          message: `${fromDate} ～ ${toDate} の期間に該当する Moments が見つかりません。`,
-        });
-        return;
-      }
-
-      const combinedText = allCleanTexts.join("\n\n");
-      const extractionResult = await extractTasksFromTextWithStatus(combinedText, token, modelId);
-      const extracted = extractionResult.tasks;
-      const existingTasks = await collectTasksFromNotes(notesDir, momentsSubfolder);
-      const filtered = filterExtractedTasksForDisplay(
-        extracted,
-        existingTasks,
-        this._loadDismissedExtractedTasks(notesDir),
-      );
-
-      if (filtered.visibleTasks.length === 0) {
-        void this._panel.webview.postMessage({
-          type: "aiStatus",
-          status: "done",
-          message:
-            extractionResult.failureReason !== null
-              ? buildExtractedTaskFailureMessage(extractionResult.failureReason)
-              : buildExtractedTaskStatusMessage(filtered),
-        });
-        return;
-      }
-
-      void this._panel.webview.postMessage({
-        type: "aiStatus",
-        status: "done",
-        message: `${datesWithContent.length}日分の Moments から${filtered.visibleTasks.length}件のタスク候補を抽出しました。`,
-      });
-      void this._panel.webview.postMessage({ type: "extractResult", tasks: filtered.visibleTasks });
-    } finally {
-      DashboardPanel._statusListener?.(false);
-    }
   }
 
   private async _extractFromNotes(
@@ -666,15 +445,35 @@ export class DashboardPanel {
     toDate: string,
     modelId?: string,
   ): Promise<void> {
+    await this._runCandidateExtraction({
+      fromDate,
+      toDate,
+      modelId,
+      statusType: "notesAiStatus",
+      resultType: "notesExtractResult",
+      processingMessage: `${fromDate} ～ ${toDate} のノートを分析しています...`,
+      extract: extractDashboardNotesCandidates,
+    });
+  }
+
+  private async _runCandidateExtraction(options: {
+    fromDate: string;
+    toDate: string;
+    modelId?: string;
+    statusType: "aiStatus" | "notesAiStatus";
+    resultType: "extractResult" | "notesExtractResult";
+    processingMessage: string;
+    extract: typeof extractDashboardMomentsCandidates | typeof extractDashboardNotesCandidates;
+  }): Promise<void> {
     this._cancelToken?.cancel();
     this._cancelToken = new vscode.CancellationTokenSource();
     const token = this._cancelToken.token;
 
     DashboardPanel._statusListener?.(true);
     void this._panel.webview.postMessage({
-      type: "notesAiStatus",
+      type: options.statusType,
       status: "processing",
-      message: `${fromDate} ～ ${toDate} のノートを分析しています...`,
+      message: options.processingMessage,
     });
 
     try {
@@ -683,90 +482,30 @@ export class DashboardPanel {
         return;
       }
 
-      // Collect notes by date using direct file reading (fallback method)
-      const noteContents = await this._collectNotesByDate(fromDate, toDate);
-
-      if (noteContents.length === 0) {
-        void this._panel.webview.postMessage({
-          type: "notesAiStatus",
-          status: "error",
-          message: `${fromDate} ～ ${toDate} の期間に該当するノートが見つかりません。`,
-        });
-        return;
-      }
-
-      const momentsSubfolder = getMomentsSubfolderSetting();
-      const extracted = await extractTasksFromNotes(noteContents, token, modelId);
-      const existingTasks = await collectTasksFromNotes(notesDir, momentsSubfolder);
-      const filtered = filterExtractedTasksForDisplay(
-        extracted,
-        existingTasks,
-        this._loadDismissedExtractedTasks(notesDir),
-      );
-
-      if (filtered.visibleTasks.length === 0) {
-        void this._panel.webview.postMessage({
-          type: "notesAiStatus",
-          status: "done",
-          message: buildExtractedTaskStatusMessage(filtered),
-        });
-        return;
-      }
+      const result = await options.extract({
+        notesDir,
+        momentsSubfolder: getMomentsSubfolderSetting(),
+        fromDate: options.fromDate,
+        toDate: options.toDate,
+        token,
+        modelId: options.modelId,
+        dismissedTasks: loadDismissedExtractedTasks(this._stateStore, notesDir),
+      });
 
       void this._panel.webview.postMessage({
-        type: "notesAiStatus",
-        status: "done",
-        message: `${noteContents.length}件のノートから${filtered.visibleTasks.length}件のタスク候補を抽出しました。`,
+        type: options.statusType,
+        status: result.status,
+        message: result.message,
       });
-      void this._panel.webview.postMessage({
-        type: "notesExtractResult",
-        tasks: filtered.visibleTasks,
-      });
+      if (result.tasks.length > 0) {
+        void this._panel.webview.postMessage({
+          type: options.resultType,
+          tasks: result.tasks,
+        });
+      }
     } finally {
       DashboardPanel._statusListener?.(false);
     }
-  }
-
-  private async _collectNotesByDate(fromDate: string, toDate: string): Promise<NoteContent[]> {
-    const notesDir = this._getNotesDir();
-    if (!notesDir) {
-      return [];
-    }
-
-    const results: NoteContent[] = [];
-
-    const collectFiles = async (dir: string) => {
-      const entries = await fs.readdir(dir, { withFileTypes: true });
-      for (const entry of entries) {
-        const fullPath = path.join(dir, entry.name);
-        if (entry.isDirectory()) {
-          if (entry.name !== "moments") {
-            await collectFiles(fullPath);
-          }
-        } else if (entry.name.endsWith(".md")) {
-          const dateMatch = entry.name.match(/(\d{4}-\d{2}-\d{2})/);
-          if (dateMatch) {
-            const fileDate = dateMatch[1];
-            if (fileDate >= fromDate && fileDate <= toDate) {
-              try {
-                const content = await fs.readFile(fullPath, "utf8");
-                results.push({
-                  filename: path.relative(notesDir, fullPath),
-                  title: entry.name.replace(/\.md$/, ""),
-                  content,
-                  createdAt: fileDate,
-                });
-              } catch (e) {
-                // Skip files that can't be read
-              }
-            }
-          }
-        }
-      }
-    };
-
-    await collectFiles(notesDir);
-    return results.sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
   }
 
   // ---------------------------------------------------------------------------
