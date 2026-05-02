@@ -204,7 +204,7 @@ suite("Moments Core Test Suite", () => {
     assert.ok(inputAreaRuleMatch, "expected the .input-area CSS rule to be present");
     const inputAreaRule = inputAreaRuleMatch[0];
     assert.ok(
-      inputAreaRule.includes("border-bottom: 1px solid var(--vscode-panel-border);"),
+      inputAreaRule.includes("border-bottom:") && inputAreaRule.includes("var(--moments-border)"),
       "expected the top composer to divide from the timeline below it",
     );
     assert.ok(

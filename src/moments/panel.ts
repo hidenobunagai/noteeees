@@ -320,6 +320,10 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
   body {
     --moments-inline-padding: 10px;
     --moments-control-radius: 6px;
+    --moments-surface: var(--vscode-editorWidget-background, var(--vscode-sideBar-background));
+    --moments-accent: var(--vscode-textLink-foreground);
+    --moments-muted: var(--vscode-descriptionForeground);
+    --moments-border: var(--vscode-panel-border);
     font-family: var(--vscode-font-family);
     font-size: var(--vscode-font-size);
     color: var(--vscode-foreground);
@@ -336,8 +340,8 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     flex-direction: column;
     align-items: stretch;
     padding: 10px var(--moments-inline-padding) 8px;
-    background: var(--vscode-editorWidget-background, var(--vscode-sideBar-background));
-    border-bottom: 1px solid var(--vscode-panel-border);
+    background: var(--moments-surface);
+    border-bottom: 1px solid var(--moments-border);
     flex-shrink: 0;
     gap: 8px;
   }
@@ -380,8 +384,8 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     min-height: 22px;
     padding: 0 8px;
     border-radius: 999px;
-    background: color-mix(in srgb, var(--vscode-textLink-foreground) 12%, transparent);
-    color: var(--vscode-textLink-foreground);
+    background: color-mix(in srgb, var(--moments-accent) 12%, transparent);
+    color: var(--moments-accent);
     font-size: 11px;
     font-weight: 600;
     white-space: nowrap;
@@ -477,11 +481,11 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     top: 0;
     z-index: 1;
     background: var(--vscode-sideBar-background, var(--vscode-editor-background));
-    border-bottom: 1px solid var(--vscode-panel-border);
+    border-bottom: 1px solid var(--moments-border);
   }
 
   .day-section-label {
-    color: var(--vscode-descriptionForeground);
+    color: var(--moments-muted);
     font-size: 11px;
     font-weight: 600;
     text-align: center;
@@ -489,7 +493,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
   }
 
   .day-section-label.is-today {
-    color: var(--vscode-textLink-foreground);
+    color: var(--moments-accent);
   }
 
   .empty-state {
@@ -506,14 +510,14 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     gap: 6px;
     padding: 10px 12px 8px;
     background: var(--vscode-editor-background);
-    border: 1px solid var(--vscode-panel-border);
+    border: 1px solid var(--moments-border);
     border-radius: var(--moments-control-radius);
     transition: background 0.1s, border-color 0.1s;
     word-break: break-word;
   }
   .entry:hover {
     background: var(--vscode-list-hoverBackground);
-    border-color: var(--vscode-focusBorder, var(--vscode-panel-border));
+    border-color: var(--vscode-focusBorder, var(--moments-border));
   }
 
   .entry-meta {
@@ -603,7 +607,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     padding: 2px;
     border-radius: 999px;
     background: color-mix(in srgb, var(--vscode-foreground) 6%, transparent);
-    border: 1px solid color-mix(in srgb, var(--vscode-panel-border) 90%, transparent);
+    border: 1px solid color-mix(in srgb, var(--moments-border) 90%, transparent);
   }
 
   .entry:hover .entry-header-actions,
@@ -646,7 +650,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
   }
 
   .entry-action.primary {
-    color: var(--vscode-textLink-foreground);
+    color: var(--moments-accent);
   }
 
   .entry-action.danger:hover {
@@ -654,7 +658,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
   }
 
   .entry-action.save {
-    color: var(--vscode-textLink-foreground);
+    color: var(--moments-accent);
   }
 
   .tag {
@@ -662,8 +666,8 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     border: none;
     padding: 0 5px;
     border-radius: 3px;
-    background: color-mix(in srgb, var(--vscode-textLink-foreground) 18%, transparent);
-    color: var(--vscode-textLink-foreground);
+    background: color-mix(in srgb, var(--moments-accent) 18%, transparent);
+    color: var(--moments-accent);
     font-size: 11px;
     font-weight: 500;
     margin: 0 1px;
@@ -674,7 +678,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
   }
 
   .tag:hover {
-    background: color-mix(in srgb, var(--vscode-textLink-foreground) 26%, transparent);
+    background: color-mix(in srgb, var(--moments-accent) 26%, transparent);
   }
 
   .due-date-inline {
@@ -725,8 +729,8 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
   .input-area {
     flex-shrink: 0;
     padding: 8px var(--moments-inline-padding) 10px;
-    border-bottom: 1px solid var(--vscode-panel-border);
-    background: var(--vscode-sideBar-background, var(--vscode-editor-background));
+    border-bottom: 1px solid var(--moments-border);
+    background: var(--vscode-editorWidget-background, var(--vscode-sideBar-background));
   }
 
   .input-container {
@@ -886,10 +890,10 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     flex: none;
     min-width: 0;
     max-width: 40%;
-    border: 1px solid color-mix(in srgb, var(--vscode-textLink-foreground) 35%, var(--vscode-panel-border));
+    border: 1px solid color-mix(in srgb, var(--moments-accent) 35%, var(--moments-border));
     border-radius: 999px;
-    background: color-mix(in srgb, var(--vscode-textLink-foreground) 12%, transparent);
-    color: var(--vscode-textLink-foreground);
+    background: color-mix(in srgb, var(--moments-accent) 12%, transparent);
+    color: var(--moments-accent);
     padding: 0 8px;
     font-size: 11px;
     font-weight: 500;
@@ -902,15 +906,15 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
   }
 
   .filter-chip-btn:hover {
-    background: color-mix(in srgb, var(--vscode-textLink-foreground) 18%, transparent);
-    border-color: color-mix(in srgb, var(--vscode-textLink-foreground) 50%, var(--vscode-panel-border));
+    background: color-mix(in srgb, var(--moments-accent) 18%, transparent);
+    border-color: color-mix(in srgb, var(--moments-accent) 50%, var(--moments-border));
   }
 
   /* ---- Export select mode ---- */
   .export-btn.active {
     opacity: 1;
-    color: var(--vscode-textLink-foreground);
-    background: color-mix(in srgb, var(--vscode-textLink-foreground) 12%, transparent);
+    color: var(--moments-accent);
+    background: color-mix(in srgb, var(--moments-accent) 12%, transparent);
     border-radius: 4px;
   }
 
@@ -920,7 +924,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     width: 15px;
     height: 15px;
     margin: 0;
-    accent-color: var(--vscode-textLink-foreground);
+    accent-color: var(--moments-accent);
     cursor: pointer;
     margin-top: 1px;
   }
@@ -930,8 +934,8 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
   }
 
   .entry.selected-for-export {
-    background: color-mix(in srgb, var(--vscode-textLink-foreground) 10%, var(--vscode-editor-background));
-    border-color: color-mix(in srgb, var(--vscode-textLink-foreground) 30%, var(--vscode-panel-border));
+    background: color-mix(in srgb, var(--moments-accent) 10%, var(--vscode-editor-background));
+    border-color: color-mix(in srgb, var(--moments-accent) 30%, var(--moments-border));
   }
 
   .export-action-bar {
@@ -940,7 +944,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     align-items: center;
     gap: 8px;
     padding: 8px var(--moments-inline-padding);
-    border-top: 1px solid var(--vscode-focusBorder, var(--vscode-panel-border));
+    border-top: 1px solid var(--vscode-focusBorder, var(--moments-border));
     background: var(--vscode-editorWidget-background, var(--vscode-sideBar-background));
   }
 
@@ -985,7 +989,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     flex-direction: column;
     gap: 6px;
     padding: 6px var(--moments-inline-padding) 8px;
-    border-bottom: 2px solid var(--vscode-textLink-foreground);
+    border-bottom: 2px solid var(--moments-accent);
   }
 
   .pinned-section-header {
@@ -997,11 +1001,11 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     top: 0;
     z-index: 1;
     background: var(--vscode-sideBar-background, var(--vscode-editor-background));
-    border-bottom: 1px solid var(--vscode-panel-border);
+    border-bottom: 1px solid var(--moments-border);
   }
 
   .pinned-section-label {
-    color: var(--vscode-textLink-foreground);
+    color: var(--moments-accent);
     font-size: 11px;
     font-weight: 600;
     text-align: center;
@@ -1009,12 +1013,12 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
   }
 
   .pinned-entry {
-    background: color-mix(in srgb, var(--vscode-textLink-foreground) 6%, var(--vscode-editor-background));
-    border-color: color-mix(in srgb, var(--vscode-textLink-foreground) 40%, transparent);
+    background: color-mix(in srgb, var(--moments-accent) 6%, var(--vscode-editor-background));
+    border-color: color-mix(in srgb, var(--moments-accent) 40%, transparent);
   }
-  .pinned-entry:hover { background: color-mix(in srgb, var(--vscode-textLink-foreground) 12%, var(--vscode-list-hoverBackground)); }
+  .pinned-entry:hover { background: color-mix(in srgb, var(--moments-accent) 12%, var(--vscode-list-hoverBackground)); }
 
-  .pin-btn.pinned { opacity: 1; color: var(--vscode-textLink-foreground); }
+  .pin-btn.pinned { opacity: 1; color: var(--moments-accent); }
   .pin-btn:not(.pinned) { opacity: 0.45; }
   .entry:hover .pin-btn:not(.pinned),
   .entry:focus-within .pin-btn:not(.pinned) {
@@ -1206,7 +1210,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     // Highlight @YYYY-MM-DD due dates
     html = html.replace(/@(\\d{4}-\\d{2}-\\d{2})/g, '<span class="due-date-inline">@$1</span>');
     // Auto-link URLs
-    html = html.replace(/(https?:\\/\\/[^\\s<]+)/g, '<a href="$1" style="color:var(--vscode-textLink-foreground)">$1</a>');
+    html = html.replace(/(https?:\\/\\/[^\\s<]+)/g, '<a href="$1" style="color:var(--moments-accent)">$1</a>');
     return html;
   }
 
