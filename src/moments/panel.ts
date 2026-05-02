@@ -498,7 +498,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
 
   .empty-state {
     text-align: center;
-    color: var(--vscode-descriptionForeground);
+    color: var(--moments-muted);
     font-size: 12px;
     margin: 24px 12px 0;
     opacity: 0.6;
@@ -527,7 +527,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     flex-wrap: wrap;
     gap: 4px;
     min-width: 0;
-    color: var(--vscode-descriptionForeground);
+    color: var(--moments-muted);
     font-size: 11px;
   }
 
@@ -554,7 +554,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     padding: 0 6px;
     border-radius: 999px;
     background: color-mix(in srgb, var(--vscode-foreground) 8%, transparent);
-    color: var(--vscode-descriptionForeground);
+    color: var(--moments-muted);
     white-space: nowrap;
     font-variant-numeric: tabular-nums;
     font-weight: 500;
@@ -622,7 +622,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     justify-content: center;
     background: none;
     border: none;
-    color: var(--vscode-descriptionForeground);
+    color: var(--moments-muted);
     cursor: pointer;
     padding: 3px;
     border-radius: 4px;
@@ -706,7 +706,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     line-height: 1.4;
     white-space: nowrap;
     background: color-mix(in srgb, var(--vscode-foreground) 12%, transparent);
-    color: var(--vscode-descriptionForeground);
+    color: var(--moments-muted);
   }
 
   .due-overdue .due-badge {
@@ -721,7 +721,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
 
   .due-upcoming .due-badge {
     background: color-mix(in srgb, var(--vscode-foreground) 10%, transparent);
-    color: var(--vscode-descriptionForeground);
+    color: var(--moments-muted);
     opacity: 0.75;
   }
 
@@ -831,7 +831,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     transform: translateY(-50%);
     width: 13px;
     height: 13px;
-    fill: var(--vscode-descriptionForeground);
+    fill: var(--moments-muted);
     opacity: 0.6;
     pointer-events: none;
   }
@@ -869,7 +869,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     justify-content: center;
     background: none;
     border: none;
-    color: var(--vscode-descriptionForeground);
+    color: var(--moments-muted);
     cursor: pointer;
     padding: 3px;
     border-radius: 3px;
@@ -955,7 +955,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
   .selected-count-label {
     flex: 1;
     font-size: 11px;
-    color: var(--vscode-descriptionForeground);
+    color: var(--moments-muted);
   }
 
   .export-note-btn {
