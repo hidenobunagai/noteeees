@@ -353,6 +353,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
   }
 
   .topbar-row-main {
+    flex-wrap: wrap;
     justify-content: space-between;
     gap: 10px;
   }
@@ -366,6 +367,8 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
   .topbar-left {
     display: flex;
     align-items: center;
+    flex: 1 1 auto;
+    flex-wrap: wrap;
     gap: 8px;
     min-width: 0;
   }
@@ -374,6 +377,8 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     color: var(--vscode-foreground);
     font-size: 12px;
     font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
     white-space: nowrap;
     line-height: 1.3;
   }
@@ -397,6 +402,10 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     align-items: center;
     gap: 2px;
     flex-shrink: 0;
+    padding: 2px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--vscode-foreground) 6%, transparent);
+    border: 1px solid color-mix(in srgb, var(--moments-border) 85%, transparent);
   }
 
   .nav-btn {
@@ -888,6 +897,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     align-items: center;
     justify-content: center;
     flex: none;
+    min-height: 28px;
     min-width: 0;
     max-width: 40%;
     border: 1px solid color-mix(in srgb, var(--moments-accent) 35%, var(--moments-border));
