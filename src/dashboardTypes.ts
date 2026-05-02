@@ -1,12 +1,7 @@
-export interface DashTask {
-  id: string;
-  filePath: string;
-  lineIndex: number;
-  text: string;
-  done: boolean;
-  date: string | null;
+import type { BaseTask } from "../shared/taskTypes.js";
+
+export interface DashTask extends BaseTask {
   dueDate: string | null;
-  tags: string[];
 }
 
 export interface WeekDay {

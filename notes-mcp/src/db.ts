@@ -174,15 +174,10 @@ export function stopFileWatcher(): void {
 // tasks_cache CRUD
 // ---------------------------------------------------------------------------
 
-export interface TaskRow {
-  id: string;
-  filePath: string;
-  lineIndex: number;
-  text: string;
-  done: boolean;
-  date: string | null;
+import type { BaseTask } from "../../shared/taskTypes.js";
+
+export interface TaskRow extends BaseTask {
   sourceType: string;
-  tags: string[];
   mtime: number;
   updatedAt: string;
 }
