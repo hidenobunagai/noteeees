@@ -338,3 +338,70 @@ export function getStoredTaskMtimes(notesDir: string): Map<string, number> {
   }[];
   return new Map(rows.map((r) => [r.file_path, r.mtime]));
 }
+
+// ---------------------------------------------------------------------------
+// ai_tasks CRUD — persists AI-extracted enrichment (category, priority, etc.)
+// ---------------------------------------------------------------------------
+
+export interface AiTaskRow {
+  taskId: string;
+  category: string | null;
+  priority: string | null;
+  timeEstimateMin: number | null;
+  aiSummary: string | null;
+  enrichedAt: string;
+}
+
+export function upsertAiTask(
+  notesDir: string,
+  taskId: string,
+  opts: {
+    category?: string | null;
+    priority?: string | null;
+    timeEstimateMin?: number | null;
+    aiSummary?: string | null;
+  } = {},
+): void {
+  const db = getDb(notesDir);
+  db.run(
+    `INSERT OR REPLACE INTO ai_tasks
+      (task_id, category, priority, time_estimate_min, ai_summary, enriched_at)
+     VALUES (?, ?, ?, ?, ?, ?)`,
+    [
+      taskId,
+      opts.category ?? null,
+      opts.priority ?? null,
+      opts.timeEstimateMin ?? null,
+      opts.aiSummary ?? null,
+      new Date().toISOString(),
+    ],
+  );
+}
+
+export function getAiTask(notesDir: string, taskId: string): AiTaskRow | null {
+  const db = getDb(notesDir);
+  const row = db.query("SELECT * FROM ai_tasks WHERE task_id = ?").get(taskId) as {
+    task_id: string;
+    category: string | null;
+    priority: string | null;
+    time_estimate_min: number | null;
+    ai_summary: string | null;
+    enriched_at: string;
+  } | null;
+  if (!row) return null;
+  return {
+    taskId: row.task_id,
+    category: row.category,
+    priority: row.priority,
+    timeEstimateMin: row.time_estimate_min,
+    aiSummary: row.ai_summary,
+    enrichedAt: row.enriched_at,
+  };
+}
+
+export function deleteAiTasksByFile(notesDir: string, filePath: string): void {
+  const db = getDb(notesDir);
+  db.run("DELETE FROM ai_tasks WHERE task_id IN (SELECT id FROM tasks_cache WHERE file_path = ?)", [
+    filePath,
+  ]);
+}

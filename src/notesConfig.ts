@@ -1,11 +1,13 @@
 import * as vscode from "vscode";
+import type { SidebarTagSortMode } from "./sidebarProvider.js";
+
+export type { SidebarTagSortMode };
 
 export interface NotesDefaultSnippetSetting {
   langId?: string;
   name?: string | null;
 }
 
-export type NotesSidebarTagSortMode = "frequency" | "alphabetical";
 export type NotesConfigKey =
   | "notesDirectory"
   | "defaultNoteTitle"
@@ -75,12 +77,12 @@ export function getSidebarRecentLimitSetting(): number {
   return Math.max(0, getNotesConfiguration().get<number>("sidebarRecentLimit") ?? 20);
 }
 
-export function getSidebarTagSortSetting(): NotesSidebarTagSortMode {
-  return getNotesConfiguration().get<NotesSidebarTagSortMode>("sidebarTagSort") ?? "frequency";
+export function getSidebarTagSortSetting(): SidebarTagSortMode {
+  return getNotesConfiguration().get<SidebarTagSortMode>("sidebarTagSort") ?? "frequency";
 }
 
 export function updateSidebarTagSortSetting(
-  value: NotesSidebarTagSortMode,
+  value: SidebarTagSortMode,
   target: vscode.ConfigurationTarget = vscode.ConfigurationTarget.Global,
 ): Thenable<void> {
   return getNotesConfiguration().update("sidebarTagSort", value, target);

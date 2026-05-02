@@ -14,7 +14,7 @@ import {
   stopFileWatcher,
   syncTasksForFile,
 } from "./db.js";
-import { isPathInside, resolveSafeFilePath, sanitizeTitle } from "./pathSafety.js";
+import { enforceMaxContentSize, isPathInside, resolveSafeFilePath, sanitizeTitle } from "./pathSafety.js";
 import {
   clearSearchIndexCache,
   executeStructuredSearch,
@@ -367,6 +367,15 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         };
       }
 
+      if (content !== undefined) {
+        const sizeCheck = enforceMaxContentSize(content);
+        if (!sizeCheck.valid) {
+          return {
+            content: [{ type: "text" as const, text: JSON.stringify({ error: sizeCheck.error }) }],
+          };
+        }
+      }
+
       const timestamp = nowTimestamp();
       const safeName = sanitizeTitle(title);
       const filename = `${timestamp}_${safeName}.md`;
@@ -402,6 +411,13 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         filename: string;
         content: string;
       };
+
+      const appendSizeCheck = enforceMaxContentSize(appendContent);
+      if (!appendSizeCheck.valid) {
+        return {
+          content: [{ type: "text" as const, text: JSON.stringify({ error: appendSizeCheck.error }) }],
+        };
+      }
 
       const filePath = resolveSafeFilePath(notesDir, targetFilename);
       if (!filePath) {
@@ -447,6 +463,13 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         text: string;
         date?: string;
       };
+
+      const momentSizeCheck = enforceMaxContentSize(text);
+      if (!momentSizeCheck.valid) {
+        return {
+          content: [{ type: "text" as const, text: JSON.stringify({ error: momentSizeCheck.error }) }],
+        };
+      }
 
       const targetDate = date ?? todayDate();
       if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
@@ -582,6 +605,13 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         text: string;
         date?: string;
       };
+      const taskSizeCheck = enforceMaxContentSize(taskText);
+      if (!taskSizeCheck.valid) {
+        return {
+          content: [{ type: "text" as const, text: JSON.stringify({ error: taskSizeCheck.error }) }],
+        };
+      }
+
       const targetDate = taskDate ?? todayDate();
       const taskDir = path.join(notesDir, "tasks");
       await fs.mkdir(taskDir, { recursive: true });
