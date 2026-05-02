@@ -6,6 +6,17 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.9.8] - 2026-05-02
+
+### Changed
+
+- **Moments topbar redesign**: Refined the Moments header with a date label, live moment count badge, grouped SVG action buttons, and a search field with clearer affordances.
+- **Moments visual consistency**: Unified the Moments webview header and filter styling around shared accent, muted, border, and surface design tokens for a more cohesive look across themes.
+
+### Fixed
+
+- **Dashboard candidate-add failure coverage**: Updated the dashboard add-extracted-task failure ACK test to match the extracted message handler architecture, keeping release validation green after the refactor.
+
 ## [0.9.7] - 2026-05-02
 
 ### Changed
