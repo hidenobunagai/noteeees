@@ -6,6 +6,17 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.9.7] - 2026-05-02
+
+### Changed
+
+- **DashboardPanel internals further split**: Extracted message handler into `dashboardMessageHandler.ts`, webview CSS into `dashboardWebviewCss.ts`, and webview JS into `dashboardWebviewScript.ts`, shrinking the monolithic `dashboardPanelHtml.ts` from ~2390 to ~90 lines.
+- **Shared task type**: Introduced `shared/taskTypes.d.ts` with a common `BaseTask` interface, now extended by both `DashTask` (dashboard) and `TaskRow` (MCP server) to keep task shapes consistent.
+
+### Added
+
+- **Test coverage for extraction status messages**: Added pure-function tests for `buildExtractedTaskStatusMessage` and `buildExtractedTaskFailureMessage` covering all filter-result combinations and failure reasons.
+
 ## [0.9.6] - 2026-04-17
 
 ### Changed
