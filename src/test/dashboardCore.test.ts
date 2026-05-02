@@ -18,6 +18,10 @@ import {
   upsertDashboardDueDate,
   type DashboardListItem,
 } from "../dashboardPanel";
+import {
+  buildExtractedTaskFailureMessage,
+  buildExtractedTaskStatusMessage,
+} from "../dashboardTaskUtils";
 import { createDashboardPanelMessageHarness } from "./dashboardTestHelpers";
 
 suite("Dashboard Core Test Suite", () => {
@@ -1260,6 +1264,118 @@ suite("Dashboard Core Test Suite", () => {
         { date: "2026-04-01", open: 0, done: 0 },
         { date: "2026-04-02", open: 0, done: 0 },
       ],
+    );
+  });
+
+  test("buildExtractedTaskStatusMessage includes hidden counts when present", () => {
+    assert.strictEqual(
+      buildExtractedTaskStatusMessage({
+        visibleTasks: [],
+        hiddenExisting: 0,
+        hiddenDismissed: 0,
+        hiddenDuplicates: 0,
+      }),
+      "実行可能なタスクは見つかりませんでした。",
+    );
+
+    assert.strictEqual(
+      buildExtractedTaskStatusMessage({
+        visibleTasks: [],
+        hiddenExisting: 2,
+        hiddenDismissed: 1,
+        hiddenDuplicates: 0,
+      }),
+      "新しい候補はありません。2件は既存タスクと重複、1件は一時非表示として除外しました。",
+    );
+
+    assert.strictEqual(
+      buildExtractedTaskStatusMessage({
+        visibleTasks: [],
+        hiddenExisting: 0,
+        hiddenDismissed: 0,
+        hiddenDuplicates: 3,
+      }),
+      "新しい候補はありません。3件は候補内で重複として除外しました。",
+    );
+
+    assert.strictEqual(
+      buildExtractedTaskStatusMessage({
+        visibleTasks: [],
+        hiddenExisting: 1,
+        hiddenDismissed: 1,
+        hiddenDuplicates: 1,
+      }),
+      "新しい候補はありません。1件は既存タスクと重複、1件は一時非表示、1件は候補内で重複として除外しました。",
+    );
+
+    assert.strictEqual(
+      buildExtractedTaskStatusMessage({
+        visibleTasks: [
+          {
+            kind: "candidate" as const,
+            text: "Send report",
+            dueDate: null,
+            category: "work",
+            priority: "high",
+            timeEstimateMin: 30,
+            source: "moments",
+            sourceLabel: "Moments",
+            existsAlready: false,
+          },
+        ],
+        hiddenExisting: 2,
+        hiddenDismissed: 0,
+        hiddenDuplicates: 0,
+      }),
+      "1件の候補を表示しています。2件は既存タスクと重複として除外しました。",
+    );
+
+    assert.strictEqual(
+      buildExtractedTaskStatusMessage({
+        visibleTasks: [
+          {
+            kind: "candidate" as const,
+            text: "Send report",
+            dueDate: null,
+            category: "work",
+            priority: "high",
+            timeEstimateMin: 30,
+            source: "moments",
+            sourceLabel: "Moments",
+            existsAlready: false,
+          },
+          {
+            kind: "candidate" as const,
+            text: "Review budget",
+            dueDate: null,
+            category: "work",
+            priority: "medium",
+            timeEstimateMin: 20,
+            source: "notes",
+            sourceLabel: "projects/plan.md",
+            existsAlready: false,
+          },
+        ],
+        hiddenExisting: 0,
+        hiddenDismissed: 0,
+        hiddenDuplicates: 0,
+      }),
+      "2件の候補を表示しています。",
+    );
+  });
+
+  test("buildExtractedTaskFailureMessage maps failure reasons to user-facing messages", () => {
+    assert.strictEqual(
+      buildExtractedTaskFailureMessage("modelUnavailable"),
+      "AI 抽出を実行できませんでした。GitHub Copilot Chat の利用状態を確認してください。",
+    );
+    assert.strictEqual(
+      buildExtractedTaskFailureMessage("requestFailed"),
+      "AI 抽出に失敗しました。少し待ってからもう一度お試しください。",
+    );
+    assert.strictEqual(
+      buildExtractedTaskFailureMessage(null),
+      "実行可能なタスクは見つかりませんでした。",
     );
   });
 });
