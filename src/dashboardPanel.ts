@@ -1,13 +1,13 @@
 import * as vscode from "vscode";
 import { listCopilotModels } from "./aiTaskProcessor.js";
 import { loadDismissedExtractedTasks } from "./dashboardDismissedTasks.js";
-import { buildDashboardLoadingHtml, buildDashboardPanelHtml } from "./dashboardPanelHtml.js";
 import {
   createDashboardMessageHandler,
   type DashboardMessageHandlerDeps,
 } from "./dashboardMessageHandler.js";
-import { normalizeOptionalDate, todayDateString } from "./dashboardTaskUtils.js";
-import type { DashboardCandidateAddAck, DashboardData } from "./dashboardTypes.js";
+import { buildDashboardLoadingHtml, buildDashboardPanelHtml } from "./dashboardPanelHtml.js";
+import { todayDateString } from "./dashboardTaskUtils.js";
+import type { DashboardData } from "./dashboardTypes.js";
 import { getMomentsSubfolderSetting } from "./notesConfig.js";
 export { migrateDashboardCandidateState } from "./dashboardCandidateMigration.js";
 export {
@@ -54,8 +54,8 @@ export type {
 
 import { buildCategoryCounts, buildSectionCounts, buildSummary } from "./dashboardAnalytics.js";
 import { buildDashboardTaskViews, buildUpcomingWeek } from "./dashboardClassification.js";
-import { collectTasksFromNotes } from "./dashboardTaskCollector.js";
 import { dismissExtractedTask as dismissExtractedTaskInStore } from "./dashboardDismissedTasks.js";
+import { collectTasksFromNotes } from "./dashboardTaskCollector.js";
 
 // ---------------------------------------------------------------------------
 // Dashboard Panel class
@@ -137,7 +137,9 @@ export class DashboardPanel {
       onRefresh: () => this._update(),
       postMessage: (msg) => this._panel.webview.postMessage(msg),
       getCancelToken: () => this._cancelToken,
-      setCancelToken: (cts) => { this._cancelToken = cts; },
+      setCancelToken: (cts) => {
+        this._cancelToken = cts;
+      },
       notifyStatus: (processing) => DashboardPanel._statusListener?.(processing),
       dismissExtractedTaskInStore: (notesDir, text) =>
         dismissExtractedTaskInStore(this._stateStore, notesDir, text),

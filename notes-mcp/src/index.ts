@@ -14,7 +14,12 @@ import {
   stopFileWatcher,
   syncTasksForFile,
 } from "./db.js";
-import { enforceMaxContentSize, isPathInside, resolveSafeFilePath, sanitizeTitle } from "./pathSafety.js";
+import {
+  enforceMaxContentSize,
+  isPathInside,
+  resolveSafeFilePath,
+  sanitizeTitle,
+} from "./pathSafety.js";
 import {
   clearSearchIndexCache,
   executeStructuredSearch,
@@ -415,7 +420,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const appendSizeCheck = enforceMaxContentSize(appendContent);
       if (!appendSizeCheck.valid) {
         return {
-          content: [{ type: "text" as const, text: JSON.stringify({ error: appendSizeCheck.error }) }],
+          content: [
+            { type: "text" as const, text: JSON.stringify({ error: appendSizeCheck.error }) },
+          ],
         };
       }
 
@@ -467,7 +474,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const momentSizeCheck = enforceMaxContentSize(text);
       if (!momentSizeCheck.valid) {
         return {
-          content: [{ type: "text" as const, text: JSON.stringify({ error: momentSizeCheck.error }) }],
+          content: [
+            { type: "text" as const, text: JSON.stringify({ error: momentSizeCheck.error }) },
+          ],
         };
       }
 
@@ -608,7 +617,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const taskSizeCheck = enforceMaxContentSize(taskText);
       if (!taskSizeCheck.valid) {
         return {
-          content: [{ type: "text" as const, text: JSON.stringify({ error: taskSizeCheck.error }) }],
+          content: [
+            { type: "text" as const, text: JSON.stringify({ error: taskSizeCheck.error }) },
+          ],
         };
       }
 
