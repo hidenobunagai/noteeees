@@ -22,7 +22,8 @@ import {
   buildExtractedTaskFailureMessage,
   buildExtractedTaskStatusMessage,
 } from "../dashboardTaskUtils";
-import { createDashboardPanelMessageHarness } from "./dashboardTestHelpers";
+import { createDashboardMessageHandler } from "../dashboardMessageHandler";
+import { createDashboardPanelMessageHarness, createMementoStub } from "./dashboardTestHelpers";
 
 suite("Dashboard Core Test Suite", () => {
   test("dashboard list view model uses final compact empty-state messaging", () => {
@@ -43,56 +44,56 @@ suite("Dashboard Core Test Suite", () => {
   });
 
   test("addExtractedTask posts a failure ACK when createTask fails", async () => {
-    const harness = createDashboardPanelMessageHarness();
-    const panelWithPrivates = harness.panel as unknown as {
-      _createTask: (
-        text: string,
-        targetDate: string | null,
-        dueDate: string | null,
-      ) => Promise<void>;
-      _handleMessage(message: Record<string, unknown>): void;
-    };
-    const originalCreateTask = panelWithPrivates._createTask;
-
-    try {
-      panelWithPrivates._createTask = async () => {
+    const messages: Array<Record<string, unknown>> = [];
+    const handler = createDashboardMessageHandler({
+      getNotesDir: () => "/tmp/noteeees-test",
+      stateStore: createMementoStub(),
+      onRefresh: async () => undefined,
+      postMessage: (message) => {
+        messages.push(message);
+        return Promise.resolve(true);
+      },
+      getCancelToken: () => undefined,
+      setCancelToken: () => undefined,
+      notifyStatus: () => undefined,
+      dismissExtractedTaskInStore: () => undefined,
+      loadDismissed: () => [],
+      hasExistingTask: async () => false,
+      createTask: async () => {
         throw new Error("disk full");
-      };
+      },
+    });
 
-      panelWithPrivates._handleMessage({
-        command: "addExtractedTask",
-        requestId: "candidate-1",
-        text: "Broken task",
-        dueDate: null,
-        targetDate: null,
-      });
+    void handler.handleMessage({
+      command: "addExtractedTask",
+      requestId: "candidate-1",
+      text: "Broken task",
+      dueDate: null,
+      targetDate: null,
+    });
 
-      for (let attempt = 0; attempt < 10; attempt += 1) {
-        if (
-          harness.messages.some(
-            (message: Record<string, unknown>) =>
-              message.type === "candidateAddFailed" && message.requestId === "candidate-1",
-          )
-        ) {
-          break;
-        }
-
-        await new Promise((resolve) => setTimeout(resolve, 0));
+    for (let attempt = 0; attempt < 10; attempt += 1) {
+      if (
+        messages.some(
+          (message: Record<string, unknown>) =>
+            message.type === "candidateAddFailed" && message.requestId === "candidate-1",
+        )
+      ) {
+        break;
       }
 
-      assert.ok(
-        harness.messages.some(
-          (message: Record<string, unknown>) =>
-            message.type === "candidateAddFailed" &&
-            message.requestId === "candidate-1" &&
-            typeof message.message === "string",
-        ),
-        "expected addExtractedTask to notify the webview when persistence fails",
-      );
-    } finally {
-      panelWithPrivates._createTask = originalCreateTask;
-      harness.cleanup();
+      await new Promise((resolve) => setTimeout(resolve, 0));
     }
+
+    assert.ok(
+      messages.some(
+        (message: Record<string, unknown>) =>
+          message.type === "candidateAddFailed" &&
+          message.requestId === "candidate-1" &&
+          message.message === "disk full",
+      ),
+      "expected addExtractedTask to notify the webview when persistence fails",
+    );
   });
 
   test("dashboard task text normalization collapses multiline input", () => {

@@ -34,6 +34,10 @@ export interface DashboardMessageHandlerDeps {
   loadDismissed: () => ReturnType<
     typeof import("./dashboardDismissedTasks.js").loadDismissedExtractedTasks
   >;
+  /** Optional test hook for task creation persistence. */
+  createTask?: typeof createDashboardTask;
+  /** Optional test hook for duplicate detection. */
+  hasExistingTask?: typeof hasExistingDashboardTask;
 }
 
 export function createDashboardMessageHandler(deps: DashboardMessageHandlerDeps) {
@@ -110,7 +114,8 @@ export function createDashboardMessageHandler(deps: DashboardMessageHandlerDeps)
       return false;
     }
 
-    const result = await createDashboardTask(notesDir, text, targetDate, dueDate);
+  const createTask = deps.createTask ?? createDashboardTask;
+  const result = await createTask(notesDir, text, targetDate, dueDate);
     if (result === "invalid-text") {
       void vscode.window.showErrorMessage("Task text cannot be empty.");
       return false;
@@ -121,7 +126,8 @@ export function createDashboardMessageHandler(deps: DashboardMessageHandlerDeps)
   }
 
   async function _hasExistingExtractedTask(notesDir: string, text: string): Promise<boolean> {
-    return hasExistingDashboardTask(notesDir, text);
+    const hasExistingTask = deps.hasExistingTask ?? hasExistingDashboardTask;
+    return hasExistingTask(notesDir, text);
   }
 
   async function _addExtractedTask({
