@@ -335,77 +335,120 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     display: flex;
     flex-direction: column;
     align-items: stretch;
-    padding: 6px var(--moments-inline-padding) 4px;
-    background: var(--vscode-sideBarSectionHeader-background, var(--vscode-editor-background));
-    border-bottom: 1px solid var(--vscode-sideBarSectionHeader-border, var(--vscode-panel-border));
+    padding: 10px var(--moments-inline-padding) 8px;
+    background: var(--vscode-editorWidget-background, var(--vscode-sideBar-background));
+    border-bottom: 1px solid var(--vscode-panel-border);
     flex-shrink: 0;
-    gap: 4px;
+    gap: 8px;
   }
 
   .topbar-row {
     display: flex;
     align-items: center;
-    gap: 4px;
     min-width: 0;
+  }
+
+  .topbar-row-main {
+    justify-content: space-between;
+    gap: 10px;
   }
 
   .topbar-row-search {
     align-items: stretch;
-    gap: 6px;
+    gap: 8px;
     width: 100%;
   }
 
-  .topbar-row-actions {
+  .topbar-left {
     display: flex;
-    justify-content: center;
-    background: var(--vscode-editorWidget-background);
-    border: 1px solid var(--vscode-widget-border, transparent);
-    border-radius: var(--moments-control-radius);
-    padding: 2px;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  .topbar-date {
+    color: var(--vscode-foreground);
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+    line-height: 1.3;
+  }
+
+  .topbar-count {
+    display: inline-flex;
+    align-items: center;
+    min-height: 22px;
+    padding: 0 8px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--vscode-textLink-foreground) 12%, transparent);
+    color: var(--vscode-textLink-foreground);
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+    line-height: 1;
+  }
+
+  .topbar-right {
+    display: flex;
+    align-items: center;
     gap: 2px;
+    flex-shrink: 0;
   }
 
   .nav-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     flex: none;
     text-align: center;
     background: none;
     border: none;
     color: var(--vscode-foreground);
     cursor: pointer;
-    padding: 3px 6px;
-    border-radius: 3px;
+    padding: 4px 6px;
+    border-radius: 4px;
     font-size: 11px;
     font-weight: 500;
-    opacity: 0.7;
+    opacity: 0.65;
     transition: opacity 0.15s, background 0.15s;
+    min-width: 28px;
+    min-height: 28px;
   }
-  .nav-btn.icon-only {
-    min-width: 26px;
-    padding: 3px 4px;
-    font-size: 13px;
-    line-height: 1;
+  .nav-btn svg {
+    width: 14px;
+    height: 14px;
+    fill: currentColor;
   }
   .nav-btn:hover { opacity: 1; background: var(--vscode-toolbar-hoverBackground); }
 
   .nav-btn.active {
     opacity: 1;
     color: var(--vscode-foreground);
-    background: var(--vscode-button-secondaryBackground, var(--vscode-badge-background));
-    border-radius: 3px;
+    background: var(--vscode-button-secondaryBackground, color-mix(in srgb, var(--vscode-foreground) 10%, transparent));
+    border-radius: 4px;
   }
 
   .open-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     background: none;
     border: none;
     color: var(--vscode-foreground);
     cursor: pointer;
-    padding: 2px 4px;
-    border-radius: 3px;
+    padding: 4px 6px;
+    border-radius: 4px;
     opacity: 0.5;
-    font-size: 12px;
-    transition: opacity 0.15s;
+    min-width: 28px;
+    min-height: 28px;
+    transition: opacity 0.15s, background 0.15s;
   }
-  .open-btn:hover { opacity: 1; }
+  .open-btn svg {
+    width: 13px;
+    height: 13px;
+    fill: currentColor;
+  }
+  .open-btn:hover { opacity: 1; background: var(--vscode-toolbar-hoverBackground); }
 
   /* ---- Timeline ---- */
   .timeline {
@@ -773,6 +816,20 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     width: 100%;
     flex: 1 1 auto;
     min-width: 0;
+    display: flex;
+    align-items: center;
+  }
+
+  .search-icon {
+    position: absolute;
+    left: 7px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 13px;
+    height: 13px;
+    fill: var(--vscode-descriptionForeground);
+    opacity: 0.6;
+    pointer-events: none;
   }
 
   .search-bar input {
@@ -781,7 +838,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     color: var(--vscode-input-foreground);
     border: 1px solid var(--vscode-input-border, transparent);
     border-radius: var(--moments-control-radius);
-    padding: 4px 26px 4px 8px;
+    padding: 5px 26px 5px 26px;
     font-family: var(--vscode-font-family);
     font-size: 12px;
     outline: none;
@@ -803,18 +860,24 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     right: 4px;
     top: 50%;
     transform: translateY(-50%);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     background: none;
     border: none;
     color: var(--vscode-descriptionForeground);
     cursor: pointer;
-    padding: 2px 4px;
+    padding: 3px;
     border-radius: 3px;
-    font-size: 12px;
-    line-height: 1;
-    opacity: 0.7;
-    transition: opacity 0.15s;
+    opacity: 0.6;
+    transition: opacity 0.15s, background 0.15s;
   }
-  .clear-search-btn:hover { opacity: 1; }
+  .clear-search-btn svg {
+    width: 12px;
+    height: 12px;
+    fill: currentColor;
+  }
+  .clear-search-btn:hover { opacity: 1; background: var(--vscode-toolbar-hoverBackground); }
 
   .filter-chip-btn {
     display: inline-flex;
@@ -847,6 +910,8 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
   .export-btn.active {
     opacity: 1;
     color: var(--vscode-textLink-foreground);
+    background: color-mix(in srgb, var(--vscode-textLink-foreground) 12%, transparent);
+    border-radius: 4px;
   }
 
   .select-entry-cb {
@@ -960,16 +1025,33 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
 </head>
 <body>
   <div class="topbar">
-  <div class="topbar-row topbar-row-actions">
-    <button class="nav-btn icon-only" id="allBtn" title="Show all recent moments" aria-label="Show all recent moments">☰</button>
-    <button class="nav-btn icon-only" id="inboxBtn" title="Open Task Dashboard" aria-label="Open Task Dashboard">&#9881;</button>
-    <button class="open-btn" id="openFileBtn" title="Open today's file in editor">&#8599;</button>
-    <button class="open-btn export-btn" id="exportBtn" title="Export selected entries as a note">&#128203;</button>
+  <div class="topbar-row topbar-row-main">
+    <div class="topbar-left">
+      <span class="topbar-date" id="topbarDate"></span>
+      <span class="topbar-count" id="topbarCount" style="display:none">0</span>
+    </div>
+    <div class="topbar-right">
+      <button class="nav-btn" id="allBtn" title="All moments" aria-label="All moments">
+        <svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" clip-rule="evenodd" d="M1.5 2.5h13l.5.5v2l-.5.5h-13l-.5-.5V3l.5-.5zm7 4h6l.5.5v2l-.5.5h-6l-.5-.5V7l.5-.5zm-7 4h13l.5.5v2l-.5.5h-13l-.5-.5v-2l.5-.5zm7 4h6l.5.5v2l-.5.5h-6l-.5-.5v-2l.5-.5z"/></svg>
+      </button>
+      <button class="nav-btn" id="inboxBtn" title="Task inbox" aria-label="Task inbox">
+        <svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" clip-rule="evenodd" d="M2.5 1.5h11l.5.5v3l-3 5.5v3.5l-1.5 1-1.5-1v-3.5l-3-5.5V2l.5-.5zm1 1v1.5l3 5.5v3l1 .5 1-.5V8.5l3-5.5V2.5h-8z"/></svg>
+      </button>
+      <button class="open-btn" id="openFileBtn" title="Open today's file" aria-label="Open today's file">
+        <svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" clip-rule="evenodd" d="M13.5 1.5H6L5.44 1l-.22.22L3 3.5H1.5l-.5.5v10l.5.5h12l.5-.5V2l-.5-.5zM3 4.5H2v9h11V4.5H3zm7.5-2H6.5l-.22.22L5 4h7V2.5z"/></svg>
+      </button>
+      <button class="open-btn export-btn" id="exportBtn" title="Export selected" aria-label="Export selected entries">
+        <svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" clip-rule="evenodd" d="M14.5 2H1.5l-.5.5v11l.5.5h13l.5-.5v-11l-.5-.5zM2 3h12v10H2V3zm2 1h8v1H4V4zm0 3h8v1H4V7zm0 3h5v1H4v-1z"/></svg>
+      </button>
+    </div>
   </div>
   <div class="topbar-row topbar-row-search">
     <div class="search-bar">
+      <svg class="search-icon" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" clip-rule="evenodd" d="M10.2 9.5l4.4 4.4-.7.7-4.4-4.4a5.5 5.5 0 111.5-5.5 5.5 5.5 0 01-1.5 5.5h.7zm-4.7.5a4.5 4.5 0 100-9 4.5 4.5 0 000 9z"/></svg>
       <input type="text" id="searchInput" placeholder="Search moments..." autocomplete="off" />
-      <button id="clearSearch" class="clear-search-btn" title="Clear search" style="display:none">&#10005;</button>
+      <button id="clearSearch" class="clear-search-btn" title="Clear search" style="display:none">
+        <svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" clip-rule="evenodd" d="M8.7 8l3.15-3.15-.7-.7L8 7.3 4.85 4.15l-.7.7L7.3 8l-3.15 3.15.7.7L8 8.7l3.15 3.15.7-.7L8.7 8z"/></svg>
+      </button>
     </div>
     <button class="filter-chip-btn" id="activeTagBtn" title="Clear active hashtag filter" style="display:none"></button>
   </div>
@@ -1012,6 +1094,8 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
   const sendBtn = document.getElementById('sendBtn');
   const timeline = document.getElementById('timeline');
   const emptyState = document.getElementById('emptyState');
+  const topbarDate = document.getElementById('topbarDate');
+  const topbarCount = document.getElementById('topbarCount');
   const inboxBtn = document.getElementById('inboxBtn');
   const allBtn = document.getElementById('allBtn');
   const activeTagBtn = document.getElementById('activeTagBtn');
@@ -1052,6 +1136,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
       currentPinnedEntries = msg.pinnedEntries || [];
       hasMoreOlder = Boolean(msg.hasMoreOlder);
       loadingOlder = false;
+      updateTopbar(todayDate, latestSections);
       if (
         editingEntryKey !== null
         && !latestSections.some((section) => section.entries.some((entry) => (section.date + ':' + entry.index) === editingEntryKey))
@@ -1078,6 +1163,31 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     errorBanner.textContent = msg;
     errorBanner.style.display = 'block';
     setTimeout(() => { errorBanner.style.display = 'none'; }, 4000);
+  }
+
+  function updateTopbar(dateStr, sections) {
+    // Format date label
+    if (dateStr) {
+      const d = new Date(dateStr + 'T00:00:00');
+      const opts = { month: 'short', day: 'numeric', year: 'numeric' };
+      topbarDate.textContent = d.toLocaleDateString('en-US', opts) + ' · Today';
+    } else {
+      topbarDate.textContent = '';
+    }
+
+    // Count today's entries
+    const todaySection = sections.find(s => s.isToday);
+    const todayCount = todaySection ? todaySection.entries.length : 0;
+    if (todayCount > 0) {
+      topbarCount.textContent = todayCount + ' moment' + (todayCount !== 1 ? 's' : '');
+      topbarCount.style.display = '';
+    } else {
+      topbarCount.style.display = 'none';
+    }
+
+    // Highlight allBtn as active (default view)
+    allBtn.classList.add('active');
+    allBtn.setAttribute('aria-pressed', 'true');
   }
 
   // ---- Render ----
