@@ -1,5 +1,6 @@
 import * as assert from "assert";
 import { type ExtractedTask } from "../aiTaskProcessor";
+import { createDashboardMessageHandler } from "../dashboardMessageHandler";
 import {
   buildDashboardCandidateViews,
   buildDashboardListItems,
@@ -22,8 +23,7 @@ import {
   buildExtractedTaskFailureMessage,
   buildExtractedTaskStatusMessage,
 } from "../dashboardTaskUtils";
-import { createDashboardMessageHandler } from "../dashboardMessageHandler";
-import { createDashboardPanelMessageHarness, createMementoStub } from "./dashboardTestHelpers";
+import { createMementoStub } from "./dashboardTestHelpers";
 
 suite("Dashboard Core Test Suite", () => {
   test("dashboard list view model uses final compact empty-state messaging", () => {

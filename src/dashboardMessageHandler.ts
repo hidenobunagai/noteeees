@@ -114,8 +114,8 @@ export function createDashboardMessageHandler(deps: DashboardMessageHandlerDeps)
       return false;
     }
 
-  const createTask = deps.createTask ?? createDashboardTask;
-  const result = await createTask(notesDir, text, targetDate, dueDate);
+    const createTask = deps.createTask ?? createDashboardTask;
+    const result = await createTask(notesDir, text, targetDate, dueDate);
     if (result === "invalid-text") {
       void vscode.window.showErrorMessage("Task text cannot be empty.");
       return false;
