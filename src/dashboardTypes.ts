@@ -52,6 +52,9 @@ export interface DashboardTaskView extends DashTask {
   relativePath: string;
   effectiveDate: string | null;
   section: DashboardTaskSection;
+  category?: string;
+  priority?: string;
+  timeEstimateMin?: number;
 }
 
 export interface DashboardCandidateView extends DashboardCandidateTask {

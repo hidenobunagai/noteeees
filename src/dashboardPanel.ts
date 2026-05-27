@@ -56,6 +56,7 @@ import { buildCategoryCounts, buildSectionCounts, buildSummary } from "./dashboa
 import { buildDashboardTaskViews, buildUpcomingWeek } from "./dashboardClassification.js";
 import { dismissExtractedTask as dismissExtractedTaskInStore } from "./dashboardDismissedTasks.js";
 import { collectTasksFromNotes } from "./dashboardTaskCollector.js";
+import { loadAllAiTaskEnrichments } from "./dashboardAiEnrichment.js";
 
 // ---------------------------------------------------------------------------
 // Dashboard Panel class
@@ -183,9 +184,24 @@ export class DashboardPanel {
 
     const tasks = await collectTasksFromNotes(notesDir, momentsSubfolder);
     const today = todayDateString();
-    const week = buildUpcomingWeek(tasks, today);
 
-    const taskViews = buildDashboardTaskViews(tasks, today);
+    const enrichments = loadAllAiTaskEnrichments(this._stateStore, notesDir);
+    const enrichedTasks = tasks.map((task) => {
+      const key = normalizeExtractedTaskIdentity(task.text);
+      const enrich = enrichments[key];
+      if (enrich) {
+        return {
+          ...task,
+          category: enrich.category,
+          priority: enrich.priority,
+          timeEstimateMin: enrich.timeEstimateMin,
+        };
+      }
+      return task;
+    });
+
+    const week = buildUpcomingWeek(enrichedTasks, today);
+    const taskViews = buildDashboardTaskViews(enrichedTasks, today);
     const sectionCounts = buildSectionCounts(taskViews);
     const catCount = buildCategoryCounts(taskViews);
     const summary = buildSummary(taskViews, sectionCounts);
