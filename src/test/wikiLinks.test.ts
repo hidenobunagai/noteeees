@@ -34,6 +34,16 @@ suite("WikiLinks - parseWikiLinks", () => {
     const result = parseWikiLinks("[[Project Alpha]]");
     assert.deepStrictEqual(result, ["Project Alpha"]);
   });
+
+  test("extracts wiki link with pipe alias", () => {
+    const result = parseWikiLinks("See [[Meeting Notes|Notes]] for details.");
+    assert.deepStrictEqual(result, ["Meeting Notes"]);
+  });
+
+  test("extracts multiple wiki links containing aliases", () => {
+    const result = parseWikiLinks("[[A|Alias A]] and [[B]] and [[C|Alias C]]");
+    assert.deepStrictEqual(result, ["A", "B", "C"]);
+  });
 });
 
 suite("WikiLinks - resolveWikiLinkPath", () => {
@@ -129,5 +139,19 @@ suite("WikiLinks - collectBacklinks", () => {
     const noLinksFile = path.join(tmpDir, "NoLinks.md");
     const result = await collectBacklinks(noLinksFile, tmpDir);
     assert.strictEqual(result.size, 0);
+  });
+
+  test("finds backlinks with pipe aliases", async () => {
+    fs.writeFileSync(
+      path.join(tmpDir, "SourceWithAlias.md"),
+      "# Source with Alias\nSome text [[Target|My Custom Alias]] here.",
+      "utf8",
+    );
+    const targetFile = path.join(tmpDir, "Target.md");
+    const result = await collectBacklinks(targetFile, tmpDir);
+
+    const aliasItems = result.get(path.join(tmpDir, "SourceWithAlias.md"));
+    assert.ok(aliasItems);
+    assert.strictEqual(aliasItems[0].linkText, "[[Target|My Custom Alias]]");
   });
 });
