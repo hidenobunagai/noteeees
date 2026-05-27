@@ -6,6 +6,14 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.9.9] - 2026-05-27
+
+### Added
+
+- **WikiLink alias support**: Added full support for the pipe syntax (`[[Target|Alias]]`) in markdown WikiLinks, enabling custom link display names in markdown text.
+- **Improved WikiLink navigation**: Hardened definition provider (F12) and document link resolvers to correctly extract and jump to the target file when aliases are present.
+- **Enhanced backlinks detection**: Updated backlink parsing to correctly identify and include alias-based WikiLinks under the Target note's Backlinks view.
+
 ## [0.9.8] - 2026-05-02
 
 ### Changed
