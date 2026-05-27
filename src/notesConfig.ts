@@ -22,7 +22,8 @@ export type NotesConfigKey =
   | "momentsInboxFilter"
   | "momentsArchiveAfterDays"
   | "dailyNoteTemplate"
-  | "workspaceNotesDirectory";
+  | "workspaceNotesDirectory"
+  | "ai.autoEnrich";
 
 function getNotesConfiguration(): vscode.WorkspaceConfiguration {
   return vscode.workspace.getConfiguration("notes");
@@ -117,4 +118,8 @@ export function getMomentsArchiveAfterDaysSetting(): number {
 
 export function getDailyNoteTemplateSetting(): string | undefined {
   return getNotesConfiguration().get<string>("dailyNoteTemplate") || undefined;
+}
+
+export function getAiAutoEnrichSetting(): boolean {
+  return getNotesConfiguration().get<boolean>("ai.autoEnrich") ?? false;
 }
