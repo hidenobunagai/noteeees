@@ -715,9 +715,13 @@ suite("Dashboard Webview Test Suite", () => {
       html.includes('class="task-row-meta task-row-meta-candidate"'),
       "expected candidate metadata container",
     );
+    const candidateMetaIndex = html.indexOf("renderCandidateMeta");
+    const dueIndex = html.indexOf("task-row-meta-candidate-due", candidateMetaIndex);
+    const categoryIndex = html.indexOf("task-row-meta-category", candidateMetaIndex);
+    const sourceIndex = html.indexOf("task-row-meta-source-candidate", candidateMetaIndex);
+
     assert.ok(
-      html.indexOf("task-row-meta-candidate-due") < html.indexOf("task-row-meta-category") &&
-        html.indexOf("task-row-meta-category") < html.indexOf("task-row-meta-source-candidate"),
+      dueIndex < categoryIndex && categoryIndex < sourceIndex,
       "expected candidate rows to keep due/date before category or priority before source",
     );
     assert.ok(
