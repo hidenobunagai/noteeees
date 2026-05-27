@@ -57,6 +57,7 @@ import { buildDashboardTaskViews, buildUpcomingWeek } from "./dashboardClassific
 import { dismissExtractedTask as dismissExtractedTaskInStore } from "./dashboardDismissedTasks.js";
 import { collectTasksFromNotes } from "./dashboardTaskCollector.js";
 import { loadAllAiTaskEnrichments } from "./dashboardAiEnrichment.js";
+import { normalizeExtractedTaskIdentity } from "./dashboardTaskUtils.js";
 
 // ---------------------------------------------------------------------------
 // Dashboard Panel class
