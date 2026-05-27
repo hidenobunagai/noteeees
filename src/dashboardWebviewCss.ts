@@ -765,6 +765,36 @@ export function buildDashboardWebviewCss(_nonce: string): string {
     background: color-mix(in srgb, var(--danger) 12%, transparent);
   }
 
+  .task-row-meta-category {
+    color: var(--accent);
+    border-color: color-mix(in srgb, var(--accent) 30%, var(--border));
+    background: color-mix(in srgb, var(--accent) 6%, transparent);
+  }
+
+  .task-row-meta-priority {
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 9px;
+    letter-spacing: 0.04em;
+  }
+
+  .task-row-meta-priority.is-danger {
+    color: var(--danger);
+    border-color: color-mix(in srgb, var(--danger) 40%, var(--border));
+    background: color-mix(in srgb, var(--danger) 12%, transparent);
+  }
+
+  .task-row-meta-priority.is-warning {
+    color: var(--warning);
+    border-color: color-mix(in srgb, var(--warning) 40%, var(--border));
+    background: color-mix(in srgb, var(--warning) 12%, transparent);
+  }
+
+  .task-row-meta-estimate {
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+
   .task-edit {
     display: flex;
     flex-direction: column;

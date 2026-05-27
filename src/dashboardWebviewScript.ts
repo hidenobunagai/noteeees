@@ -578,6 +578,16 @@ export function buildDashboardWebviewScript(
         const dueClass = task.section === "overdue" ? " is-danger" : task.section === "today" ? " is-warning" : " is-accent";
         badges.push('<span class="badge task-row-meta-item task-row-meta-due' + dueClass + '">Due ' + esc(formatDateLabel(task.dueDate)) + "</span>");
       }
+      if (task.category) {
+        badges.push('<span class="badge task-row-meta-item task-row-meta-category">' + esc(task.category) + "</span>");
+      }
+      if (task.priority) {
+        const priorityClass = task.priority === "high" ? " is-danger" : task.priority === "medium" ? " is-warning" : "";
+        badges.push('<span class="badge task-row-meta-item task-row-meta-priority' + priorityClass + '">' + esc(task.priority) + "</span>");
+      }
+      if (task.timeEstimateMin) {
+        badges.push('<span class="badge task-row-meta-item task-row-meta-estimate">' + task.timeEstimateMin + "m</span>");
+      }
       for (const tag of task.tags || []) {
         badges.push('<span class="badge is-accent task-row-meta-item task-row-meta-tag">' + esc(tag) + "</span>");
       }
