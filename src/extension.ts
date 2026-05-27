@@ -24,6 +24,7 @@ import {
   updateLegacyNotesDirectorySetting,
   updateSidebarTagSortSetting,
   updateWorkspaceNotesDirectorySetting,
+  getAiAutoEnrichSetting,
 } from "./notesConfig.js";
 import {
   buildSidebarTagGroups,
@@ -37,6 +38,8 @@ import {
   WikiLinkDefinitionProvider,
   WikiLinkDocumentLinkProvider,
 } from "./wikiLinks";
+import { enrichTasksInFile } from "./dashboardAiEnrichment.js";
+import { isPathInside } from "./dashboardTaskUtils.js";
 
 const NOTES_DIRECTORY_STORAGE_KEY = "notesDirectory";
 const PINNED_NOTES_KEY = "pinnedNotes";
