@@ -6,6 +6,13 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-05-27
+
+### Added
+
+- **AI Task Auto-Enrichment on Save**: Implemented automatic AI task categorization, prioritization, and time estimation on file save when `notes.ai.autoEnrich` is enabled. Hand-written markdown tasks (`- [ ]`) are processed in the background using GitHub Copilot Chat models, and metadata is cached to avoid duplicate API calls.
+- **Task Dashboard Integration**: Hand-written tasks enriched with metadata are now rendered with modern color-coded badges for category, priority, and estimated time directly on the Task Dashboard.
+
 ## [0.9.9] - 2026-05-27
 
 ### Added
