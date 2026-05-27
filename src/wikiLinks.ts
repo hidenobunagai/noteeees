@@ -3,8 +3,8 @@ import * as fs from "fs/promises";
 import * as path from "path";
 import * as vscode from "vscode";
 
-// Regex to find [[...]] links
-const WIKI_LINK_RE = /\[\[([^\]]+)\]\]/g;
+// Regex to find [[...]] links (supports [[Target|Alias]])
+const WIKI_LINK_RE = /\[\[([^\]|]+)(?:\|([^\]]*))?\]\]/g;
 
 // --- Pure helpers ---
 
@@ -95,7 +95,7 @@ export class WikiLinkDocumentLinkProvider implements vscode.DocumentLinkProvider
     const text = document.getText();
     const links: vscode.DocumentLink[] = [];
 
-    for (const match of text.matchAll(/\[\[([^\]]+)\]\]/g)) {
+    for (const match of text.matchAll(/\[\[([^\]|]+)(?:\|([^\]]*))?\]\]/g)) {
       const title = match[1];
       const filePath = await resolveWikiLinkPath(title, notesDir);
       if (!filePath) {
@@ -165,13 +165,13 @@ export class WikiLinkDefinitionProvider implements vscode.DefinitionProvider {
       return;
     }
 
-    const range = document.getWordRangeAtPosition(position, /\[\[([^\]]+)\]\]/);
+    const range = document.getWordRangeAtPosition(position, /\[\[([^\]|]+)(?:\|([^\]]*))?\]\]/);
     if (!range) {
       return;
     }
 
     const text = document.getText(range);
-    const match = text.match(/\[\[([^\]]+)\]\]/);
+    const match = text.match(/\[\[([^\]|]+)(?:\|([^\]]*))?\]\]/);
     if (!match) {
       return;
     }
@@ -216,7 +216,7 @@ export async function collectBacklinks(
     const items: BacklinkItem[] = [];
 
     for (let i = 0; i < lines.length; i++) {
-      for (const match of lines[i].matchAll(/\[\[([^\]]+)\]\]/g)) {
+      for (const match of lines[i].matchAll(/\[\[([^\]|]+)(?:\|([^\]]*))?\]\]/g)) {
         if (resolveWikiLinkFromFiles(match[1], files) === targetFile) {
           items.push({ sourceFile: file, linkText: match[0], lineNumber: i });
         }
