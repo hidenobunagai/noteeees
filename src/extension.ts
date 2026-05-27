@@ -325,6 +325,41 @@ export function activate(context: vscode.ExtensionContext) {
     aiStatusBar.text = processing ? "$(loading~spin) Tasks: 解析中…" : "$(checklist) Tasks";
   });
 
+  // Hook file save events for AI task auto-enrichment
+  const onSaveDisposable = vscode.workspace.onDidSaveTextDocument(async (document) => {
+    if (!getAiAutoEnrichSetting()) {
+      return;
+    }
+
+    const notesDir = getNotesDir();
+    if (!notesDir) {
+      return;
+    }
+
+    const filePath = document.uri.fsPath;
+    if (!filePath.endsWith(".md")) {
+      return;
+    }
+
+    if (!isPathInside(notesDir, filePath)) {
+      return;
+    }
+
+    aiStatusBar.text = "$(loading~spin) Tasks: 解析中…";
+    const cts = new vscode.CancellationTokenSource();
+
+    try {
+      await enrichTasksInFile(filePath, notesDir, context.globalState, cts.token);
+    } catch (e) {
+      console.error("Error during auto-enrichment on save:", e);
+    } finally {
+      aiStatusBar.text = "$(checklist) Tasks";
+      DashboardPanel.refresh();
+    }
+  });
+
+  context.subscriptions.push(onSaveDisposable);
+
   const configChangeDisposable = vscode.workspace.onDidChangeConfiguration((event) => {
     if (
       affectsNotesConfiguration(event, "notesDirectory") ||
