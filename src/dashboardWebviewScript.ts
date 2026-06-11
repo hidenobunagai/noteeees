@@ -612,9 +612,9 @@ export function buildDashboardWebviewScript(
 
     function renderTaskActionIcon(action) {
       const icons = {
-        edit: '<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path fill="currentColor" d="M11.7 1.3a1 1 0 0 1 1.4 0l1.6 1.6a1 1 0 0 1 0 1.4l-8 8L4 13l.7-2.7 8-8Zm-7 10.3 1.6-.4 6.9-6.9-1.2-1.2-6.9 6.9-.4 1.6Z"/></svg>',
-        open: '<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path fill="currentColor" d="M9 2h5v5h-1.5V4.6l-5.7 5.7-1-1 5.7-5.8H9V2Z"/><path fill="currentColor" d="M3 4.5A1.5 1.5 0 0 1 4.5 3H8v1.5H4.5v7h7V8H13v3.5A1.5 1.5 0 0 1 11.5 13h-7A1.5 1.5 0 0 1 3 11.5v-7Z"/></svg>',
-        delete: '<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path fill="currentColor" d="M6.5 2h3l.5 1H13v1.5H3V3h2.5l.5-1ZM4.5 6h1.5v6H4.5V6Zm3 0H9v6H7.5V6Zm3 0H12v6h-1.5V6Z"/><path fill="currentColor" d="M4 4.5h8V13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V4.5Z" fill-opacity="0.18"/></svg>',
+        edit: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>',
+        open: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>',
+        delete: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>',
       };
       return icons[action] || "";
     }

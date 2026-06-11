@@ -14,6 +14,8 @@ export function buildDashboardWebviewCss(_nonce: string): string {
     --radius: 12px;
     --radius-sm: 8px;
     --gap: 16px;
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.1), 0 1px 1px rgba(0, 0, 0, 0.06);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.12), 0 2px 4px -1px rgba(0, 0, 0, 0.08);
   }
 
   * { box-sizing: border-box; }
@@ -83,14 +85,24 @@ export function buildDashboardWebviewCss(_nonce: string): string {
      align-items: center;
      gap: 6px;
      min-height: 28px;
-     padding: 0 10px;
-     border-radius: 4px;
-     border: 1px solid var(--border);
-     background: var(--surface);
+     padding: 4px 12px;
+     border-radius: 999px;
+     border: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+     background: color-mix(in srgb, var(--surface) 80%, transparent);
+     backdrop-filter: blur(4px);
+     -webkit-backdrop-filter: blur(4px);
      color: var(--text);
      font-size: 12px;
-     transition: background-color 150ms ease;
+     box-shadow: var(--shadow-sm);
+     transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
      cursor: default;
+   }
+
+   .dashboard-kpi-chip:hover {
+     border-color: color-mix(in srgb, var(--border) 100%, var(--accent) 30%);
+     background: color-mix(in srgb, var(--surface) 95%, transparent);
+     transform: translateY(-1px);
+     box-shadow: var(--shadow-md);
    }
 
   .dashboard-kpi-label {
@@ -122,7 +134,11 @@ export function buildDashboardWebviewCss(_nonce: string): string {
     min-width: 0;
     border: 1px solid color-mix(in srgb, var(--border) 78%, transparent);
     border-radius: var(--radius-sm);
-    background: color-mix(in srgb, var(--surface) 56%, transparent);
+    background: color-mix(in srgb, var(--surface) 65%, transparent);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    box-shadow: var(--shadow-sm);
+    transition: border-color 200ms ease, box-shadow 200ms ease;
   }
 
   .dash-add-row {
@@ -134,19 +150,20 @@ export function buildDashboardWebviewCss(_nonce: string): string {
   .dash-add-input {
     flex: 1;
     min-width: 0;
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    background: var(--bg);
+    border: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+    border-radius: 6px;
+    background: color-mix(in srgb, var(--bg) 95%, transparent);
     color: var(--text);
-    padding: 8px 12px;
+    padding: 8px 14px;
     font-size: 13px;
     outline: none;
-    transition: border-color 150ms ease, box-shadow 150ms ease;
+    transition: all 200ms ease;
   }
 
   .dash-add-input:focus {
     border-color: var(--accent);
-    box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 20%, transparent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 15%, transparent);
+    background: var(--bg);
   }
 
   .dash-add-input::placeholder {
@@ -412,17 +429,40 @@ export function buildDashboardWebviewCss(_nonce: string): string {
     display: flex;
     align-items: flex-start;
     gap: 10px;
-    padding: 8px 10px;
-    border-radius: 4px;
+    padding: 10px 12px;
+    border-radius: var(--radius-sm);
     border: 1px solid transparent;
     background: transparent;
     min-width: 0;
-    transition: background-color 150ms ease, border-color 150ms ease;
+    position: relative;
+    overflow: hidden;
+    transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .task-row::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 15%;
+    bottom: 15%;
+    width: 3px;
+    background: var(--accent);
+    border-radius: 0 2px 2px 0;
+    opacity: 0;
+    transform: scaleY(0.4);
+    transition: opacity 200ms ease, transform 200ms cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   .task-row:hover {
-    background: var(--vscode-list-hoverBackground, color-mix(in srgb, var(--accent) 5%, transparent));
-    border-color: var(--border);
+    background: var(--vscode-list-hoverBackground, color-mix(in srgb, var(--accent) 6%, transparent));
+    border-color: color-mix(in srgb, var(--border) 60%, transparent);
+    box-shadow: var(--shadow-sm);
+    transform: translateY(-1px);
+  }
+
+  .task-row:hover::before {
+    opacity: 1;
+    transform: scaleY(1);
   }
 
   .task-row.task-row-saved.is-overdue {
@@ -467,22 +507,41 @@ export function buildDashboardWebviewCss(_nonce: string): string {
     height: 18px;
     margin: 0;
     border-radius: 5px;
-    border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--border));
+    border: 1.5px solid color-mix(in srgb, var(--accent) 40%, var(--border));
     background: transparent;
     cursor: pointer;
+    transition: all 180ms ease;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .task-row-toggle:hover {
+    border-color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 8%, transparent);
   }
 
   .task-row-toggle:checked {
-    background: color-mix(in srgb, var(--success) 16%, transparent);
-    border-color: color-mix(in srgb, var(--success) 55%, var(--border));
+    background: var(--success);
+    border-color: var(--success);
+  }
+
+  .task-row-toggle::after {
+    content: "";
+    position: absolute;
+    width: 10px;
+    height: 6px;
+    border-left: 2px solid var(--vscode-button-foreground, #fff);
+    border-bottom: 2px solid var(--vscode-button-foreground, #fff);
+    transform: rotate(-45deg) translate(1px, -1px) scale(0);
+    transition: transform 180ms cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    transform-origin: center;
+    box-sizing: border-box;
+    margin-top: -2px;
   }
 
   .task-row-toggle:checked::after {
-    content: "";
-    position: absolute;
-    inset: 4px;
-    background: var(--success);
-    clip-path: polygon(14% 52%, 0 67%, 39% 100%, 100% 22%, 84% 8%, 39% 68%);
+    transform: rotate(-45deg) translate(1px, -1px) scale(1);
   }
 
   .task-row-body {
@@ -646,22 +705,28 @@ export function buildDashboardWebviewCss(_nonce: string): string {
   .link-btn,
   .text-btn,
   .btn {
-    border-radius: 4px;
-    border: 1px solid var(--border);
-    background: var(--surface);
+    border-radius: 6px;
+    border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+    background: color-mix(in srgb, var(--surface) 90%, transparent);
     color: var(--text);
     cursor: pointer;
-    padding: 6px 12px;
+    padding: 6px 14px;
     font-size: 13px;
-    transition: all 150ms ease;
+    transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
     display: inline-flex;
     align-items: center;
     gap: 6px;
   }
 
   .btn:hover {
-    background: var(--vscode-toolbar-hoverBackground, color-mix(in srgb, var(--accent) 8%, var(--surface)));
+    background: var(--vscode-toolbar-hoverBackground, color-mix(in srgb, var(--accent) 10%, var(--surface)));
     border-color: var(--accent);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-sm);
+  }
+
+  .btn:active {
+    transform: translateY(0);
   }
 
   .btn-primary {
