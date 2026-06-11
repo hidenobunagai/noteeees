@@ -477,20 +477,37 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
   .day-section {
     display: flex;
     flex-direction: column;
-    gap: 6px;
-    padding: 6px var(--moments-inline-padding) 8px;
+    gap: 10px;
+    padding: 8px var(--moments-inline-padding) 12px 28px;
+    position: relative;
+  }
+
+  /* Vertical timeline line */
+  .day-section::before {
+    content: "";
+    position: absolute;
+    left: 17px;
+    top: 42px;
+    bottom: 12px;
+    width: 2px;
+    background: color-mix(in srgb, var(--moments-border) 60%, transparent);
+    border-radius: 999px;
   }
 
   .day-section-header {
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 10px 12px 6px;
+    padding: 10px 12px;
     position: sticky;
     top: 0;
-    z-index: 1;
-    background: var(--vscode-sideBar-background, var(--vscode-editor-background));
-    border-bottom: 1px solid var(--moments-border);
+    z-index: 10;
+    background: color-mix(in srgb, var(--vscode-sideBar-background, var(--vscode-editor-background)) 75%, transparent);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border-bottom: 1px solid color-mix(in srgb, var(--moments-border) 40%, transparent);
+    margin-bottom: 4px;
+    margin-left: -28px;
   }
 
   .day-section-label {
@@ -499,6 +516,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     font-weight: 600;
     text-align: center;
     white-space: nowrap;
+    letter-spacing: 0.05em;
   }
 
   .day-section-label.is-today {
@@ -517,16 +535,41 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     display: flex;
     flex-direction: column;
     gap: 6px;
-    padding: 10px 12px 8px;
+    padding: 12px 14px 10px;
     background: var(--vscode-editor-background);
-    border: 1px solid var(--moments-border);
-    border-radius: var(--moments-control-radius);
-    transition: background 0.1s, border-color 0.1s;
+    border: 1px solid color-mix(in srgb, var(--moments-border) 75%, transparent);
+    border-radius: 8px;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     word-break: break-word;
+    position: relative;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
   }
+
+  /* Timeline Dot */
+  .entry::before {
+    content: "";
+    position: absolute;
+    left: -16px;
+    top: 18px;
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    background: var(--moments-border);
+    border: 2px solid var(--vscode-sideBar-background, var(--vscode-editor-background));
+    transition: all 0.2s ease;
+    z-index: 2;
+  }
+
   .entry:hover {
     background: var(--vscode-list-hoverBackground);
-    border-color: var(--vscode-focusBorder, var(--moments-border));
+    border-color: color-mix(in srgb, var(--moments-accent) 45%, var(--moments-border));
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px -2px rgba(0, 0, 0, 0.12);
+  }
+
+  .entry:hover::before {
+    background: var(--moments-accent);
+    transform: scale(1.2);
   }
 
   .entry-meta {
@@ -560,15 +603,15 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     display: inline-flex;
     align-items: center;
     min-height: 20px;
-    padding: 0 6px;
+    padding: 0 8px;
     border-radius: 999px;
-    background: color-mix(in srgb, var(--vscode-foreground) 8%, transparent);
+    background: color-mix(in srgb, var(--vscode-foreground) 6%, transparent);
     color: var(--moments-muted);
     white-space: nowrap;
     font-variant-numeric: tabular-nums;
     font-weight: 500;
+    font-size: 10px;
   }
-
 
   .entry-content {
     min-width: 0;
@@ -577,7 +620,6 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     flex-direction: column;
     gap: 6px;
   }
-
 
   .entry-text {
     line-height: 1.45;
@@ -597,6 +639,9 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     min-height: 72px;
     max-height: 180px;
     font-size: 12.5px;
+    border-radius: 6px;
+    border: 1px solid var(--moments-border);
+    padding: 8px;
   }
 
   .entry-edit-actions,
@@ -615,7 +660,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     gap: 2px;
     padding: 2px;
     border-radius: 999px;
-    background: color-mix(in srgb, var(--vscode-foreground) 6%, transparent);
+    background: color-mix(in srgb, var(--vscode-foreground) 4%, transparent);
     border: 1px solid color-mix(in srgb, var(--moments-border) 90%, transparent);
   }
 
@@ -633,11 +678,11 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     border: none;
     color: var(--moments-muted);
     cursor: pointer;
-    padding: 3px;
+    padding: 4px;
     border-radius: 4px;
     font-size: 11px;
     opacity: 0.8;
-    transition: color 0.15s, opacity 0.15s, background 0.15s;
+    transition: all 0.15s ease;
   }
 
   .pin-btn {
@@ -645,10 +690,11 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     line-height: 1;
   }
 
-  .entry-action svg {
+  .entry-action svg,
+  .pin-btn svg {
     width: 14px;
     height: 14px;
-    fill: currentColor;
+    stroke-width: 2.2;
   }
 
   .entry-action:hover,
@@ -656,6 +702,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     color: var(--vscode-foreground);
     background: var(--vscode-toolbar-hoverBackground, rgba(90, 93, 94, 0.31));
     opacity: 1;
+    transform: translateY(-0.5px);
   }
 
   .entry-action.primary {
@@ -673,9 +720,9 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
   .tag {
     display: inline-block;
     border: none;
-    padding: 0 5px;
-    border-radius: 3px;
-    background: color-mix(in srgb, var(--moments-accent) 18%, transparent);
+    padding: 0 6px;
+    border-radius: 4px;
+    background: color-mix(in srgb, var(--moments-accent) 15%, transparent);
     color: var(--moments-accent);
     font-size: 11px;
     font-weight: 500;
@@ -684,17 +731,18 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     font-family: inherit;
     line-height: 1.4;
     cursor: pointer;
+    transition: all 150ms ease;
   }
 
   .tag:hover {
-    background: color-mix(in srgb, var(--moments-accent) 26%, transparent);
+    background: color-mix(in srgb, var(--moments-accent) 25%, transparent);
   }
 
   .due-date-inline {
     display: inline-block;
-    padding: 0 5px;
-    border-radius: 3px;
-    background: color-mix(in srgb, var(--vscode-charts-orange, #e8a838) 18%, transparent);
+    padding: 0 6px;
+    border-radius: 4px;
+    background: color-mix(in srgb, var(--vscode-charts-orange, #e8a838) 15%, transparent);
     color: var(--vscode-charts-orange, #e8a838);
     font-size: 11px;
     font-weight: 500;
@@ -708,28 +756,28 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     display: inline-flex;
     align-items: center;
     min-height: 20px;
-    padding: 0 6px;
+    padding: 0 8px;
     border-radius: 999px;
     font-size: 11px;
     font-weight: 500;
     line-height: 1.4;
     white-space: nowrap;
-    background: color-mix(in srgb, var(--vscode-foreground) 12%, transparent);
+    background: color-mix(in srgb, var(--vscode-foreground) 10%, transparent);
     color: var(--moments-muted);
   }
 
   .due-overdue .due-badge {
-    background: color-mix(in srgb, var(--vscode-errorForeground, #f44) 20%, transparent);
+    background: color-mix(in srgb, var(--vscode-errorForeground, #f44) 18%, transparent);
     color: var(--vscode-errorForeground, #f44);
   }
 
   .due-today .due-badge {
-    background: color-mix(in srgb, #f08 20%, transparent);
-    color: color-mix(in srgb, var(--vscode-charts-orange, #e8a838) 100%, transparent);
+    background: color-mix(in srgb, var(--vscode-charts-orange, #e8a838) 18%, transparent);
+    color: var(--vscode-charts-orange, #e8a838);
   }
 
   .due-upcoming .due-badge {
-    background: color-mix(in srgb, var(--vscode-foreground) 10%, transparent);
+    background: color-mix(in srgb, var(--vscode-foreground) 8%, transparent);
     color: var(--moments-muted);
     opacity: 0.75;
   }
@@ -737,25 +785,27 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
   /* ---- Input area ---- */
   .input-area {
     flex-shrink: 0;
-    padding: 8px var(--moments-inline-padding) 10px;
-    border-bottom: 1px solid var(--moments-border);
+    padding: 10px var(--moments-inline-padding) 12px;
+    border-bottom: 1px solid color-mix(in srgb, var(--moments-border) 60%, transparent);
     background: var(--vscode-editorWidget-background, var(--vscode-sideBar-background));
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
   }
 
   .input-container {
     display: flex;
     flex-direction: column;
     width: 100%;
-    background: var(--vscode-input-background);
-    border: 1px solid var(--vscode-input-border, transparent);
-    border-radius: var(--moments-control-radius);
-    transition: border-color 0.2s ease, outline 0.2s ease;
+    background: color-mix(in srgb, var(--vscode-input-background) 95%, transparent);
+    border: 1px solid color-mix(in srgb, var(--vscode-input-border, var(--moments-border)) 80%, transparent);
+    border-radius: 8px;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   .input-container:focus-within {
     border-color: var(--vscode-focusBorder);
-    outline: 1px solid var(--vscode-focusBorder);
-    outline-offset: -1px;
+    background: var(--vscode-input-background);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--vscode-focusBorder) 15%, transparent);
+    outline: none;
   }
 
   textarea {
@@ -765,12 +815,12 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     background: transparent;
     color: var(--vscode-input-foreground);
     border: none;
-    padding: 8px 10px;
+    padding: 10px 12px;
     font-family: var(--vscode-font-family);
     font-size: var(--vscode-font-size);
-    line-height: 1.4;
+    line-height: 1.45;
     outline: none;
-    min-height: 36px;
+    min-height: 38px;
     max-height: 120px;
     overflow-y: auto;
   }
@@ -789,28 +839,31 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 26px;
-    height: 26px;
+    width: 28px;
+    height: 28px;
     background: transparent;
     border: none;
-    color: var(--vscode-icon-foreground, var(--vscode-foreground));
+    color: var(--moments-muted);
     cursor: pointer;
-    border-radius: 4px;
+    border-radius: 6px;
     padding: 0;
-    transition: background 0.15s, color 0.15s, opacity 0.15s;
-    opacity: 0.8;
+    transition: all 0.2s ease;
   }
+
   .send-icon-btn:hover {
-    background: var(--vscode-toolbar-hoverBackground, rgba(90, 93, 94, 0.31));
-    opacity: 1;
+    color: var(--moments-accent);
+    background: color-mix(in srgb, var(--moments-accent) 12%, transparent);
+    transform: translateY(-0.5px);
   }
-  .send-icon-btn:active {
-    background: var(--vscode-toolbar-activeBackground, rgba(90, 93, 94, 0.5));
-  }
+
   .send-icon-btn svg {
     width: 14px;
     height: 14px;
-    fill: currentColor;
+    stroke-width: 2.2;
+  }
+
+  .send-icon-btn:active {
+    background: var(--vscode-toolbar-activeBackground, rgba(90, 93, 94, 0.5));
   }
 
   .error-banner {
@@ -1046,25 +1099,25 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     </div>
     <div class="topbar-right">
       <button class="nav-btn" id="allBtn" title="All moments" aria-label="All moments">
-        <svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" clip-rule="evenodd" d="M1.5 2.5h13l.5.5v2l-.5.5h-13l-.5-.5V3l.5-.5zm7 4h6l.5.5v2l-.5.5h-6l-.5-.5V7l.5-.5zm-7 4h13l.5.5v2l-.5.5h-13l-.5-.5v-2l.5-.5zm7 4h6l.5.5v2l-.5.5h-6l-.5-.5v-2l.5-.5z"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
       </button>
       <button class="nav-btn" id="inboxBtn" title="Task inbox" aria-label="Task inbox">
-        <svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" clip-rule="evenodd" d="M2.5 1.5h11l.5.5v3l-3 5.5v3.5l-1.5 1-1.5-1v-3.5l-3-5.5V2l.5-.5zm1 1v1.5l3 5.5v3l1 .5 1-.5V8.5l3-5.5V2.5h-8z"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"></polyline><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"></path></svg>
       </button>
       <button class="open-btn" id="openFileBtn" title="Open today's file" aria-label="Open today's file">
-        <svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" clip-rule="evenodd" d="M13.5 1.5H6L5.44 1l-.22.22L3 3.5H1.5l-.5.5v10l.5.5h12l.5-.5V2l-.5-.5zM3 4.5H2v9h11V4.5H3zm7.5-2H6.5l-.22.22L5 4h7V2.5z"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
       </button>
       <button class="open-btn export-btn" id="exportBtn" title="Export selected" aria-label="Export selected entries">
-        <svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" clip-rule="evenodd" d="M14.5 2H1.5l-.5.5v11l.5.5h13l.5-.5v-11l-.5-.5zM2 3h12v10H2V3zm2 1h8v1H4V4zm0 3h8v1H4V7zm0 3h5v1H4v-1z"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path><polyline points="16 6 12 2 8 6"></polyline><line x1="12" y1="2" x2="12" y2="15"></line></svg>
       </button>
     </div>
   </div>
   <div class="topbar-row topbar-row-search">
     <div class="search-bar">
-      <svg class="search-icon" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" clip-rule="evenodd" d="M10.2 9.5l4.4 4.4-.7.7-4.4-4.4a5.5 5.5 0 111.5-5.5 5.5 5.5 0 01-1.5 5.5h.7zm-4.7.5a4.5 4.5 0 100-9 4.5 4.5 0 000 9z"/></svg>
+      <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
       <input type="text" id="searchInput" placeholder="Search moments..." autocomplete="off" />
       <button id="clearSearch" class="clear-search-btn" title="Clear search" style="display:none">
-        <svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><path fill-rule="evenodd" clip-rule="evenodd" d="M8.7 8l3.15-3.15-.7-.7L8 7.3 4.85 4.15l-.7.7L7.3 8l-3.15 3.15.7.7L8 8.7l3.15 3.15.7-.7L8.7 8z"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
       </button>
     </div>
     <button class="filter-chip-btn" id="activeTagBtn" title="Clear active hashtag filter" style="display:none"></button>
@@ -1077,7 +1130,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     <textarea id="inputBox" rows="1" placeholder="Capture a thought... (#tag to categorize)"></textarea>
     <div class="input-actions">
       <button class="send-icon-btn" id="sendBtn" title="Send (Enter)">
-        <svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><path d="M14.5 1.5l-14 5v1.5l5 1.5 8.5-8-6.5 9.5v3.5l2.5-3 3.5 2h1.5l2-15h-1.5z"/></svg>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
       </button>
     </div>
   </div>
@@ -1085,8 +1138,9 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
 
 <div class="timeline" id="timeline">
   <div class="empty-state" id="emptyState">
-  <svg width="32" height="32" viewBox="0 0 16 16" fill="currentColor" style="opacity: 0.5; margin-bottom: 8px;">
-    <path fill-rule="evenodd" clip-rule="evenodd" d="M14.5 2H1.5l-.5.5v11l.5.5h13l.5-.5v-11l-.5-.5zM2 3h12v10H2V3zM4 6h8V5H4v1zm8 2H4v1h8V8zm-8 3h6v-1H4v1z" />
+  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.5; margin-bottom: 8px;">
+    <path d="M12 20h9"></path>
+    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
   </svg>
   <div>No moments yet today</div>
   <div style="font-size: 11px; margin-top: 4px; opacity: 0.8;">Capture ideas, or add #tags to categorize</div>
@@ -1503,7 +1557,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
         saveButton.className = 'entry-action save';
         saveButton.type = 'button';
         saveButton.title = 'Save';
-        saveButton.innerHTML = '<svg viewBox="0 0 16 16"><path fill-rule="evenodd" clip-rule="evenodd" d="M14.43 3.43l-8 8-4.22-4.22.71-.71 3.51 3.51 7.29-7.29.71.71z"/></svg>';
+        saveButton.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><polyline points="20 6 9 17 4 12"></polyline></svg>';
         saveButton.addEventListener('click', () => {
           const nextText = editInput.value.trim();
           if (!nextText) {
@@ -1519,7 +1573,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
         cancelButton.className = 'entry-action';
         cancelButton.type = 'button';
         cancelButton.title = 'Cancel';
-        cancelButton.innerHTML = '<svg viewBox="0 0 16 16"><path fill-rule="evenodd" clip-rule="evenodd" d="M8.7 8l3.15-3.15-.7-.7L8 7.3 4.85 4.15l-.7.7L7.3 8l-3.15 3.15.7.7L8 8.7l3.15 3.15.7-.7L8.7 8z"/></svg>';
+        cancelButton.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>';
         cancelButton.addEventListener('click', () => {
           editingEntryKey = null;
           editingText = '';
@@ -1579,7 +1633,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
       editButton.className = 'entry-action';
       editButton.type = 'button';
       editButton.title = 'Edit';
-      editButton.innerHTML = '<svg viewBox="0 0 16 16"><path fill-rule="evenodd" clip-rule="evenodd" d="M13.8 2.2l-1-1c-.5-.5-1.3-.5-1.8 0l-8 8v2.8l1 1h2.8l8-8c.5-.5.5-1.3 0-1.8zm-1.8.7l1 1-1.3 1.3-1-1 1.3-1.3zm-2.3 2.3l1 1-6.8 6.8H3v-1l6.7-6.8z"/></svg>';
+      editButton.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>';
       editButton.addEventListener('click', () => {
         editingEntryKey = entryKey;
         editingText = entry.text;
@@ -1590,7 +1644,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
       deleteButton.className = 'entry-action danger';
       deleteButton.type = 'button';
       deleteButton.title = 'Delete';
-      deleteButton.innerHTML = '<svg viewBox="0 0 16 16"><path fill-rule="evenodd" clip-rule="evenodd" d="M10 3h3v1h-1v9l-1 1H4l-1-1V4H2V3h3V2a1 1 0 011-1h3a1 1 0 011 1v1zM9 2H6v1h3V2zM4 13h7V4H4v9z"/><path d="M6 6h1v5H6zM8 6h1v5H8z"/></svg>';
+      deleteButton.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>';
       deleteButton.addEventListener('click', () => {
         if (editingEntryKey === entryKey) {
           editingEntryKey = null;
@@ -1607,7 +1661,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
       pinButton.type = 'button';
       pinButton.title = isPinned ? 'Unpin' : 'Pin';
       pinButton.setAttribute('aria-label', isPinned ? 'Unpin' : 'Pin');
-      pinButton.textContent = '📌';
+      pinButton.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><line x1="18" y1="8" x2="22" y2="12"></line><line x1="12" y1="2" x2="12" y2="6"></line><path d="M12 6H8a2 2 0 0 0-2 2v3.586a1 1 0 0 1-.293.707l-2.828 2.828a1 1 0 0 0 0 1.414L6 19.5a1 1 0 0 0 1.414 0l2.828-2.828a1 1 0 0 1 .707-.293H15a2 2 0 0 0 2-2V8"></path></svg>';
       pinButton.addEventListener('click', () => {
         if (isPinned) {
           vscode.postMessage({ command: 'unpinEntry', pinnedId: section.date + ':' + entry.index });
