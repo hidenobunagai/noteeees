@@ -6,6 +6,13 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-06-11
+
+### Added
+
+- **Modern UI Icons in Webviews**: Replaced legacy, filled SVG icons and emojis (like 📌 or 🔍) in the Task Dashboard and Moments Panel with unified, crisp stroke-based SVG icons (Feather/Lucide style) for a cleaner, consistent visual style.
+- **Premium Webview UX Design**: Added Glassmorphism styling with backdrop blurring to panels and sticky headers, interactive transitions to KPI chips and action buttons, a visual timeline path with hover-highlight dots in Moments, and smooth checkbox toggle animations in the dashboard.
+
 ## [0.10.0] - 2026-05-27
 
 ### Added
