@@ -133,7 +133,8 @@ ${tasksToEnrich.map((t) => `- ${t}`).join("\n")}`;
           const key = normalizeExtractedTaskIdentity(item.text);
           const category = typeof item.category === "string" ? item.category : "other";
           const priority = typeof item.priority === "string" ? item.priority : "medium";
-          const timeEstimateMin = typeof item.timeEstimateMin === "number" ? item.timeEstimateMin : 0;
+          const timeEstimateMin =
+            typeof item.timeEstimateMin === "number" ? item.timeEstimateMin : 0;
 
           saveAiTaskEnrichment(stateStore, notesDir, key, {
             category,
@@ -172,4 +173,3 @@ function extractJsonPayload(text: string): string {
 
   return trimmed.slice(Math.min(...startCandidates)).trim();
 }
-
