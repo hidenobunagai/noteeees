@@ -12,7 +12,54 @@ export function parseWikiLinks(text: string): string[] {
   return [...text.matchAll(WIKI_LINK_RE)].map((m) => m[1]);
 }
 
+type NoteFileCache = {
+  files: string[];
+  signature: string;
+};
+
+let noteFileCache: NoteFileCache | undefined;
+
+async function computeNoteFileSignature(notesDir: string): Promise<string> {
+  const results: { filePath: string; mtime: number }[] = [];
+
+  async function walk(dir: string): Promise<void> {
+    let entries: Dirent[];
+    try {
+      entries = await fs.readdir(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const entry of entries) {
+      if (entry.name.startsWith(".")) {
+        continue;
+      }
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        await walk(full);
+      } else if (entry.isFile() && entry.name.endsWith(".md")) {
+        try {
+          const stat = await fs.stat(full);
+          results.push({ filePath: full, mtime: stat.mtimeMs });
+        } catch {
+          // skip unreadable files
+        }
+      }
+    }
+  }
+
+  await walk(notesDir);
+  results.sort((left, right) => left.filePath.localeCompare(right.filePath));
+  return results
+    .map(({ filePath, mtime }) => `${path.relative(notesDir, filePath)}:${mtime}`)
+    .join("|");
+}
+
 async function getAllNoteFiles(notesDir: string): Promise<string[]> {
+  const signature = await computeNoteFileSignature(notesDir);
+  if (noteFileCache?.signature === signature) {
+    return noteFileCache.files;
+  }
+
   const results: string[] = [];
 
   async function walk(dir: string): Promise<void> {
@@ -36,7 +83,12 @@ async function getAllNoteFiles(notesDir: string): Promise<string[]> {
   }
 
   await walk(notesDir);
+  noteFileCache = { files: results, signature };
   return results;
+}
+
+export function invalidateNoteFileCache(): void {
+  noteFileCache = undefined;
 }
 
 function stripDatePrefix(stem: string): string {

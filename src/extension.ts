@@ -1,12 +1,14 @@
 import * as fs from "fs/promises";
 import * as path from "path";
 import * as vscode from "vscode";
+import { collectNoteFiles as sharedCollectNoteFiles } from "../shared/collectNoteFiles.js";
 import { createTaskFileWatcher } from "./aiTaskIndexer";
+import { enrichTasksInFile } from "./dashboardAiEnrichment.js";
 import { DashboardPanel } from "./dashboardPanel";
+import { isPathInside } from "./dashboardTaskUtils.js";
 import { archiveMoments, MomentsViewProvider, showOpenTasksOverview } from "./momentsPanel";
 import {
   buildIndexedNotes,
-  collectNoteFiles,
   createNewNote,
   type IndexedNote,
   listNotes,
@@ -15,6 +17,7 @@ import {
 } from "./noteCommands";
 import {
   affectsNotesConfiguration,
+  getAiAutoEnrichSetting,
   getDailyNoteTemplateSetting,
   getLegacyNotesDirectorySetting,
   getMomentsArchiveAfterDaysSetting,
@@ -24,7 +27,6 @@ import {
   updateLegacyNotesDirectorySetting,
   updateSidebarTagSortSetting,
   updateWorkspaceNotesDirectorySetting,
-  getAiAutoEnrichSetting,
 } from "./notesConfig.js";
 import {
   buildSidebarTagGroups,
@@ -38,8 +40,6 @@ import {
   WikiLinkDefinitionProvider,
   WikiLinkDocumentLinkProvider,
 } from "./wikiLinks";
-import { enrichTasksInFile } from "./dashboardAiEnrichment.js";
-import { isPathInside } from "./dashboardTaskUtils.js";
 
 const NOTES_DIRECTORY_STORAGE_KEY = "notesDirectory";
 const PINNED_NOTES_KEY = "pinnedNotes";
@@ -182,7 +182,12 @@ export function activate(context: vscode.ExtensionContext) {
 
   async function getIndexedNotes(notesDir: string) {
     const momentsSubfolder = getMomentsSubfolderSetting();
-    const noteFiles = await collectNoteFiles(notesDir, notesDir, [momentsSubfolder]);
+    const collected = await sharedCollectNoteFiles(notesDir, [momentsSubfolder]);
+    const noteFiles = collected.map((file) => ({
+      relativePath: file.relativePath,
+      absolutePath: file.filePath,
+      mtime: file.mtime,
+    }));
     return (await buildIndexedNotes(noteFiles)).sort((a, b) => b.mtime - a.mtime);
   }
 
@@ -272,7 +277,6 @@ export function activate(context: vscode.ExtensionContext) {
 
   void migrateNotesDirectoryStorage().then(() => {
     notesTreeProvider.refresh();
-    momentsProvider.refresh();
   });
 
   let mdWatcher: vscode.FileSystemWatcher | undefined;

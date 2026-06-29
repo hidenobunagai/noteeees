@@ -52,11 +52,11 @@ export type {
   WeekDay,
 } from "./dashboardTypes.js";
 
+import { loadAllAiTaskEnrichments } from "./dashboardAiEnrichment.js";
 import { buildCategoryCounts, buildSectionCounts, buildSummary } from "./dashboardAnalytics.js";
 import { buildDashboardTaskViews, buildUpcomingWeek } from "./dashboardClassification.js";
 import { dismissExtractedTask as dismissExtractedTaskInStore } from "./dashboardDismissedTasks.js";
 import { collectTasksFromNotes } from "./dashboardTaskCollector.js";
-import { loadAllAiTaskEnrichments } from "./dashboardAiEnrichment.js";
 import { normalizeExtractedTaskIdentity } from "./dashboardTaskUtils.js";
 
 // ---------------------------------------------------------------------------
@@ -182,9 +182,9 @@ export class DashboardPanel {
     }
 
     const momentsSubfolder = getMomentsSubfolderSetting();
+    const today = todayDateString();
 
     const tasks = await collectTasksFromNotes(notesDir, momentsSubfolder);
-    const today = todayDateString();
 
     const enrichments = loadAllAiTaskEnrichments(this._stateStore, notesDir);
     const enrichedTasks = tasks.map((task) => {

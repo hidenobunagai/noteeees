@@ -1,6 +1,7 @@
 import * as fs from "fs/promises";
 import * as path from "path";
 import * as vscode from "vscode";
+import { collectNoteFiles as sharedCollectNoteFiles } from "../shared/collectNoteFiles.js";
 import {
   getDefaultNoteTitleSetting,
   getDefaultSnippetSetting,
@@ -23,6 +24,12 @@ interface FilenameToken {
 export interface NoteMetadata {
   title: string;
   tags: string[];
+}
+
+export interface NoteFile {
+  relativePath: string;
+  absolutePath: string;
+  mtime: number;
 }
 
 function stripFrontMatter(rawContent: string): string {
@@ -383,22 +390,21 @@ export async function pickIndexedNote(
 }
 
 export async function buildIndexedNotes(noteFiles: NoteFile[]): Promise<IndexedNote[]> {
-  const results: IndexedNote[] = [];
-  for (const file of noteFiles) {
+  const readTasks = noteFiles.map(async (file) => {
     const rawContent = await fs.readFile(file.absolutePath, "utf8");
     const fallbackTitle = path.basename(file.relativePath, ".md");
     const metadata = extractNoteMetadata(rawContent, fallbackTitle);
     const preview = extractPreviewText(rawContent);
     const searchText = normalizeSearchText(stripFrontMatter(rawContent));
 
-    results.push({
+    return {
       ...file,
       metadata,
       preview,
       searchText,
-    });
-  }
-  return results;
+    };
+  });
+  return Promise.all(readTasks);
 }
 
 export async function createNewNote(notesDir: string, initialTitle?: string): Promise<void> {
@@ -529,7 +535,6 @@ function applyDailyNoteTokens(template: string, date: Date): string {
 }
 
 export async function buildDailyNoteContent(
-  dateStr: string,
   templatePath: string | undefined,
   notesDir: string,
 ): Promise<string> {
@@ -560,7 +565,7 @@ export async function openDailyNote(notesDir: string, templatePath?: string): Pr
   try {
     await fs.access(filePath);
   } catch {
-    const content = await buildDailyNoteContent(today, templatePath, notesDir);
+    const content = await buildDailyNoteContent(templatePath, notesDir);
     await fs.writeFile(filePath, content, "utf8");
   }
 
@@ -570,7 +575,12 @@ export async function openDailyNote(notesDir: string, templatePath?: string): Pr
 
 export async function listNotes(notesDir: string): Promise<void> {
   const momentsSubfolder = getMomentsSubfolderSetting();
-  const noteFiles = await collectNoteFiles(notesDir, notesDir, [momentsSubfolder]);
+  const collected = await sharedCollectNoteFiles(notesDir, [momentsSubfolder]);
+  const noteFiles = collected.map((file) => ({
+    relativePath: file.relativePath,
+    absolutePath: file.filePath,
+    mtime: file.mtime,
+  }));
 
   if (noteFiles.length === 0) {
     vscode.window.showInformationMessage("No notes found.");
@@ -594,52 +604,4 @@ export async function listNotes(notesDir: string): Promise<void> {
       await vscode.window.showTextDocument(doc);
     }
   }
-}
-
-interface NoteFile {
-  relativePath: string;
-  absolutePath: string;
-  mtime: number;
-}
-
-export async function collectNoteFiles(
-  baseDir: string,
-  currentDir: string,
-  excludeDirs: string[] = [],
-): Promise<NoteFile[]> {
-  const results: NoteFile[] = [];
-
-  try {
-    await fs.access(currentDir);
-  } catch {
-    return results;
-  }
-
-  const entries = await fs.readdir(currentDir, { withFileTypes: true });
-
-  for (const entry of entries) {
-    const fullPath = path.join(currentDir, entry.name);
-
-    // Skip hidden directories
-    if (entry.name.startsWith(".")) {
-      continue;
-    }
-
-    if (entry.isDirectory()) {
-      // Skip excluded directories (e.g. the moments subfolder)
-      if (excludeDirs.includes(entry.name)) {
-        continue;
-      }
-      results.push(...(await collectNoteFiles(baseDir, fullPath, excludeDirs)));
-    } else if (entry.isFile() && entry.name.endsWith(".md")) {
-      const stat = await fs.stat(fullPath);
-      results.push({
-        relativePath: path.relative(baseDir, fullPath),
-        absolutePath: fullPath,
-        mtime: stat.mtimeMs,
-      });
-    }
-  }
-
-  return results;
 }

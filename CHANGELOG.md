@@ -6,6 +6,18 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+### Changed
+
+- **TypeScript strictness**: Enabled stricter TypeScript checks (`strict`, `noImplicitReturns`, `noFallthroughCasesInSwitch`, `noUnusedParameters`) in both root and MCP configurations to catch potential bugs earlier.
+- **Shared file collection**: Consolidated duplicate note file walking logic into `shared/collectNoteFiles.ts`, used by both the VS Code extension and MCP server.
+- **WikiLink caching**: Added file signature-based caching to wiki link resolution to avoid redundant file system scans.
+- **Task regex unification**: Aligned dashboard and MCP task parsing by importing `TASK_RE` from the shared `taskSyntax` module.
+- **Parallel note indexing**: Refactored `buildIndexedNotes()` to use `Promise.all()` for concurrent file reads, improving performance on large note collections.
+
+### Fixed
+
+- **Extension activation**: Updated activation event from `onCommand:notes.runSetup` to `onStartupFinished` for more reliable extension initialization.
+
 ## [0.11.0] - 2026-06-11
 
 ### Added

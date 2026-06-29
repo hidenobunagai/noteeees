@@ -1,7 +1,8 @@
 import * as fs from "fs/promises";
 import * as path from "path";
+import { DUE_DATE_RE, TAG_RE, TASK_RE } from "../shared/taskSyntax.js";
+import { dateFromFilePath } from "./dashboardTaskUtils.js";
 import type { DashTask } from "./dashboardTypes.js";
-import { TASK_RE, TAG_RE, DUE_DATE_RE, dateFromFilePath } from "./dashboardTaskUtils.js";
 
 export async function collectTasksFromNotes(
   notesDir: string,

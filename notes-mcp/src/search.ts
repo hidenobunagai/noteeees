@@ -1,5 +1,6 @@
 import * as fs from "fs/promises";
 import * as path from "path";
+import { collectNoteFiles as sharedCollectNoteFiles } from "../../shared/collectNoteFiles.js";
 import { syncNotesIndex } from "./db.js";
 
 export interface NoteEntry {
@@ -160,29 +161,6 @@ function isMomentsNote(rawContent: string, filename: string): boolean {
   return filename.split(path.sep).includes("moments") || filename.split("/").includes("moments");
 }
 
-async function collectNoteFiles(dir: string): Promise<{ filePath: string; mtime: number }[]> {
-  const results: { filePath: string; mtime: number }[] = [];
-  try {
-    await fs.access(dir);
-  } catch {
-    return results;
-  }
-
-  const entries = await fs.readdir(dir, { withFileTypes: true });
-  for (const entry of entries) {
-    if (entry.name.startsWith(".")) continue;
-    const fullPath = path.join(dir, entry.name);
-    if (entry.isDirectory()) {
-      results.push(...(await collectNoteFiles(fullPath)));
-    } else if (entry.isFile() && entry.name.endsWith(".md")) {
-      const stat = await fs.stat(fullPath);
-      results.push({ filePath: fullPath, mtime: stat.mtimeMs });
-    }
-  }
-
-  return results.sort((left, right) => left.filePath.localeCompare(right.filePath));
-}
-
 function normalize(text: string): string {
   return text.normalize("NFKC").toLowerCase();
 }
@@ -241,7 +219,8 @@ export function clearSearchIndexCache(): void {
 }
 
 export async function getCachedSearchIndex(notesDir: string): Promise<SearchIndexSnapshot> {
-  const files = await collectNoteFiles(notesDir);
+  const collected = await sharedCollectNoteFiles(notesDir);
+  const files = collected.map((file) => ({ filePath: file.filePath, mtime: file.mtime }));
   const fileSignature = buildFileSignature(notesDir, files);
 
   if (

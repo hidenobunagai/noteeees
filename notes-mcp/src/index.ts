@@ -4,6 +4,7 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprotocol/sdk/types.js";
 import * as fs from "fs/promises";
 import * as path from "path";
+import { collectNoteFiles as sharedCollectNoteFiles } from "../../shared/collectNoteFiles.js";
 import {
   closeDb,
   getTaskById,
@@ -104,31 +105,22 @@ async function _syncTasksIfNeeded(notesDir: string): Promise<void> {
   } catch {
     return;
   }
+  const collected = await sharedCollectNoteFiles(notesDir, ["moments"]);
   const diskFiles: { filePath: string; mtime: number; content: string }[] = [];
-  async function walk(dir: string): Promise<void> {
-    let entries;
+
+  for (const file of collected) {
     try {
-      entries = await fs.readdir(dir, { withFileTypes: true });
+      const content = await fs.readFile(file.filePath, "utf8");
+      diskFiles.push({
+        filePath: file.filePath,
+        mtime: file.mtime,
+        content,
+      });
     } catch {
-      return;
-    }
-    for (const entry of entries) {
-      const full = path.join(dir, entry.name);
-      if (entry.isDirectory()) {
-        if (entry.name === "moments") continue;
-        await walk(full);
-      } else if (entry.isFile() && entry.name.endsWith(".md")) {
-        const stat = await fs.stat(full);
-        const content = await fs.readFile(full, "utf8");
-        diskFiles.push({
-          filePath: full,
-          mtime: stat.mtimeMs,
-          content,
-        });
-      }
+      // skip unreadable files
     }
   }
-  await walk(notesDir);
+
   syncTasksIndex(notesDir, diskFiles);
 }
 
