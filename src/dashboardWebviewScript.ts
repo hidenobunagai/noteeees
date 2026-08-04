@@ -326,20 +326,12 @@ export function buildDashboardWebviewScript(
       return Number.parseInt(parts[1], 10) + "/" + Number.parseInt(parts[2], 10);
     }
 
-    function extractedTaskKey(task) {
-      return normalizeTaskIdentity(task.text);
-    }
-
     function canAddDashboardCandidate(task, existingTaskKeys) {
-      if (existingTaskKeys && existingTaskKeys.has(extractedTaskKey(task))) {
+      if (existingTaskKeys && existingTaskKeys.has(normalizedCandidateIdentity(task.text))) {
         return false;
       }
 
       return !task.existsAlready;
-    }
-
-    function normalizeTaskIdentity(text) {
-      return normalizedCandidateIdentity(text);
     }
 
     function createPendingCandidateRequestId(task) {
@@ -362,7 +354,7 @@ export function buildDashboardWebviewScript(
     function getExistingTaskKeys() {
       const persistedTaskKeys = (dashboardData.tasks || [])
         .map(function (task) {
-          return normalizeTaskIdentity(task.text);
+          return normalizedCandidateIdentity(task.text);
         })
         .filter(Boolean);
       state.addedCandidateKeys = (state.addedCandidateKeys || []).filter(function (key) {
@@ -510,7 +502,7 @@ export function buildDashboardWebviewScript(
         .map(function (task) {
           return {
             ...task,
-            existsAlready: existingTaskKeys.has(extractedTaskKey(task)) || Boolean(task.existsAlready),
+            existsAlready: existingTaskKeys.has(normalizedCandidateIdentity(task.text)) || Boolean(task.existsAlready),
           };
         })
         .filter(function (task) {
@@ -991,15 +983,15 @@ export function buildDashboardWebviewScript(
       pendingCandidateAdds.push({
         requestId: requestId,
         order: task.order,
-        key: extractedTaskKey(task),
+        key: normalizedCandidateIdentity(task.text),
         source: task.source,
       });
 
       state.candidateTasks = (state.candidateTasks || []).map(function (candidate) {
         return candidate.order === task.order ? { ...candidate, added: true } : candidate;
       });
-      if (!state.addedCandidateKeys.includes(extractedTaskKey(task))) {
-        state.addedCandidateKeys = state.addedCandidateKeys.concat([extractedTaskKey(task)]);
+      if (!state.addedCandidateKeys.includes(normalizedCandidateIdentity(task.text))) {
+        state.addedCandidateKeys = state.addedCandidateKeys.concat([normalizedCandidateIdentity(task.text)]);
       }
       persistState();
 

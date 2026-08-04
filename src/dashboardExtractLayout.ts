@@ -1,13 +1,7 @@
-import { escAttr } from "./dashboardTaskUtils.js";
-
-function getDefaultDate(daysAgo: number): string {
-  const date = new Date();
-  date.setDate(date.getDate() - daysAgo);
-  return date.toISOString().split("T")[0];
-}
+import { escAttr, shiftDate, todayDateString } from "./dashboardTaskUtils.js";
 
 export function buildDashboardExtractSectionHtml(today: string): string {
-  const defaultFromDate = getDefaultDate(7);
+  const defaultFromDate = shiftDate(todayDateString(), -7);
 
   return `
     <section class="dash-extract-row-compact">

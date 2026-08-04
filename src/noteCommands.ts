@@ -2,6 +2,7 @@ import * as fs from "fs/promises";
 import * as path from "path";
 import * as vscode from "vscode";
 import { collectNoteFiles as sharedCollectNoteFiles } from "../shared/collectNoteFiles.js";
+import { formatDateString, formatTimeHM } from "./dashboardTaskUtils.js";
 import {
   getDefaultNoteTitleSetting,
   getDefaultSnippetSetting,
@@ -510,26 +511,13 @@ export async function createNewNote(notesDir: string, initialTitle?: string): Pr
 
 const DAILY_NOTE_DEFAULT_TEMPLATE = "# {date}\n\n## Tasks\n\n## Notes\n\n## Journal\n";
 
-export function formatDateYMD(date: Date): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
-
-function formatTimeHM(date: Date): string {
-  const hours = String(date.getHours()).padStart(2, "0");
-  const minutes = String(date.getMinutes()).padStart(2, "0");
-  return `${hours}:${minutes}`;
-}
-
 function getWeekdayName(date: Date): string {
   return date.toLocaleDateString("en-US", { weekday: "long" });
 }
 
 function applyDailyNoteTokens(template: string, date: Date): string {
   return template
-    .replace(/\{date\}/g, formatDateYMD(date))
+    .replace(/\{date\}/g, formatDateString(date))
     .replace(/\{weekday\}/g, getWeekdayName(date))
     .replace(/\{time\}/g, formatTimeHM(date));
 }
@@ -558,7 +546,7 @@ export async function buildDailyNoteContent(
 }
 
 export async function openDailyNote(notesDir: string, templatePath?: string): Promise<void> {
-  const today = formatDateYMD(new Date());
+  const today = formatDateString(new Date());
   const fileName = `${today}_daily.md`;
   const filePath = path.join(notesDir, fileName);
 

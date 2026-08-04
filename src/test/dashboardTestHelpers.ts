@@ -90,19 +90,13 @@ export function renderDashboardWebviewHtml(
     new (
       panel: vscode.WebviewPanel,
       getNotesDir: () => string | undefined,
-      extensionUri: vscode.Uri,
       stateStore: vscode.Memento,
     ): unknown;
   };
 
   try {
     seed?.(notesDir);
-    new DashboardPanelCtor(
-      panel as vscode.WebviewPanel,
-      () => notesDir,
-      vscode.Uri.file(notesDir),
-      stateStore,
-    );
+    new DashboardPanelCtor(panel as vscode.WebviewPanel, () => notesDir, stateStore);
     return webview.html;
   } finally {
     fs.rmSync(notesDir, { recursive: true, force: true });
@@ -149,19 +143,13 @@ export async function renderSettledDashboardWebviewHtml(
     new (
       panel: vscode.WebviewPanel,
       getNotesDir: () => string | undefined,
-      extensionUri: vscode.Uri,
       stateStore: vscode.Memento,
     ): unknown;
   };
 
   try {
     seed?.(notesDir);
-    new DashboardPanelCtor(
-      panel as vscode.WebviewPanel,
-      () => notesDir,
-      vscode.Uri.file(notesDir),
-      stateStore,
-    );
+    new DashboardPanelCtor(panel as vscode.WebviewPanel, () => notesDir, stateStore);
 
     for (let attempt = 0; attempt < 10; attempt += 1) {
       if (webview.html.length > 0) {

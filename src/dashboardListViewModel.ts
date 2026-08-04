@@ -9,6 +9,13 @@ import type {
 } from "./dashboardTypes.js";
 import { buildDashboardEmptyMessage } from "./dashboardTaskUtils.js";
 
+const simplifiedSectionTitles: Record<string, string> = {
+  today: "Today",
+  planned: "Planned",
+  unsorted: "Unsorted",
+  done: "Done",
+};
+
 export function buildDashboardListItems(
   tasks: DashboardTaskView[],
   candidates: DashboardCandidateView[],
@@ -98,12 +105,6 @@ export function buildDashboardListViewModel(
       "unsorted",
       "done",
     ];
-    const simplifiedSectionTitles: Record<string, string> = {
-      today: "Today",
-      planned: "Planned",
-      unsorted: "Unsorted",
-      done: "Done",
-    };
 
     for (const simplifiedSection of simplifiedSectionOrder) {
       let internalSections: DashboardTaskSection[];
@@ -144,12 +145,6 @@ export function buildDashboardListViewModel(
     };
   }
 
-  const simplifiedSectionTitles: Record<string, string> = {
-    today: "Today",
-    planned: "Planned",
-    unsorted: "Unsorted",
-    done: "Done",
-  };
   const title = simplifiedSectionTitles[filter] || filter[0].toUpperCase() + filter.slice(1);
 
   return {

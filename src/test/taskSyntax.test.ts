@@ -1,7 +1,7 @@
 import * as assert from "assert";
 import * as vscode from "vscode";
 import { MomentsViewProvider } from "../moments/panel";
-import { extractDueDate, stripDueDateTokens } from "../taskSyntax";
+import { extractDueDate, stripDueDateTokens } from "../../shared/taskSyntax.js";
 import {
   createExtensionContextStub,
   renderSettledDashboardWebviewHtml,

@@ -31,7 +31,6 @@ export interface DashboardCandidateTask {
 
 export interface ExtractedTaskFilterResult {
   visibleTasks: DashboardCandidateTask[];
-  hiddenExisting: number;
   hiddenDismissed: number;
   hiddenDuplicates: number;
 }

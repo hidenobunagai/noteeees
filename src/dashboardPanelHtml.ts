@@ -4,7 +4,7 @@ import { escHtml, toScriptData } from "./dashboardTaskUtils.js";
 import type { DashboardData } from "./dashboardTypes.js";
 import { buildDashboardWebviewCss } from "./dashboardWebviewCss.js";
 import { buildDashboardWebviewScript } from "./dashboardWebviewScript.js";
-import { DUE_DATE_TOKEN_RE } from "./taskSyntax.js";
+import { DUE_DATE_TOKEN_RE } from "../shared/taskSyntax.js";
 
 export function buildDashboardLoadingHtml(message: string): string {
   return `<!DOCTYPE html><html><body style="padding:20px;font-family:var(--vscode-font-family);color:var(--vscode-foreground)"><p>${escHtml(

@@ -1,47 +1,25 @@
 import * as fs from "fs/promises";
 import * as path from "path";
-import { getMomentsArchiveAfterDaysSetting } from "../notesConfig.js";
+import { formatDateString, formatTimeHM, todayDateString } from "../dashboardTaskUtils.js";
+import { getMomentsArchiveAfterDaysSetting, getMomentsSubfolderSetting } from "../notesConfig.js";
 import {
   extractMomentTags,
   getMomentsFeedDayCount,
-  getMomentsSubfolder,
-  MOMENTS_FEED_DAY_COUNT,
   normalizeMomentsFeedDayCount,
 } from "./config.js";
 import type { MomentDaySection, MomentEntry } from "./types.js";
-
-// ---------------------------------------------------------------------------
-// Date helpers
-// ---------------------------------------------------------------------------
-
-export function formatDate(d: Date): string {
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
-}
-
-function formatTime(d: Date): string {
-  return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
-}
-
-function offsetDate(date: string, days: number): string {
-  const d = new Date(`${date}T00:00:00`);
-  d.setDate(d.getDate() + days);
-  return formatDate(d);
-}
 
 // ---------------------------------------------------------------------------
 // File path helpers
 // ---------------------------------------------------------------------------
 
 export function getMomentsFilePath(notesDir: string, date: string): string {
-  const subfolder = getMomentsSubfolder();
+  const subfolder = getMomentsSubfolderSetting();
   return path.join(notesDir, subfolder, `${date}.md`);
 }
 
 export function getMomentsDirectory(notesDir: string): string {
-  return path.join(notesDir, getMomentsSubfolder());
+  return path.join(notesDir, getMomentsSubfolderSetting());
 }
 
 async function listMomentFileDates(notesDir: string): Promise<string[]> {
@@ -174,14 +152,6 @@ function replaceMomentEntryBlock(
 // Read/write operations
 // ---------------------------------------------------------------------------
 
-export function buildMomentsFeedDates(
-  anchorDate: string,
-  dayCount: number = MOMENTS_FEED_DAY_COUNT,
-): string[] {
-  const safeDayCount = normalizeMomentsFeedDayCount(dayCount);
-  return Array.from({ length: safeDayCount }, (_, index) => offsetDate(anchorDate, -index));
-}
-
 export async function readMoments(notesDir: string, date: string): Promise<MomentEntry[]> {
   const filePath = getMomentsFilePath(notesDir, date);
   try {
@@ -265,80 +235,6 @@ export function toggleMomentTaskLine(line: string): { line: string; changed: boo
   return { line, changed: false };
 }
 
-export function normalizeMomentLineToUnchecked(line: string): { line: string; changed: boolean } {
-  if (line.match(/^(-\s+)\[x\]/i)) {
-    return {
-      line: line.replace(/^(-\s+)\[x\]/i, "$1[ ]"),
-      changed: true,
-    };
-  }
-
-  if (line.match(/^(-\s+)\[ \]/)) {
-    return { line, changed: false };
-  }
-
-  const regular = line.match(/^(-\s+)(\d{2}:\d{2}\s+.*)$/);
-  if (!regular) {
-    return { line, changed: false };
-  }
-
-  return {
-    line: `${regular[1]}[ ] ${regular[2]}`,
-    changed: true,
-  };
-}
-
-export function replaceMomentEntryText(
-  line: string,
-  nextText: string,
-): { line: string; changed: boolean } {
-  const normalizedText = nextText.trim();
-  if (!normalizedText) {
-    return { line, changed: false };
-  }
-
-  // All patterns rewritten as plain `- HH:MM text` (no checkbox)
-  const taskDone = line.match(/^-\s+\[x\]\s+(\d{2}:\d{2})\s+(.*)$/i);
-  if (taskDone) {
-    const nextLine = `- ${taskDone[1]} ${normalizedText}`;
-    return { line: nextLine, changed: true };
-  }
-
-  const taskTodo = line.match(/^-\s+\[ \]\s+(\d{2}:\d{2})\s+(.*)$/);
-  if (taskTodo) {
-    const nextLine = `- ${taskTodo[1]} ${normalizedText}`;
-    return { line: nextLine, changed: true };
-  }
-
-  const regular = line.match(/^(-\s+)(\d{2}:\d{2})\s+(.*)$/);
-  if (regular) {
-    const nextLine = `${regular[1]}${regular[2]} ${normalizedText}`;
-    return {
-      line: nextLine,
-      changed: nextLine !== line,
-    };
-  }
-
-  return { line, changed: false };
-}
-
-export function deleteMomentLine(
-  lines: string[],
-  lineIndex: number,
-): {
-  lines: string[];
-  changed: boolean;
-} {
-  if (lineIndex < 0 || lineIndex >= lines.length) {
-    return { lines, changed: false };
-  }
-
-  return {
-    lines: [...lines.slice(0, lineIndex), ...lines.slice(lineIndex + 1)],
-    changed: true,
-  };
-}
-
 export function buildMomentsDateLabel(date: string, today: string): string {
   if (date === today) {
     return `Today · ${date}`;
@@ -357,7 +253,7 @@ export async function collectMomentsFeed(
   anchorDate: string,
   sectionCount: number = getMomentsFeedDayCount(),
 ): Promise<MomentsFeedData> {
-  const today = formatDate(new Date());
+  const today = todayDateString();
   const safeSectionCount = normalizeMomentsFeedDayCount(sectionCount);
   const fileDates = (await listMomentFileDates(notesDir)).filter((date) => date < anchorDate);
   const firstEntries = await readMoments(notesDir, anchorDate);
@@ -416,7 +312,7 @@ export async function ensureMomentsFile(notesDir: string, date: string): Promise
 
 export async function appendMoment(notesDir: string, date: string, text: string): Promise<void> {
   const filePath = await ensureMomentsFile(notesDir, date);
-  const time = formatTime(new Date());
+  const time = formatTimeHM(new Date());
   const entryText = text.replace(/\r\n/g, "\n").trim();
   const entry = `- ${time} ${entryText}\n`;
 
@@ -425,31 +321,6 @@ export async function appendMoment(notesDir: string, date: string, text: string)
     content += "\n";
   }
   await fs.writeFile(filePath, content + entry, "utf8");
-}
-
-export async function toggleTask(notesDir: string, date: string, index: number): Promise<void> {
-  const filePath = getMomentsFilePath(notesDir, date);
-  try {
-    await fs.access(filePath);
-  } catch {
-    return;
-  }
-
-  const raw = await fs.readFile(filePath, "utf8");
-  const lines = raw.split("\n");
-  const fileLineIdx = mapMomentBodyIndexToFileLine(raw, index);
-  if (fileLineIdx >= lines.length) {
-    return;
-  }
-
-  const result = toggleMomentTaskLine(lines[fileLineIdx]);
-  if (!result.changed) {
-    return;
-  }
-
-  lines[fileLineIdx] = result.line;
-
-  await fs.writeFile(filePath, lines.join("\n"), "utf8");
 }
 
 export async function saveMomentEdit(
@@ -525,7 +396,7 @@ export async function archiveMoments(
 
   const cutoffDate = new Date();
   cutoffDate.setDate(cutoffDate.getDate() - afterDays);
-  const cutoffStr = formatDate(cutoffDate);
+  const cutoffStr = formatDateString(cutoffDate);
 
   const entries = await fs.readdir(momentsDir, { withFileTypes: true });
   const dateFilePattern = /^(\d{4}-\d{2}-\d{2})\.md$/;

@@ -1,9 +1,8 @@
-import * as crypto from "crypto";
-import * as path from "path";
 import * as fs from "fs/promises";
 import * as vscode from "vscode";
 import type { Memento, CancellationToken } from "vscode";
-import { TASK_RE, normalizeExtractedTaskIdentity } from "./dashboardTaskUtils.js";
+import { TASK_RE, normalizeExtractedTaskIdentity, notesDirHash } from "./dashboardTaskUtils.js";
+import { extractJsonPayload } from "./aiTaskProcessor.js";
 
 export interface AiTaskEnrichment {
   category: string;
@@ -13,8 +12,7 @@ export interface AiTaskEnrichment {
 }
 
 function getEnrichmentStorageKey(notesDir: string): string {
-  const notesKey = crypto.createHash("sha1").update(path.resolve(notesDir)).digest("hex");
-  return `dashboard.aiEnrichment.${notesKey}`;
+  return `dashboard.aiEnrichment.${notesDirHash(notesDir)}`;
 }
 
 export function loadAllAiTaskEnrichments(
@@ -38,26 +36,6 @@ export function saveAiTaskEnrichment(
   const storageKey = getEnrichmentStorageKey(notesDir);
   const all = loadAllAiTaskEnrichments(stateStore, notesDir);
   all[taskIdentityKey] = { ...enrichment, enrichedAt: new Date().toISOString() };
-  void stateStore.update(storageKey, all);
-}
-
-export function getAiTaskEnrichment(
-  stateStore: Memento,
-  notesDir: string,
-  taskIdentityKey: string,
-): AiTaskEnrichment | null {
-  const all = loadAllAiTaskEnrichments(stateStore, notesDir);
-  return all[taskIdentityKey] ?? null;
-}
-
-export function deleteAiTaskEnrichment(
-  stateStore: Memento,
-  notesDir: string,
-  taskIdentityKey: string,
-): void {
-  const storageKey = getEnrichmentStorageKey(notesDir);
-  const all = loadAllAiTaskEnrichments(stateStore, notesDir);
-  delete all[taskIdentityKey];
   void stateStore.update(storageKey, all);
 }
 
@@ -147,29 +125,4 @@ ${tasksToEnrich.map((t) => `- ${t}`).join("\n")}`;
   } catch (e) {
     console.error("Failed to auto-enrich tasks in file:", e);
   }
-}
-
-function extractJsonPayload(text: string): string {
-  const trimmed = text.trim();
-  if (!trimmed) {
-    return trimmed;
-  }
-
-  const fencedMatches = Array.from(trimmed.matchAll(/```(?:json)?\s*([\s\S]*?)```/gi));
-  for (const match of fencedMatches) {
-    const candidate = match[1].trim();
-    if (candidate.startsWith("[") || candidate.startsWith("{")) {
-      return candidate;
-    }
-  }
-
-  const arrayStart = trimmed.indexOf("[");
-  const objectStart = trimmed.indexOf("{");
-  const startCandidates = [arrayStart, objectStart].filter((index) => index >= 0);
-
-  if (startCandidates.length === 0) {
-    return trimmed;
-  }
-
-  return trimmed.slice(Math.min(...startCandidates)).trim();
 }

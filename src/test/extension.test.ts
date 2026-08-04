@@ -17,10 +17,10 @@ import {
   buildQueryExcerpt,
   extractNoteMetadata,
   extractPreviewText,
-  formatDateYMD,
   resolveUniqueFilePath,
   shouldPromptForTemplateSelection,
 } from "../noteCommands";
+import { formatDateString as formatDateYMD } from "../dashboardTaskUtils";
 import {
   buildSidebarTagGroups,
   buildTagNoteDescription,

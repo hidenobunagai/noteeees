@@ -5,34 +5,30 @@ import * as path from "path";
 import * as vscode from "vscode";
 import {
   appendMoment,
+  buildMomentsDateLabel,
   collectMomentsFeed,
   deleteMomentEntry,
-  formatDate,
   getMomentsFilePath,
+  mapMomentBodyIndexToFileLine,
   readMoments,
   saveMomentEdit,
+  toggleMomentTaskLine,
 } from "../moments/fileIo";
 import {
-  buildMomentsDateLabel,
-  buildMomentsFeedDates,
-  buildTaskSearchDetail,
-  deleteMomentLine,
   extractMomentTags,
-  filterMomentEntries,
   filterTaskOverviewItems,
-  getDueDateStatus,
   getNextInboxFilter,
-  mapMomentBodyIndexToFileLine,
-  MomentsViewProvider,
   normalizeInboxTaskFilter,
-  normalizeMomentLineToUnchecked,
   normalizeMomentsFeedDayCount,
-  parseDueDate,
-  replaceMomentEntryText,
   resolvePinnedEntries,
-  sortOpenTaskOverview,
-  toggleMomentTaskLine,
-} from "../momentsPanel";
+} from "../moments/config";
+import { buildTaskSearchDetail, sortOpenTaskOverview } from "../moments/taskOverview";
+import { MomentsViewProvider } from "../moments/panel";
+import { shiftDate, todayDateString } from "../dashboardTaskUtils";
+
+function feedDates(anchor: string, dayCount: number): string[] {
+  return Array.from({ length: dayCount }, (_, index) => shiftDate(anchor, -index));
+}
 import { createExtensionContextStub } from "./dashboardTestHelpers";
 
 function renderMomentsWebviewHtml(): string {
@@ -151,39 +147,6 @@ suite("Moments Core Test Suite", () => {
     assert.strictEqual(normalizeInboxTaskFilter(undefined), "all");
   });
 
-  test("parseDueDate extracts date from 📅, due:, #due:, and @ syntax", () => {
-    assert.strictEqual(parseDueDate("Fix bug 📅2025-01-15"), "2025-01-15");
-    assert.strictEqual(parseDueDate("Write report due:2025-01-20"), "2025-01-20");
-    assert.strictEqual(parseDueDate("Triage #due:2025-01-25"), "2025-01-25");
-    assert.strictEqual(parseDueDate("MTG with team @2026-03-31"), "2026-03-31");
-    assert.strictEqual(parseDueDate("No date here"), null);
-    assert.strictEqual(parseDueDate(""), null);
-  });
-
-  test("getDueDateStatus returns correct status", () => {
-    assert.strictEqual(getDueDateStatus("2025-01-01", false, "2025-06-01"), "overdue");
-    assert.strictEqual(getDueDateStatus("2025-06-01", false, "2025-06-01"), "today");
-    assert.strictEqual(getDueDateStatus("2025-12-31", false, "2025-06-01"), "upcoming");
-    assert.strictEqual(getDueDateStatus("2025-01-01", true, "2025-06-01"), null);
-    assert.strictEqual(getDueDateStatus(null, false, "2025-06-01"), null);
-  });
-
-  test("open Moments filter keeps only unfinished posts", () => {
-    const filtered = filterMomentEntries(
-      [
-        { index: 0, time: "09:00", text: "todo", done: false },
-        { index: 1, time: "09:30", text: "done", done: true },
-        { index: 2, time: "10:00", text: "note", done: false },
-      ],
-      "open",
-    );
-
-    assert.deepStrictEqual(filtered, [
-      { index: 0, time: "09:00", text: "todo", done: false },
-      { index: 2, time: "10:00", text: "note", done: false },
-    ]);
-  });
-
   test("Moments webview renders the composer before the timeline", () => {
     const html = renderMomentsWebviewHtml();
     const topbarIndex = html.indexOf('<div class="topbar">');
@@ -285,7 +248,7 @@ suite("Moments Core Test Suite", () => {
   });
 
   test("moments feed dates stack backward from the anchor date", () => {
-    assert.deepStrictEqual(buildMomentsFeedDates("2026-03-09", 4), [
+    assert.deepStrictEqual(feedDates("2026-03-09", 4), [
       "2026-03-09",
       "2026-03-08",
       "2026-03-07",
@@ -311,40 +274,6 @@ suite("Moments Core Test Suite", () => {
     });
     assert.deepStrictEqual(toggleMomentTaskLine("- 09:00 note"), {
       line: "- [x] 09:00 note",
-      changed: true,
-    });
-  });
-
-  test("moment lines normalize to unchecked checkbox posts", () => {
-    assert.deepStrictEqual(normalizeMomentLineToUnchecked("- 09:00 note"), {
-      line: "- [ ] 09:00 note",
-      changed: true,
-    });
-    assert.deepStrictEqual(normalizeMomentLineToUnchecked("- [x] 09:00 done task"), {
-      line: "- [ ] 09:00 done task",
-      changed: true,
-    });
-    assert.deepStrictEqual(normalizeMomentLineToUnchecked("- [ ] 09:00 task"), {
-      line: "- [ ] 09:00 task",
-      changed: false,
-    });
-    assert.deepStrictEqual(normalizeMomentLineToUnchecked("not a moment line"), {
-      line: "not a moment line",
-      changed: false,
-    });
-  });
-
-  test("moment entry text replacement preserves time and task state", () => {
-    assert.deepStrictEqual(replaceMomentEntryText("- [ ] 09:00 old task", "new task"), {
-      line: "- 09:00 new task",
-      changed: true,
-    });
-    assert.deepStrictEqual(replaceMomentEntryText("- [x] 09:00 done task", "updated done"), {
-      line: "- 09:00 updated done",
-      changed: true,
-    });
-    assert.deepStrictEqual(replaceMomentEntryText("- 09:00 note text", "updated note"), {
-      line: "- 09:00 updated note",
       changed: true,
     });
   });
@@ -403,11 +332,8 @@ suite("Moments Core Test Suite", () => {
 
   test("moments feed can load older visible days incrementally", async () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "noteeees-moments-"));
-    const today = formatDate(new Date());
-    const [todayDate, yesterdayDate, twoDaysAgoDate, threeDaysAgoDate] = buildMomentsFeedDates(
-      today,
-      4,
-    );
+    const today = todayDateString();
+    const [todayDate, yesterdayDate, twoDaysAgoDate, threeDaysAgoDate] = feedDates(today, 4);
 
     try {
       await appendMoment(tmpDir, todayDate, "Today entry");
@@ -443,28 +369,6 @@ suite("Moments Core Test Suite", () => {
     } finally {
       fs.rmSync(tmpDir, { recursive: true, force: true });
     }
-  });
-
-  test("moment line deletion removes only the targeted line", () => {
-    assert.deepStrictEqual(deleteMomentLine(["a", "b", "c"], 1), {
-      lines: ["a", "c"],
-      changed: true,
-    });
-    assert.deepStrictEqual(deleteMomentLine(["a", "b", "c"], 10), {
-      lines: ["a", "b", "c"],
-      changed: false,
-    });
-  });
-
-  test("moments feed dates returns single entry when feedDays is 1", () => {
-    assert.deepStrictEqual(buildMomentsFeedDates("2026-03-09", 1), ["2026-03-09"]);
-  });
-
-  test("moments feed dates with feedDays=30 starts at anchor and ends 29 days earlier", () => {
-    const dates = buildMomentsFeedDates("2026-03-31", 30);
-    assert.strictEqual(dates.length, 30);
-    assert.strictEqual(dates[0], "2026-03-31");
-    assert.strictEqual(dates[29], "2026-03-02");
   });
 
   test("moment body index maps correctly without front matter", () => {

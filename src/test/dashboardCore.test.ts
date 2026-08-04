@@ -3,27 +3,30 @@ import { type ExtractedTask } from "../aiTaskProcessor";
 import { createDashboardMessageHandler } from "../dashboardMessageHandler";
 import {
   buildDashboardCandidateViews,
-  buildDashboardListItems,
-  buildDashboardListViewModel,
   buildDashboardTaskViews,
   buildUpcomingWeek,
-  canAddDashboardCandidate,
   classifyDashboardTask,
+} from "../dashboardClassification.js";
+import {
+  buildDashboardListItems,
+  buildDashboardListViewModel,
   countDashboardListItemsForFilter,
-  filterExtractedTasksForDisplay,
   matchesDashboardListItemFilter,
-  migrateDashboardCandidateState,
+} from "../dashboardListViewModel.js";
+import {
+  canAddDashboardCandidate,
+  filterExtractedTasksForDisplay,
   normalizeDashboardTaskText,
   normalizeExtractedTaskIdentity,
   resolveDashboardTaskFile,
   upsertDashboardDueDate,
-  type DashboardListItem,
-} from "../dashboardPanel";
+} from "../dashboardTaskUtils.js";
 import {
   buildExtractedTaskFailureMessage,
   buildExtractedTaskStatusMessage,
 } from "../dashboardTaskUtils";
 import { createMementoStub } from "./dashboardTestHelpers";
+import type { DashboardListItem } from "../dashboardTypes.js";
 
 suite("Dashboard Core Test Suite", () => {
   test("dashboard list view model uses final compact empty-state messaging", () => {
@@ -190,7 +193,6 @@ suite("Dashboard Core Test Suite", () => {
       (result.visibleTasks[1] as { existsAlready?: boolean }).existsAlready,
       false,
     );
-    assert.strictEqual(result.hiddenExisting, 0);
     assert.strictEqual(result.hiddenDismissed, 1);
     assert.strictEqual(result.hiddenDuplicates, 1);
   });
@@ -258,7 +260,6 @@ suite("Dashboard Core Test Suite", () => {
       (result.visibleTasks[1] as { existsAlready?: boolean }).existsAlready,
       false,
     );
-    assert.strictEqual(result.hiddenExisting, 0);
     assert.strictEqual(result.hiddenDismissed, 1);
     assert.strictEqual(result.hiddenDuplicates, 1);
   });
@@ -937,446 +938,5 @@ suite("Dashboard Core Test Suite", () => {
       "missing",
     );
     assert.strictEqual(allWithItemsNoMatch.emptyMessage, "No matching tasks");
-  });
-
-  test("migrateDashboardCandidateState converts legacy extracted state into unified candidate state", () => {
-    const migrated = migrateDashboardCandidateState({
-      extractedTasks: [
-        {
-          kind: "candidate",
-          text: "Legacy moments task",
-          dueDate: null,
-          category: "work",
-          priority: "medium",
-          timeEstimateMin: 15,
-          source: "moments",
-          sourceLabel: "Moments",
-          existsAlready: false,
-        },
-      ],
-      notesExtractedTasks: [
-        {
-          kind: "candidate",
-          text: "Legacy notes task",
-          dueDate: "2026-03-30",
-          category: "admin",
-          priority: "low",
-          timeEstimateMin: 10,
-          source: "notes",
-          sourceLabel: "projects/plan.md",
-          existsAlready: true,
-        },
-      ],
-      addedExtractedKeys: [normalizeExtractedTaskIdentity("Legacy moments task")],
-      notesAddedExtractedKeys: [normalizeExtractedTaskIdentity("Legacy notes task")],
-    });
-
-    assert.deepStrictEqual(
-      migrated.candidateTasks.map((task) => ({
-        text: task.text,
-        source: task.source,
-        sourceLabel: task.sourceLabel,
-        order: task.order,
-        added: task.added,
-      })),
-      [
-        {
-          text: "Legacy moments task",
-          source: "moments",
-          sourceLabel: "Moments",
-          order: 0,
-          added: true,
-        },
-        {
-          text: "Legacy notes task",
-          source: "notes",
-          sourceLabel: "projects/plan.md",
-          order: 1,
-          added: true,
-        },
-      ],
-    );
-    assert.strictEqual(migrated.candidateOrderSeed, 2);
-    assert.deepStrictEqual(migrated.addedCandidateKeys, [
-      normalizeExtractedTaskIdentity("Legacy moments task"),
-      normalizeExtractedTaskIdentity("Legacy notes task"),
-    ]);
-  });
-
-  test("migrateDashboardCandidateState restores candidate order seed from existing candidate orders", () => {
-    const migrated = migrateDashboardCandidateState({
-      candidateTasks: [
-        {
-          kind: "candidate",
-          text: "Sparse first",
-          dueDate: null,
-          category: "work",
-          priority: "medium",
-          timeEstimateMin: 15,
-          source: "moments",
-          sourceLabel: "Moments",
-          existsAlready: false,
-          extractionIndex: 0,
-          order: 2,
-          added: false,
-        },
-        {
-          kind: "candidate",
-          text: "Sparse second",
-          dueDate: null,
-          category: "admin",
-          priority: "low",
-          timeEstimateMin: 10,
-          source: "notes",
-          sourceLabel: "projects/plan.md",
-          existsAlready: false,
-          extractionIndex: 1,
-          order: 7,
-          added: false,
-        },
-      ],
-    });
-
-    assert.strictEqual(migrated.candidateOrderSeed, 8);
-  });
-
-  test("migrateDashboardCandidateState ignores malformed stored candidates", () => {
-    const addedKey = normalizeExtractedTaskIdentity("Keep me");
-    const migrated = migrateDashboardCandidateState({
-      candidateTasks: [
-        null,
-        {
-          kind: "candidate",
-          text: "   ",
-          source: "moments",
-          sourceLabel: "Moments",
-        },
-        {
-          kind: "candidate",
-          text: "Keep me",
-          dueDate: "2026-03-30",
-          category: "work",
-          priority: "medium",
-          timeEstimateMin: 15,
-          source: "moments",
-          sourceLabel: "Moments",
-          existsAlready: false,
-          order: 7,
-          extractionIndex: 3,
-        },
-      ],
-      addedCandidateKeys: [addedKey, 42, null],
-    });
-
-    assert.strictEqual(migrated.candidateTasks.length, 1);
-    assert.strictEqual(migrated.candidateTasks[0].text, "Keep me");
-    assert.strictEqual(migrated.candidateTasks[0].order, 7);
-    assert.strictEqual(migrated.candidateTasks[0].extractionIndex, 3);
-    assert.deepStrictEqual(migrated.addedCandidateKeys, [addedKey]);
-    assert.strictEqual(migrated.candidateOrderSeed, 8);
-  });
-
-  test("migrateDashboardCandidateState preserves legacy notes candidate source metadata", () => {
-    const migrated = migrateDashboardCandidateState({
-      notesExtractedTasks: [
-        {
-          text: "Review meeting notes",
-          dueDate: null,
-          category: "work",
-          priority: "medium",
-          timeEstimateMin: 20,
-          sourceNote: "projects/retro.md",
-        },
-        {
-          text: "Share summary",
-          dueDate: null,
-          category: "work",
-          priority: "low",
-          timeEstimateMin: 10,
-          sourceLabel: "projects/plan.md",
-        },
-      ],
-    });
-
-    assert.strictEqual(migrated.candidateTasks.length, 2);
-    assert.strictEqual(migrated.candidateTasks[0].source, "notes");
-    assert.strictEqual(migrated.candidateTasks[0].sourceLabel, "projects/retro.md");
-    assert.strictEqual(migrated.candidateTasks[1].source, "notes");
-    assert.strictEqual(migrated.candidateTasks[1].sourceLabel, "projects/plan.md");
-  });
-
-  test("dashboard task file resolver supports inbox and dated files", () => {
-    const notesDir = "/tmp/notes";
-    assert.strictEqual(resolveDashboardTaskFile(notesDir, null), "/tmp/notes/tasks/inbox.md");
-    assert.strictEqual(
-      resolveDashboardTaskFile(notesDir, "2026-03-31"),
-      "/tmp/notes/tasks/2026-03-31.md",
-    );
-  });
-
-  test("dashboard task classifier separates backlog upcoming and overdue", () => {
-    assert.strictEqual(
-      classifyDashboardTask(
-        {
-          id: "tasks/inbox.md:1",
-          filePath: "/tmp/notes/tasks/inbox.md",
-          lineIndex: 1,
-          text: "Inbox task",
-          done: false,
-          date: null,
-          dueDate: null,
-          tags: [],
-        },
-        "2026-03-27",
-        "2026-04-03",
-      ),
-      "backlog",
-    );
-    assert.strictEqual(
-      classifyDashboardTask(
-        {
-          id: "tasks/2026-03-27.md:4",
-          filePath: "/tmp/notes/tasks/2026-03-27.md",
-          lineIndex: 4,
-          text: "Due soon",
-          done: false,
-          date: "2026-03-27",
-          dueDate: "2026-03-30",
-          tags: [],
-        },
-        "2026-03-27",
-        "2026-04-03",
-      ),
-      "upcoming",
-    );
-    assert.strictEqual(
-      classifyDashboardTask(
-        {
-          id: "tasks/2026-03-20.md:2",
-          filePath: "/tmp/notes/tasks/2026-03-20.md",
-          lineIndex: 2,
-          text: "Overdue task",
-          done: false,
-          date: "2026-03-20",
-          dueDate: null,
-          tags: [],
-        },
-        "2026-03-27",
-        "2026-04-03",
-      ),
-      "overdue",
-    );
-    assert.strictEqual(
-      classifyDashboardTask(
-        {
-          id: "projects/roadmap.md:9",
-          filePath: "/tmp/notes/projects/roadmap.md",
-          lineIndex: 9,
-          text: "Done item",
-          done: true,
-          date: null,
-          dueDate: "2026-03-30",
-          tags: [],
-        },
-        "2026-03-27",
-        "2026-04-03",
-      ),
-      "done",
-    );
-  });
-
-  test("upcoming week chart uses the next 7 days and effective dates", () => {
-    const week = buildUpcomingWeek(
-      [
-        {
-          id: "tasks/2026-03-27.md:1",
-          filePath: "/tmp/notes/tasks/2026-03-27.md",
-          lineIndex: 1,
-          text: "Today task",
-          done: false,
-          date: "2026-03-27",
-          dueDate: null,
-          tags: [],
-        },
-        {
-          id: "tasks/2026-03-28.md:1",
-          filePath: "/tmp/notes/tasks/2026-03-28.md",
-          lineIndex: 1,
-          text: "Due later",
-          done: false,
-          date: "2026-03-28",
-          dueDate: "2026-03-30",
-          tags: [],
-        },
-        {
-          id: "tasks/2026-03-30.md:4",
-          filePath: "/tmp/notes/tasks/2026-03-30.md",
-          lineIndex: 4,
-          text: "Already finished",
-          done: true,
-          date: "2026-03-30",
-          dueDate: null,
-          tags: [],
-        },
-        {
-          id: "tasks/2026-04-03.md:2",
-          filePath: "/tmp/notes/tasks/2026-04-03.md",
-          lineIndex: 2,
-          text: "Outside window",
-          done: false,
-          date: "2026-04-03",
-          dueDate: null,
-          tags: [],
-        },
-        {
-          id: "tasks/inbox.md:7",
-          filePath: "/tmp/notes/tasks/inbox.md",
-          lineIndex: 7,
-          text: "Backlog",
-          done: false,
-          date: null,
-          dueDate: null,
-          tags: [],
-        },
-      ],
-      "2026-03-27",
-    );
-
-    assert.deepStrictEqual(
-      week.map((day) => day.date),
-      [
-        "2026-03-27",
-        "2026-03-28",
-        "2026-03-29",
-        "2026-03-30",
-        "2026-03-31",
-        "2026-04-01",
-        "2026-04-02",
-      ],
-    );
-    assert.deepStrictEqual(
-      week.map((day) => ({ date: day.date, open: day.open, done: day.done })),
-      [
-        { date: "2026-03-27", open: 1, done: 0 },
-        { date: "2026-03-28", open: 0, done: 0 },
-        { date: "2026-03-29", open: 0, done: 0 },
-        { date: "2026-03-30", open: 1, done: 1 },
-        { date: "2026-03-31", open: 0, done: 0 },
-        { date: "2026-04-01", open: 0, done: 0 },
-        { date: "2026-04-02", open: 0, done: 0 },
-      ],
-    );
-  });
-
-  test("buildExtractedTaskStatusMessage includes hidden counts when present", () => {
-    assert.strictEqual(
-      buildExtractedTaskStatusMessage({
-        visibleTasks: [],
-        hiddenExisting: 0,
-        hiddenDismissed: 0,
-        hiddenDuplicates: 0,
-      }),
-      "実行可能なタスクは見つかりませんでした。",
-    );
-
-    assert.strictEqual(
-      buildExtractedTaskStatusMessage({
-        visibleTasks: [],
-        hiddenExisting: 2,
-        hiddenDismissed: 1,
-        hiddenDuplicates: 0,
-      }),
-      "新しい候補はありません。2件は既存タスクと重複、1件は一時非表示として除外しました。",
-    );
-
-    assert.strictEqual(
-      buildExtractedTaskStatusMessage({
-        visibleTasks: [],
-        hiddenExisting: 0,
-        hiddenDismissed: 0,
-        hiddenDuplicates: 3,
-      }),
-      "新しい候補はありません。3件は候補内で重複として除外しました。",
-    );
-
-    assert.strictEqual(
-      buildExtractedTaskStatusMessage({
-        visibleTasks: [],
-        hiddenExisting: 1,
-        hiddenDismissed: 1,
-        hiddenDuplicates: 1,
-      }),
-      "新しい候補はありません。1件は既存タスクと重複、1件は一時非表示、1件は候補内で重複として除外しました。",
-    );
-
-    assert.strictEqual(
-      buildExtractedTaskStatusMessage({
-        visibleTasks: [
-          {
-            kind: "candidate" as const,
-            text: "Send report",
-            dueDate: null,
-            category: "work",
-            priority: "high",
-            timeEstimateMin: 30,
-            source: "moments",
-            sourceLabel: "Moments",
-            existsAlready: false,
-          },
-        ],
-        hiddenExisting: 2,
-        hiddenDismissed: 0,
-        hiddenDuplicates: 0,
-      }),
-      "1件の候補を表示しています。2件は既存タスクと重複として除外しました。",
-    );
-
-    assert.strictEqual(
-      buildExtractedTaskStatusMessage({
-        visibleTasks: [
-          {
-            kind: "candidate" as const,
-            text: "Send report",
-            dueDate: null,
-            category: "work",
-            priority: "high",
-            timeEstimateMin: 30,
-            source: "moments",
-            sourceLabel: "Moments",
-            existsAlready: false,
-          },
-          {
-            kind: "candidate" as const,
-            text: "Review budget",
-            dueDate: null,
-            category: "work",
-            priority: "medium",
-            timeEstimateMin: 20,
-            source: "notes",
-            sourceLabel: "projects/plan.md",
-            existsAlready: false,
-          },
-        ],
-        hiddenExisting: 0,
-        hiddenDismissed: 0,
-        hiddenDuplicates: 0,
-      }),
-      "2件の候補を表示しています。",
-    );
-  });
-
-  test("buildExtractedTaskFailureMessage maps failure reasons to user-facing messages", () => {
-    assert.strictEqual(
-      buildExtractedTaskFailureMessage("modelUnavailable"),
-      "AI 抽出を実行できませんでした。GitHub Copilot Chat の利用状態を確認してください。",
-    );
-    assert.strictEqual(
-      buildExtractedTaskFailureMessage("requestFailed"),
-      "AI 抽出に失敗しました。少し待ってからもう一度お試しください。",
-    );
-    assert.strictEqual(
-      buildExtractedTaskFailureMessage(null),
-      "実行可能なタスクは見つかりませんでした。",
-    );
   });
 });

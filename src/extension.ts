@@ -2,11 +2,12 @@ import * as fs from "fs/promises";
 import * as path from "path";
 import * as vscode from "vscode";
 import { collectNoteFiles as sharedCollectNoteFiles } from "../shared/collectNoteFiles.js";
-import { createTaskFileWatcher } from "./aiTaskIndexer";
 import { enrichTasksInFile } from "./dashboardAiEnrichment.js";
 import { DashboardPanel } from "./dashboardPanel";
 import { isPathInside } from "./dashboardTaskUtils.js";
-import { archiveMoments, MomentsViewProvider, showOpenTasksOverview } from "./momentsPanel";
+import { archiveMoments } from "./moments/fileIo.js";
+import { MomentsViewProvider } from "./moments/panel.js";
+import { showOpenTasksOverview } from "./moments/taskOverview.js";
 import {
   buildIndexedNotes,
   createNewNote,
@@ -130,10 +131,6 @@ export function activate(context: vscode.ExtensionContext) {
     await context.globalState.update(PINNED_NOTES_KEY, [...new Set(paths)]);
   }
 
-  function getSidebarTagSort(): SidebarTagSortMode {
-    return getSidebarTagSortSetting();
-  }
-
   async function migrateNotesDirectoryStorage(): Promise<void> {
     const stored = context.globalState.get<string>(NOTES_DIRECTORY_STORAGE_KEY);
     const configured = getConfiguredNotesDir();
@@ -193,7 +190,7 @@ export function activate(context: vscode.ExtensionContext) {
 
   async function searchTags(notesDir: string): Promise<void> {
     const indexedNotes = await getIndexedNotes(notesDir);
-    const tagItems = buildTagSearchItems(indexedNotes, getSidebarTagSort());
+    const tagItems = buildTagSearchItems(indexedNotes, getSidebarTagSortSetting());
 
     if (tagItems.length === 0) {
       vscode.window.showInformationMessage("No tags found.");
@@ -231,7 +228,7 @@ export function activate(context: vscode.ExtensionContext) {
   const notesTreeProvider = new NotesTreeProvider(
     getNotesDir,
     getPinnedRelativePaths,
-    getSidebarTagSort,
+    getSidebarTagSortSetting,
   );
   const notesTreeView = vscode.window.createTreeView("notesExplorer", {
     treeDataProvider: notesTreeProvider as vscode.TreeDataProvider<vscode.TreeItem>,
@@ -280,9 +277,27 @@ export function activate(context: vscode.ExtensionContext) {
   });
 
   let mdWatcher: vscode.FileSystemWatcher | undefined;
+  let dashboardRefreshTimer: NodeJS.Timeout | undefined;
   const refreshNotesViews = () => {
     notesTreeProvider.refresh();
     momentsProvider.refresh();
+  };
+
+  const scheduleDashboardRefresh = (uri: vscode.Uri) => {
+    const momentsSubfolder = getMomentsSubfolderSetting();
+    if (
+      uri.fsPath.includes(`/${momentsSubfolder}/`) ||
+      uri.fsPath.includes(`\\${momentsSubfolder}\\`)
+    ) {
+      return;
+    }
+    if (dashboardRefreshTimer) {
+      clearTimeout(dashboardRefreshTimer);
+    }
+    dashboardRefreshTimer = setTimeout(() => {
+      dashboardRefreshTimer = undefined;
+      DashboardPanel.refresh();
+    }, 500);
   };
 
   const refreshMarkdownWatcher = () => {
@@ -295,27 +310,29 @@ export function activate(context: vscode.ExtensionContext) {
     }
 
     mdWatcher = vscode.workspace.createFileSystemWatcher(pattern);
-    mdWatcher.onDidCreate(refreshNotesViews);
-    mdWatcher.onDidDelete(refreshNotesViews);
-    mdWatcher.onDidChange(refreshNotesViews);
+    mdWatcher.onDidCreate((uri) => {
+      refreshNotesViews();
+      scheduleDashboardRefresh(uri);
+    });
+    mdWatcher.onDidDelete((uri) => {
+      refreshNotesViews();
+      scheduleDashboardRefresh(uri);
+    });
+    mdWatcher.onDidChange((uri) => {
+      refreshNotesViews();
+      scheduleDashboardRefresh(uri);
+    });
   };
 
   refreshMarkdownWatcher();
   context.subscriptions.push({
-    dispose: () => mdWatcher?.dispose(),
+    dispose: () => {
+      mdWatcher?.dispose();
+      if (dashboardRefreshTimer) {
+        clearTimeout(dashboardRefreshTimer);
+      }
+    },
   });
-
-  let taskWatcher: vscode.Disposable | undefined;
-  const refreshTaskWatcher = () => {
-    taskWatcher?.dispose();
-    taskWatcher = undefined;
-    const dir = getNotesDir();
-    if (dir) {
-      taskWatcher = createTaskFileWatcher(dir, context);
-    }
-  };
-  refreshTaskWatcher();
-  context.subscriptions.push({ dispose: () => taskWatcher?.dispose() });
 
   // Task dashboard status bar item
   const aiStatusBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
@@ -371,7 +388,6 @@ export function activate(context: vscode.ExtensionContext) {
     ) {
       void migrateNotesDirectoryStorage().then(() => {
         refreshMarkdownWatcher();
-        refreshTaskWatcher();
         refreshNotesViews();
       });
       return;
@@ -384,7 +400,6 @@ export function activate(context: vscode.ExtensionContext) {
     ) {
       if (affectsNotesConfiguration(event, "momentsSubfolder")) {
         refreshMarkdownWatcher();
-        refreshTaskWatcher();
       }
 
       refreshNotesViews();
@@ -437,7 +452,7 @@ export function activate(context: vscode.ExtensionContext) {
     "notes.toggleTagSort",
     async () => {
       const nextMode: SidebarTagSortMode =
-        getSidebarTagSort() === "frequency" ? "alphabetical" : "frequency";
+        getSidebarTagSortSetting() === "frequency" ? "alphabetical" : "frequency";
 
       await updateSidebarTagSortSetting(nextMode, vscode.ConfigurationTarget.Global);
 
@@ -500,12 +515,8 @@ export function activate(context: vscode.ExtensionContext) {
         return;
       }
       const notesDir = getNotesDir();
-      if (notesDir) {
-        const resolved = path.resolve(filePath);
-        const resolvedNotes = path.resolve(notesDir);
-        if (resolved !== resolvedNotes && !resolved.startsWith(`${resolvedNotes}${path.sep}`)) {
-          return;
-        }
+      if (notesDir && !isPathInside(notesDir, filePath)) {
+        return;
       }
       try {
         await fs.access(filePath);

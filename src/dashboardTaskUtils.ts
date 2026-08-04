@@ -1,3 +1,4 @@
+import * as crypto from "crypto";
 import * as fs from "fs/promises";
 import * as path from "path";
 import type {
@@ -16,8 +17,10 @@ import type {
   ExtractedTaskWithSource,
   ExtractTasksFailureReason,
 } from "./aiTaskProcessor.js";
-import { stripDueDateTokens } from "./taskSyntax.js";
-export { DUE_DATE_RE, TAG_RE, TASK_RE } from "./taskSyntax.js";
+import { isPathInside } from "../shared/pathSafety.js";
+import { stripDueDateTokens } from "../shared/taskSyntax.js";
+export { DUE_DATE_RE, TAG_RE, TASK_RE } from "../shared/taskSyntax.js";
+export { isPathInside } from "../shared/pathSafety.js";
 
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const EXTRACTED_TASK_DISMISS_WINDOW_DAYS = 30;
@@ -38,8 +41,16 @@ export function pad2(n: number): string {
   return String(n).padStart(2, "0");
 }
 
+export function notesDirHash(notesDir: string): string {
+  return crypto.createHash("sha1").update(path.resolve(notesDir)).digest("hex");
+}
+
 export function formatDateString(date: Date): string {
   return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
+}
+
+export function formatTimeHM(date: Date): string {
+  return `${pad2(date.getHours())}:${pad2(date.getMinutes())}`;
 }
 
 export function todayDateString(): string {
@@ -123,15 +134,6 @@ export async function ensureDashboardTaskFile(
   }
 
   return filePath;
-}
-
-export function isPathInside(parentDir: string, candidatePath: string): boolean {
-  const resolvedParent = path.resolve(parentDir);
-  const resolvedCandidate = path.resolve(candidatePath);
-  return (
-    resolvedCandidate === resolvedParent ||
-    resolvedCandidate.startsWith(`${resolvedParent}${path.sep}`)
-  );
 }
 
 export function resolveTaskRef(
@@ -312,7 +314,6 @@ export function filterExtractedTasksForDisplay(
   const seenKeys = new Set<string>();
 
   const visibleTasks: DashboardCandidateTask[] = [];
-  let hiddenExisting = 0;
   let hiddenDismissed = 0;
   let hiddenDuplicates = 0;
 
@@ -356,7 +357,6 @@ export function filterExtractedTasksForDisplay(
 
   return {
     visibleTasks,
-    hiddenExisting,
     hiddenDismissed,
     hiddenDuplicates,
   };
@@ -364,9 +364,6 @@ export function filterExtractedTasksForDisplay(
 
 export function buildExtractedTaskStatusMessage(result: ExtractedTaskFilterResult): string {
   const hiddenParts: string[] = [];
-  if (result.hiddenExisting > 0) {
-    hiddenParts.push(`${result.hiddenExisting}件は既存タスクと重複`);
-  }
   if (result.hiddenDismissed > 0) {
     hiddenParts.push(`${result.hiddenDismissed}件は一時非表示`);
   }

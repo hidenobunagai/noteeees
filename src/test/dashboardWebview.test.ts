@@ -1,8 +1,8 @@
 import * as assert from "assert";
 import * as fs from "fs";
 import * as path from "path";
-import { normalizeExtractedTaskIdentity } from "../dashboardPanel";
-import { formatDateYMD } from "../noteCommands";
+import { normalizeExtractedTaskIdentity } from "../dashboardTaskUtils";
+import { formatDateString as formatDateYMD } from "../dashboardTaskUtils";
 import {
   createMementoStubWithValues,
   renderSettledDashboardWebviewHtml,

@@ -40,14 +40,7 @@ export interface CopilotModel {
   family: string;
 }
 
-function stripJsonFences(text: string): string {
-  return text
-    .replace(/^```(?:json)?\s*/i, "")
-    .replace(/```\s*$/i, "")
-    .trim();
-}
-
-function extractJsonPayload(text: string): string {
+export function extractJsonPayload(text: string): string {
   const trimmed = text.trim();
   if (!trimmed) {
     return trimmed;
@@ -55,7 +48,7 @@ function extractJsonPayload(text: string): string {
 
   const fencedMatches = Array.from(trimmed.matchAll(/```(?:json)?\s*([\s\S]*?)```/gi));
   for (const match of fencedMatches) {
-    const candidate = stripJsonFences(match[0]);
+    const candidate = match[1].trim();
     if (candidate.startsWith("[") || candidate.startsWith("{")) {
       return candidate;
     }
@@ -118,15 +111,6 @@ async function getModel(modelId?: string): Promise<vscode.LanguageModelChat | nu
   }
 }
 
-export async function extractTasksFromText(
-  text: string,
-  token: vscode.CancellationToken,
-  modelId?: string,
-): Promise<ExtractedTask[]> {
-  const result = await extractTasksFromTextWithStatus(text, token, modelId);
-  return result.tasks;
-}
-
 export async function extractTasksFromTextWithStatus(
   text: string,
   token: vscode.CancellationToken,
@@ -184,9 +168,6 @@ ${text}`;
     };
   }
 }
-
-// Backward compatibility alias
-export const extractTasksFromMoments = extractTasksFromText;
 
 export async function aggregateNoteContents(
   mcpClient: McpClient,
@@ -247,8 +228,8 @@ export async function extractTasksFromNotes(
       break;
     }
 
-    const tasks = await extractTasksFromText(note.content, token, modelId);
-    for (const task of tasks) {
+    const result = await extractTasksFromTextWithStatus(note.content, token, modelId);
+    for (const task of result.tasks) {
       allTasks.push({
         ...task,
         sourceNote: note.filename,

@@ -1,17 +1,15 @@
-import * as crypto from "crypto";
-import * as path from "path";
 import type { Memento } from "vscode";
 import {
   normalizeDismissedExtractedTasks,
   normalizeExtractedTaskIdentity,
+  notesDirHash,
   pruneDismissedExtractedTasks,
   todayDateString,
 } from "./dashboardTaskUtils.js";
 import type { DismissedExtractedTask } from "./dashboardTypes.js";
 
 export function getDismissedExtractedStorageKey(notesDir: string): string {
-  const notesKey = crypto.createHash("sha1").update(path.resolve(notesDir)).digest("hex");
-  return `dashboard.dismissedExtracted.${notesKey}`;
+  return `dashboard.dismissedExtracted.${notesDirHash(notesDir)}`;
 }
 
 export function loadDismissedExtractedTasks(

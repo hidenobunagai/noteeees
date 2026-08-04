@@ -35,5 +35,4 @@ export interface TaskOverviewItem {
   done: boolean;
 }
 
-export type MomentFilter = "all" | "open";
 export type InboxTaskFilter = "all" | "open" | "done" | "overdue";

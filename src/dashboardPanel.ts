@@ -6,51 +6,9 @@ import {
   type DashboardMessageHandlerDeps,
 } from "./dashboardMessageHandler.js";
 import { buildDashboardLoadingHtml, buildDashboardPanelHtml } from "./dashboardPanelHtml.js";
-import { todayDateString } from "./dashboardTaskUtils.js";
+import { shiftDate, todayDateString } from "./dashboardTaskUtils.js";
 import type { DashboardData } from "./dashboardTypes.js";
 import { getMomentsSubfolderSetting } from "./notesConfig.js";
-export { migrateDashboardCandidateState } from "./dashboardCandidateMigration.js";
-export {
-  buildDashboardCandidateViews,
-  buildDashboardTaskViews,
-  buildUpcomingWeek,
-  classifyDashboardTask,
-} from "./dashboardClassification.js";
-export {
-  buildDashboardListItems,
-  buildDashboardListViewModel,
-  countDashboardListItemsForFilter,
-  matchesDashboardListItemFilter,
-} from "./dashboardListViewModel.js";
-export { collectTasksFromNotes } from "./dashboardTaskCollector.js";
-export {
-  canAddDashboardCandidate,
-  filterExtractedTasksForDisplay,
-  normalizeDashboardTaskText,
-  normalizeExtractedTaskIdentity,
-  resolveDashboardTaskFile,
-  stripDashboardDueDate,
-  todayDateString,
-  upsertDashboardDueDate,
-} from "./dashboardTaskUtils.js";
-export type {
-  DashboardCandidateAddAck,
-  DashboardCandidateStateMigration,
-  DashboardCandidateTask,
-  DashboardCandidateView,
-  DashboardData,
-  DashboardListFilter,
-  DashboardListItem,
-  DashboardListSectionView,
-  DashboardListViewModel,
-  DashboardSummary,
-  DashboardTaskSection,
-  DashboardTaskView,
-  DashTask,
-  DismissedExtractedTask,
-  ExtractedTaskFilterResult,
-  WeekDay,
-} from "./dashboardTypes.js";
 
 import { loadAllAiTaskEnrichments } from "./dashboardAiEnrichment.js";
 import { buildCategoryCounts, buildSectionCounts, buildSummary } from "./dashboardAnalytics.js";
@@ -77,7 +35,7 @@ export class DashboardPanel {
 
   static createOrShow(
     getNotesDir: () => string | undefined,
-    extensionUri: vscode.Uri,
+    _extensionUri: vscode.Uri,
     stateStore: vscode.Memento,
   ): void {
     const column = vscode.window.activeTextEditor?.viewColumn ?? vscode.ViewColumn.One;
@@ -94,7 +52,7 @@ export class DashboardPanel {
       { enableScripts: true, retainContextWhenHidden: true },
     );
 
-    DashboardPanel._instance = new DashboardPanel(panel, getNotesDir, extensionUri, stateStore);
+    DashboardPanel._instance = new DashboardPanel(panel, getNotesDir, stateStore);
   }
 
   static refresh(): void {
@@ -112,12 +70,9 @@ export class DashboardPanel {
   static runAiExtract(fromDate?: string, toDate?: string): void {
     if (DashboardPanel._instance) {
       const today = todayDateString();
-      const sevenDaysAgo = new Date();
-      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-      const defaultFromDate = sevenDaysAgo.toISOString().split("T")[0];
       void DashboardPanel._instance._handleMessage({
         command: "aiExtract",
-        fromDate: fromDate || defaultFromDate,
+        fromDate: fromDate || shiftDate(today, -7),
         toDate: toDate || today,
       });
     }
@@ -126,7 +81,6 @@ export class DashboardPanel {
   private constructor(
     panel: vscode.WebviewPanel,
     getNotesDir: () => string | undefined,
-    _extensionUri: vscode.Uri,
     stateStore: vscode.Memento,
   ) {
     this._panel = panel;
@@ -175,7 +129,7 @@ export class DashboardPanel {
   private async _update(): Promise<void> {
     const notesDir = this._getNotesDir();
     if (!notesDir) {
-      this._panel.webview.html = this._getLoadingHtml(
+      this._panel.webview.html = buildDashboardLoadingHtml(
         "Notes directory is not configured. Run Setup first.",
       );
       return;
@@ -222,10 +176,6 @@ export class DashboardPanel {
   // ---------------------------------------------------------------------------
   // HTML generation
   // ---------------------------------------------------------------------------
-
-  private _getLoadingHtml(message: string): string {
-    return buildDashboardLoadingHtml(message);
-  }
 
   private _getHtml(data: DashboardData): string {
     return buildDashboardPanelHtml(data);

@@ -8,7 +8,6 @@ import {
   getConfiguredInboxTaskFilter,
   persistInboxTaskFilter,
   getNextInboxFilter,
-  setLastInboxTaskFilter,
 } from "./config.js";
 import {
   getMomentsDirectory,
@@ -189,7 +188,6 @@ async function toggleTaskAtFileLine(filePath: string, fileLineIndex: number): Pr
 export async function showOpenTasksOverview(notesDir: string): Promise<void> {
   const quickPick = vscode.window.createQuickPick<OpenTaskQuickPickItem>();
   let activeFilter: InboxTaskFilter = getConfiguredInboxTaskFilter();
-  setLastInboxTaskFilter(activeFilter);
   quickPick.matchOnDescription = true;
   quickPick.matchOnDetail = true;
   quickPick.buttons = [buildInboxFilterButton(activeFilter)];

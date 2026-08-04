@@ -1,22 +1,18 @@
 import * as fs from "fs/promises";
 import * as path from "path";
 import * as vscode from "vscode";
-import { DUE_DATE_RE } from "../taskSyntax.js";
-import {
-  MOMENT_TAG_PATTERN,
-  getMomentsFeedDayCount,
-  getSendOnEnter,
-  resolvePinnedEntries,
-} from "./config.js";
+import { DUE_DATE_RE } from "../../shared/taskSyntax.js";
+import { MOMENT_TAG_PATTERN, getMomentsFeedDayCount, resolvePinnedEntries } from "./config.js";
+import { getMomentsSendOnEnterSetting } from "../notesConfig.js";
 import {
   appendMoment,
   collectMomentsFeed,
   deleteMomentEntry,
   ensureMomentsFile,
-  formatDate,
   getMomentsFilePath,
   saveMomentEdit,
 } from "./fileIo.js";
+import { formatDateString } from "../dashboardTaskUtils.js";
 
 import type { PinnedEntryData } from "./types.js";
 
@@ -84,7 +80,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
             this._showError("Moment text must not be empty.");
             return;
           }
-          await appendMoment(notesDir, formatDate(new Date()), message.text);
+          await appendMoment(notesDir, formatDateString(new Date()), message.text);
           this._sendEntries();
           break;
         }
@@ -103,7 +99,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
           if (
             !(await saveMomentEdit(
               notesDir,
-              message.date ?? formatDate(new Date()),
+              message.date ?? formatDateString(new Date()),
               message.index,
               message.text,
             ))
@@ -135,7 +131,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
               if (
                 !(await deleteMomentEntry(
                   notesDir,
-                  message.date ?? formatDate(new Date()),
+                  message.date ?? formatDateString(new Date()),
                   message.index,
                 ))
               ) {
@@ -152,7 +148,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
           if (!notesDir) {
             return;
           }
-          const currentDate = formatDate(new Date());
+          const currentDate = formatDateString(new Date());
           const filePath = getMomentsFilePath(notesDir, currentDate);
           try {
             await fs.access(filePath);
@@ -210,7 +206,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
           const content = lines.join("\n");
           const now = new Date();
           const pad = (n: number) => String(n).padStart(2, "0");
-          const stamp = `${formatDate(now)}_${pad(now.getHours())}-${pad(now.getMinutes())}-${pad(now.getSeconds())}`;
+          const stamp = `${formatDateString(now)}_${pad(now.getHours())}-${pad(now.getMinutes())}-${pad(now.getSeconds())}`;
           const fileName = `${stamp}_exported-moments.md`;
           const filePath = path.join(notesDir, fileName);
 
@@ -270,14 +266,14 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
       return;
     }
     const notesDir = this._getNotesDir();
-    const today = formatDate(new Date());
+    const today = formatDateString(new Date());
     const feedSectionCount = Math.max(this._feedSectionCount, getMomentsFeedDayCount());
     this._feedSectionCount = feedSectionCount;
     const feed = notesDir
       ? await collectMomentsFeed(notesDir, today, feedSectionCount)
       : { sections: [], hasMoreOlder: false };
     const sections = feed.sections;
-    const sendOnEnter = getSendOnEnter();
+    const sendOnEnter = getMomentsSendOnEnterSetting();
 
     this._view.webview.postMessage({
       command: "update",
