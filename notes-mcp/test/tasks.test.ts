@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { extractDueDate, parseTasksFromFile } from "../src/tasks.js";
+import { parseTasksFromFile } from "../src/tasks.js";
+import { extractDueDate } from "../../shared/taskSyntax.js";
 
 describe("parseTasksFromFile", () => {
   test("extracts open and done tasks", () => {

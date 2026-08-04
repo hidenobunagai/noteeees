@@ -1,13 +1,7 @@
+import { isPathInside } from "../../shared/pathSafety.js";
 import * as path from "path";
 
-export function isPathInside(parentDir: string, candidatePath: string): boolean {
-  const resolvedParent = path.resolve(parentDir);
-  const resolvedCandidate = path.resolve(candidatePath);
-  return (
-    resolvedCandidate === resolvedParent ||
-    resolvedCandidate.startsWith(`${resolvedParent}${path.sep}`)
-  );
-}
+export { isPathInside };
 
 export function resolveSafeFilePath(notesDir: string, relativePath: string): string | null {
   const resolved = path.resolve(notesDir, relativePath);

@@ -1,7 +1,7 @@
 import * as path from "path";
 import type { TaskRow } from "./db.js";
 import { deleteTasksByFile, getStoredTaskMtimes, upsertTask } from "./db.js";
-import { extractDueDate as extractTaskDueDate, TAG_RE, TASK_RE } from "./taskSyntax.js";
+import { TAG_RE, TASK_RE } from "../../shared/taskSyntax.js";
 
 // ---------------------------------------------------------------------------
 // task parser
@@ -73,12 +73,4 @@ export function syncTasksIndex(
   }
 
   return all;
-}
-
-// ---------------------------------------------------------------------------
-// reminder helper
-// ---------------------------------------------------------------------------
-
-export function extractDueDate(text: string): string | null {
-  return extractTaskDueDate(text);
 }

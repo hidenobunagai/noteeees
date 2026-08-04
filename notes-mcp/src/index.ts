@@ -34,9 +34,9 @@ import {
   type SearchStrategy,
   type SearchWeights,
 } from "./search.js";
-import { extractDueDate, parseTasksFromFile, syncTasksIndex } from "./tasks.js";
+import { parseTasksFromFile, syncTasksIndex } from "./tasks.js";
+import { extractDueDate } from "../../shared/taskSyntax.js";
 import { MCP_TOOL_DEFINITIONS } from "./toolDefinitions.js";
-
 function getNotesDir(): string {
   const notesDir = process.env.NOTES_DIRECTORY;
   if (!notesDir) {
@@ -57,6 +57,13 @@ function nowTimestamp(): string {
 function todayDate(): string {
   const d = new Date();
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+function textResult(
+  value: unknown,
+  indent = 2,
+): { content: Array<{ type: "text"; text: string }> } {
+  return { content: [{ type: "text", text: JSON.stringify(value, null, indent) }] };
 }
 
 function buildNoteContent(
@@ -165,57 +172,30 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         });
       }
 
-      return {
-        content: [
-          {
-            type: "text" as const,
-            text: JSON.stringify(
-              filtered.slice(0, limit).map(({ filePath: _, content, ...rest }) => ({
-                ...rest,
-                snippet: extractSnippet(content, tokens),
-              })),
-              null,
-              2,
-            ),
-          },
-        ],
-      };
+      return textResult(
+        filtered.slice(0, limit).map(({ filePath: _, content, ...rest }) => ({
+          ...rest,
+          snippet: extractSnippet(content, tokens),
+        })),
+      );
     }
 
     case "get_recent_notes": {
       const { limit = 10 } = request.params.arguments as { limit?: number };
-      return {
-        content: [
-          {
-            type: "text" as const,
-            text: JSON.stringify(
-              entries.slice(0, limit).map(({ filePath: _, content: __, ...rest }) => rest),
-              null,
-              2,
-            ),
-          },
-        ],
-      };
+      return textResult(
+        entries.slice(0, limit).map(({ filePath: _, content: __, ...rest }) => rest),
+      );
     }
 
     case "get_notes_by_tag": {
       const { tag } = request.params.arguments as { tag: string };
       const filtered = entries.filter((e) => e.tags.includes(`#${tag}`));
-      return {
-        content: [
-          {
-            type: "text" as const,
-            text: JSON.stringify(
-              filtered.map(({ filePath: _, content, ...rest }) => ({
-                ...rest,
-                snippet: extractSnippet(content, []),
-              })),
-              null,
-              2,
-            ),
-          },
-        ],
-      };
+      return textResult(
+        filtered.map(({ filePath: _, content, ...rest }) => ({
+          ...rest,
+          snippet: extractSnippet(content, []),
+        })),
+      );
     }
 
     case "get_notes_by_date": {
@@ -229,35 +209,15 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         limit?: number;
       };
       const filtered = entries.filter((e) => noteMatchesDateRange(e, from, to));
-      return {
-        content: [
-          {
-            type: "text" as const,
-            text: JSON.stringify(
-              filtered.slice(0, limit).map(({ filePath: _, content: __, ...rest }) => rest),
-              null,
-              2,
-            ),
-          },
-        ],
-      };
+      return textResult(
+        filtered.slice(0, limit).map(({ filePath: _, content: __, ...rest }) => rest),
+      );
     }
 
     case "list_notes": {
       const { limit = 50 } = request.params.arguments as { limit?: number };
       const items = limit === 0 ? entries : entries.slice(0, limit);
-      return {
-        content: [
-          {
-            type: "text" as const,
-            text: JSON.stringify(
-              items.map(({ filePath: _, content: __, ...rest }) => rest),
-              null,
-              2,
-            ),
-          },
-        ],
-      };
+      return textResult(items.map(({ filePath: _, content: __, ...rest }) => rest));
     }
 
     case "list_tags": {
@@ -270,9 +230,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const sorted = [...tagCount.entries()]
         .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
         .map(([tag, count]) => ({ tag, count }));
-      return {
-        content: [{ type: "text" as const, text: JSON.stringify(sorted, null, 2) }],
-      };
+      return textResult(sorted);
     }
 
     case "structure_search_notes": {
@@ -307,42 +265,19 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         bm25,
       });
 
-      return {
-        content: [
-          {
-            type: "text" as const,
-            text: JSON.stringify(response, null, 2),
-          },
-        ],
-      };
+      return textResult(response);
     }
 
     case "get_note_content": {
       const { filename } = request.params.arguments as { filename: string };
       if (!resolveSafeFilePath(notesDir, filename)) {
-        return {
-          content: [
-            {
-              type: "text" as const,
-              text: JSON.stringify({ error: `Invalid filename: ${filename}` }),
-            },
-          ],
-        };
+        return textResult({ error: `Invalid filename: ${filename}` });
       }
       const entry = entries.find((e) => e.filename === filename);
       if (!entry) {
-        return {
-          content: [
-            {
-              type: "text" as const,
-              text: JSON.stringify({ error: `Note not found: ${filename}` }),
-            },
-          ],
-        };
+        return textResult({ error: `Note not found: ${filename}` });
       }
-      return {
-        content: [{ type: "text" as const, text: entry.content }],
-      };
+      return textResult(entry.content, 0);
     }
 
     case "create_note": {
@@ -354,22 +289,13 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       };
 
       if (!title.trim()) {
-        return {
-          content: [
-            {
-              type: "text" as const,
-              text: JSON.stringify({ error: "Title must not be empty" }),
-            },
-          ],
-        };
+        return textResult({ error: "Title must not be empty" });
       }
 
       if (content !== undefined) {
         const sizeCheck = enforceMaxContentSize(content);
         if (!sizeCheck.valid) {
-          return {
-            content: [{ type: "text" as const, text: JSON.stringify({ error: sizeCheck.error }) }],
-          };
+          return textResult({ error: sizeCheck.error });
         }
       }
 
@@ -378,14 +304,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const filename = `${timestamp}_${safeName}.md`;
       const targetDir = subfolder ? path.join(notesDir, subfolder) : notesDir;
       if (!isPathInside(notesDir, targetDir)) {
-        return {
-          content: [
-            {
-              type: "text" as const,
-              text: JSON.stringify({ error: `Invalid subfolder: ${subfolder}` }),
-            },
-          ],
-        };
+        return textResult({ error: `Invalid subfolder: ${subfolder}` });
       }
       await fs.mkdir(targetDir, { recursive: true });
       const filePath = path.join(targetDir, filename);
@@ -393,14 +312,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       await fs.writeFile(filePath, body, "utf8");
       clearSearchIndexCache();
 
-      return {
-        content: [
-          {
-            type: "text" as const,
-            text: JSON.stringify({ created: path.relative(notesDir, filePath), filename }),
-          },
-        ],
-      };
+      return textResult({ created: path.relative(notesDir, filePath), filename });
     }
 
     case "append_to_note": {
@@ -411,35 +323,17 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       const appendSizeCheck = enforceMaxContentSize(appendContent);
       if (!appendSizeCheck.valid) {
-        return {
-          content: [
-            { type: "text" as const, text: JSON.stringify({ error: appendSizeCheck.error }) },
-          ],
-        };
+        return textResult({ error: appendSizeCheck.error });
       }
 
       const filePath = resolveSafeFilePath(notesDir, targetFilename);
       if (!filePath) {
-        return {
-          content: [
-            {
-              type: "text" as const,
-              text: JSON.stringify({ error: `Invalid filename: ${targetFilename}` }),
-            },
-          ],
-        };
+        return textResult({ error: `Invalid filename: ${targetFilename}` });
       }
       try {
         await fs.access(filePath);
       } catch {
-        return {
-          content: [
-            {
-              type: "text" as const,
-              text: JSON.stringify({ error: `Note not found: ${targetFilename}` }),
-            },
-          ],
-        };
+        return textResult({ error: `Note not found: ${targetFilename}` });
       }
 
       const existing = await fs.readFile(filePath, "utf8");
@@ -447,14 +341,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       await fs.writeFile(filePath, `${existing}${separator}${appendContent}\n`, "utf8");
       clearSearchIndexCache();
 
-      return {
-        content: [
-          {
-            type: "text" as const,
-            text: JSON.stringify({ appended: targetFilename }),
-          },
-        ],
-      };
+      return textResult({ appended: targetFilename });
     }
 
     case "add_moment": {
@@ -465,34 +352,16 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       const momentSizeCheck = enforceMaxContentSize(text);
       if (!momentSizeCheck.valid) {
-        return {
-          content: [
-            { type: "text" as const, text: JSON.stringify({ error: momentSizeCheck.error }) },
-          ],
-        };
+        return textResult({ error: momentSizeCheck.error });
       }
 
       const targetDate = date ?? todayDate();
       if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-        return {
-          content: [
-            {
-              type: "text" as const,
-              text: JSON.stringify({ error: `Invalid date format: ${date}. Use YYYY-MM-DD.` }),
-            },
-          ],
-        };
+        return textResult({ error: `Invalid date format: ${date}. Use YYYY-MM-DD.` });
       }
       const filePath = getMomentsFilePath(notesDir, targetDate);
       if (!isPathInside(notesDir, filePath)) {
-        return {
-          content: [
-            {
-              type: "text" as const,
-              text: JSON.stringify({ error: `Invalid moments path for date: ${targetDate}` }),
-            },
-          ],
-        };
+        return textResult({ error: `Invalid moments path for date: ${targetDate}` });
       }
       await ensureMomentsFile(filePath, targetDate);
 
@@ -503,14 +372,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       await fs.writeFile(filePath, `${existing}${separator}${line}\n`, "utf8");
       clearSearchIndexCache();
 
-      return {
-        content: [
-          {
-            type: "text" as const,
-            text: JSON.stringify({ added: line, date: targetDate }),
-          },
-        ],
-      };
+      return textResult({ added: line, date: targetDate });
     }
 
     case "get_tasks": {
@@ -527,17 +389,13 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       };
       await _syncTasksIfNeeded(notesDir);
       const tasks = queryTasks(notesDir, { status, dateFrom: date_from, dateTo: date_to, limit });
-      return {
-        content: [{ type: "text" as const, text: JSON.stringify(tasks, null, 2) }],
-      };
+      return textResult(tasks);
     }
 
     case "get_task_stats": {
       await _syncTasksIfNeeded(notesDir);
       const stats = getTaskStats(notesDir);
-      return {
-        content: [{ type: "text" as const, text: JSON.stringify(stats, null, 2) }],
-      };
+      return textResult(stats);
     }
 
     case "update_task_status": {
@@ -545,49 +403,21 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       await _syncTasksIfNeeded(notesDir);
       const task = getTaskById(notesDir, task_id);
       if (!task) {
-        return {
-          content: [
-            {
-              type: "text" as const,
-              text: JSON.stringify({ error: `Task not found: ${task_id}` }),
-            },
-          ],
-        };
+        return textResult({ error: `Task not found: ${task_id}` });
       }
       if (!isPathInside(notesDir, task.filePath)) {
-        return {
-          content: [
-            {
-              type: "text" as const,
-              text: JSON.stringify({ error: `Invalid file path for task: ${task_id}` }),
-            },
-          ],
-        };
+        return textResult({ error: `Invalid file path for task: ${task_id}` });
       }
       try {
         await fs.access(task.filePath);
       } catch {
-        return {
-          content: [
-            {
-              type: "text" as const,
-              text: JSON.stringify({ error: `File not found: ${task.filePath}` }),
-            },
-          ],
-        };
+        return textResult({ error: `File not found: ${task.filePath}` });
       }
       const fileContent = await fs.readFile(task.filePath, "utf8");
       const fileLines = fileContent.split("\n");
       const line = fileLines[task.lineIndex];
       if (!line) {
-        return {
-          content: [
-            {
-              type: "text" as const,
-              text: JSON.stringify({ error: `Line ${task.lineIndex} not found in file` }),
-            },
-          ],
-        };
+        return textResult({ error: `Line ${task.lineIndex} not found in file` });
       }
       const updatedLine = done
         ? line.replace(/^- \[ \]/, "- [x]")
@@ -596,9 +426,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       await fs.writeFile(task.filePath, fileLines.join("\n"), "utf8");
       setTaskDone(notesDir, task_id, done);
       clearSearchIndexCache();
-      return {
-        content: [{ type: "text" as const, text: JSON.stringify({ updated: task_id, done }) }],
-      };
+      return textResult({ updated: task_id, done });
     }
 
     case "add_task": {
@@ -608,11 +436,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       };
       const taskSizeCheck = enforceMaxContentSize(taskText);
       if (!taskSizeCheck.valid) {
-        return {
-          content: [
-            { type: "text" as const, text: JSON.stringify({ error: taskSizeCheck.error }) },
-          ],
-        };
+        return textResult({ error: taskSizeCheck.error });
       }
 
       const targetDate = taskDate ?? todayDate();
@@ -633,11 +457,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const newTasks = parseTasksFromFile(taskFilePath, taskFileContent, taskStat.mtimeMs);
       syncTasksForFile(notesDir, taskFilePath, newTasks);
       clearSearchIndexCache();
-      return {
-        content: [
-          { type: "text" as const, text: JSON.stringify({ added: taskLine, date: targetDate }) },
-        ],
-      };
+      return textResult({ added: taskLine, date: targetDate });
     }
 
     case "get_reminders": {
@@ -652,9 +472,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         .map((t) => ({ ...t, dueDate: extractDueDate(t.text) }))
         .filter((t) => t.dueDate !== null && t.dueDate >= today && t.dueDate <= dateTo)
         .sort((a, b) => (a.dueDate ?? "").localeCompare(b.dueDate ?? ""));
-      return {
-        content: [{ type: "text" as const, text: JSON.stringify(reminders, null, 2) }],
-      };
+      return textResult(reminders);
     }
 
     default:

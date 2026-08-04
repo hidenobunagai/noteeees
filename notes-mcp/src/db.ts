@@ -1,21 +1,10 @@
 import { Database } from "bun:sqlite";
 import * as fs from "fs";
 import * as path from "path";
-import type { NoteEntry } from "./search.js";
 
 const DB_FILENAME = ".noteeees-index.db";
 
 const SCHEMA = `
-CREATE TABLE IF NOT EXISTS notes_cache (
-  file_path TEXT PRIMARY KEY,
-  filename  TEXT    NOT NULL,
-  mtime     REAL    NOT NULL,
-  title     TEXT    NOT NULL,
-  tags_json TEXT    NOT NULL,
-  content   TEXT    NOT NULL,
-  created_at TEXT
-);
-
 CREATE TABLE IF NOT EXISTS tasks_cache (
   id          TEXT PRIMARY KEY,
   file_path   TEXT NOT NULL,
@@ -27,15 +16,6 @@ CREATE TABLE IF NOT EXISTS tasks_cache (
   tags_json   TEXT NOT NULL DEFAULT '[]',
   mtime       REAL NOT NULL,
   updated_at  TEXT NOT NULL
-);
-
-CREATE TABLE IF NOT EXISTS ai_tasks (
-  task_id           TEXT PRIMARY KEY REFERENCES tasks_cache(id),
-  category          TEXT,
-  priority          TEXT,
-  time_estimate_min INTEGER,
-  ai_summary        TEXT,
-  enriched_at       TEXT NOT NULL
 );
 `;
 
@@ -52,86 +32,6 @@ function getDb(notesDir: string): Database {
 export function closeDb(): void {
   openDb?.close();
   openDb = null;
-}
-
-interface DbRow {
-  file_path: string;
-  filename: string;
-  mtime: number;
-  title: string;
-  tags_json: string;
-  content: string;
-  created_at: string | null;
-}
-
-function rowToEntry(row: DbRow): NoteEntry {
-  return {
-    filePath: row.file_path,
-    filename: row.filename,
-    mtime: row.mtime,
-    title: row.title,
-    tags: JSON.parse(row.tags_json) as string[],
-    content: row.content,
-    createdAt: row.created_at,
-  };
-}
-
-function upsertEntry(db: Database, entry: NoteEntry): void {
-  db.run(
-    `INSERT OR REPLACE INTO notes_cache
-      (file_path, filename, mtime, title, tags_json, content, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    [
-      entry.filePath,
-      entry.filename,
-      entry.mtime,
-      entry.title,
-      JSON.stringify(entry.tags),
-      entry.content,
-      entry.createdAt ?? null,
-    ],
-  );
-}
-
-function deleteEntry(db: Database, filePath: string): void {
-  db.run("DELETE FROM notes_cache WHERE file_path = ?", [filePath]);
-}
-
-function loadAllEntries(db: Database): NoteEntry[] {
-  return (db.query("SELECT * FROM notes_cache").all() as DbRow[]).map(rowToEntry);
-}
-
-function getStoredMtimes(db: Database): Map<string, number> {
-  const rows = db.query("SELECT file_path, mtime FROM notes_cache").all() as {
-    file_path: string;
-    mtime: number;
-  }[];
-  return new Map(rows.map((r) => [r.file_path, r.mtime]));
-}
-
-export async function syncNotesIndex(
-  notesDir: string,
-  diskFiles: { filePath: string; mtime: number }[],
-  parseFile: (filePath: string, mtime: number) => Promise<NoteEntry>,
-): Promise<NoteEntry[]> {
-  const db = getDb(notesDir);
-  const storedMtimes = getStoredMtimes(db);
-  const diskPathSet = new Set(diskFiles.map((f) => f.filePath));
-
-  for (const storedPath of storedMtimes.keys()) {
-    if (!diskPathSet.has(storedPath)) {
-      deleteEntry(db, storedPath);
-    }
-  }
-
-  for (const { filePath, mtime } of diskFiles) {
-    const storedMtime = storedMtimes.get(filePath);
-    if (storedMtime === mtime) continue;
-    const entry = await parseFile(filePath, mtime);
-    upsertEntry(db, entry);
-  }
-
-  return loadAllEntries(db);
 }
 
 // ---------------------------------------------------------------------------
@@ -297,25 +197,27 @@ export function getTaskStats(notesDir: string): {
   byDate: Record<string, { open: number; done: number }>;
 } {
   const db = getDb(notesDir);
-  const rows = db.query("SELECT done, date FROM tasks_cache").all() as {
-    done: number;
-    date: string | null;
-  }[];
+  const totals = db.query("SELECT COUNT(*) AS total, SUM(done) AS done FROM tasks_cache").get() as {
+    total: number;
+    done: number | null;
+  };
+  const byDateRows = db
+    .query(
+      "SELECT date, SUM(done) AS done, COUNT(*) - SUM(done) AS open FROM tasks_cache GROUP BY date",
+    )
+    .all() as { date: string | null; done: number | null; open: number | null }[];
+
   const byDate: Record<string, { open: number; done: number }> = {};
-  let open = 0;
-  let done = 0;
-  for (const r of rows) {
-    if (r.done) {
-      done++;
-    } else {
-      open++;
-    }
-    const d = r.date ?? "unknown";
-    if (!byDate[d]) byDate[d] = { open: 0, done: 0 };
-    if (r.done) byDate[d].done++;
-    else byDate[d].open++;
+  for (const row of byDateRows) {
+    byDate[row.date ?? "unknown"] = { open: row.open ?? 0, done: row.done ?? 0 };
   }
-  return { total: rows.length, open, done, byDate };
+
+  return {
+    total: totals.total,
+    open: totals.total - (totals.done ?? 0),
+    done: totals.done ?? 0,
+    byDate,
+  };
 }
 
 export function syncTasksForFile(notesDir: string, filePath: string, tasks: TaskRow[]): void {
@@ -332,71 +234,4 @@ export function getStoredTaskMtimes(notesDir: string): Map<string, number> {
     mtime: number;
   }[];
   return new Map(rows.map((r) => [r.file_path, r.mtime]));
-}
-
-// ---------------------------------------------------------------------------
-// ai_tasks CRUD — persists AI-extracted enrichment (category, priority, etc.)
-// ---------------------------------------------------------------------------
-
-export interface AiTaskRow {
-  taskId: string;
-  category: string | null;
-  priority: string | null;
-  timeEstimateMin: number | null;
-  aiSummary: string | null;
-  enrichedAt: string;
-}
-
-export function upsertAiTask(
-  notesDir: string,
-  taskId: string,
-  opts: {
-    category?: string | null;
-    priority?: string | null;
-    timeEstimateMin?: number | null;
-    aiSummary?: string | null;
-  } = {},
-): void {
-  const db = getDb(notesDir);
-  db.run(
-    `INSERT OR REPLACE INTO ai_tasks
-      (task_id, category, priority, time_estimate_min, ai_summary, enriched_at)
-     VALUES (?, ?, ?, ?, ?, ?)`,
-    [
-      taskId,
-      opts.category ?? null,
-      opts.priority ?? null,
-      opts.timeEstimateMin ?? null,
-      opts.aiSummary ?? null,
-      new Date().toISOString(),
-    ],
-  );
-}
-
-export function getAiTask(notesDir: string, taskId: string): AiTaskRow | null {
-  const db = getDb(notesDir);
-  const row = db.query("SELECT * FROM ai_tasks WHERE task_id = ?").get(taskId) as {
-    task_id: string;
-    category: string | null;
-    priority: string | null;
-    time_estimate_min: number | null;
-    ai_summary: string | null;
-    enriched_at: string;
-  } | null;
-  if (!row) return null;
-  return {
-    taskId: row.task_id,
-    category: row.category,
-    priority: row.priority,
-    timeEstimateMin: row.time_estimate_min,
-    aiSummary: row.ai_summary,
-    enrichedAt: row.enriched_at,
-  };
-}
-
-export function deleteAiTasksByFile(notesDir: string, filePath: string): void {
-  const db = getDb(notesDir);
-  db.run("DELETE FROM ai_tasks WHERE task_id IN (SELECT id FROM tasks_cache WHERE file_path = ?)", [
-    filePath,
-  ]);
 }

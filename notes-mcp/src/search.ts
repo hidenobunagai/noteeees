@@ -1,7 +1,6 @@
 import * as fs from "fs/promises";
 import * as path from "path";
 import { collectNoteFiles as sharedCollectNoteFiles } from "../../shared/collectNoteFiles.js";
-import { syncNotesIndex } from "./db.js";
 
 export interface NoteEntry {
   filePath: string;
@@ -207,7 +206,7 @@ export function createSearchIndexSnapshot(
 
   return {
     notesDir,
-    fileSignature: `${notes.length}:${notes.map((note) => `${note.filename}:${note.mtime}`).join("|")}`,
+    fileSignature: "",
     entries,
     averageDocumentLength: entries.length > 0 ? totalDocumentLength / entries.length : 1,
     documentFrequencyCache: new Map<string, number>(),
@@ -231,17 +230,31 @@ export async function getCachedSearchIndex(notesDir: string): Promise<SearchInde
     return cachedSearchIndex;
   }
 
-  const notes = await syncNotesIndex(notesDir, files, async (filePath, mtime) => {
-    const rawContent = await fs.readFile(filePath, "utf8");
-    const filename = path.relative(notesDir, filePath);
+  const notes: NoteEntry[] = [];
+  for (const file of files) {
+    let rawContent: string;
+    try {
+      rawContent = await fs.readFile(file.filePath, "utf8");
+    } catch {
+      continue;
+    }
+    const filename = path.relative(notesDir, file.filePath);
     const title = extractTitle(rawContent, filename);
     const frontMatterTags = extractFrontMatterTags(rawContent);
     const bodyContent = stripFrontMatter(rawContent);
     const inlineTags = extractInlineTags(bodyContent);
     const tags = [...new Set([...frontMatterTags, ...inlineTags])];
     const createdAt = extractCreatedAt(filename);
-    return { filePath, filename, title, tags, content: bodyContent, createdAt, mtime };
-  });
+    notes.push({
+      filePath: file.filePath,
+      filename,
+      title,
+      tags,
+      content: bodyContent,
+      createdAt,
+      mtime: file.mtime,
+    });
+  }
   notes.sort((a, b) => b.mtime - a.mtime);
 
   const snapshot = createSearchIndexSnapshot(notesDir, notes);
@@ -488,84 +501,7 @@ function maybePushReason(reasons: string[], explain: boolean, reason: string): v
   if (explain) reasons.push(reason);
 }
 
-function scoreEntryClassic(
-  entry: SearchEntry,
-  tokens: string[],
-  weights: SearchWeights,
-  includeRecencyBonus: boolean,
-  explain: boolean,
-): StructuredSearchResult {
-  let score = 0;
-  let matchedTokenCount = 0;
-  const reasons: string[] = [];
-
-  for (const token of tokens) {
-    let tokenMatched = false;
-    const tagToken = token.startsWith("#") ? token : `#${token}`;
-
-    if (entry.normalizedTags.includes(tagToken)) {
-      score += weights.tagExact;
-      maybePushReason(reasons, explain, `tag:${tagToken}`);
-      tokenMatched = true;
-    }
-
-    if (entry.normalizedFilename.includes(token) || entry.normalizedTitle.includes(token)) {
-      score += weights.filenameMatch;
-      maybePushReason(reasons, explain, `filename:${token}`);
-      tokenMatched = true;
-    }
-
-    if (!entry.normalizedTags.includes(tagToken) && entry.tagText.includes(token)) {
-      score += weights.tagPartial;
-      maybePushReason(reasons, explain, `tag-partial:${token}`);
-      tokenMatched = true;
-    }
-
-    const frequencyScore = contentFrequencyScore(
-      entry.normalizedContent,
-      token,
-      weights.contentMatch,
-    );
-    if (frequencyScore > 0) {
-      score += frequencyScore;
-      maybePushReason(
-        reasons,
-        explain,
-        `content:${token}(x${Math.round(frequencyScore / weights.contentMatch)})`,
-      );
-      tokenMatched = true;
-    }
-
-    if (tokenMatched) matchedTokenCount += 1;
-  }
-
-  if (matchedTokenCount >= 2) {
-    score += weights.multiTokenBonus;
-    maybePushReason(reasons, explain, "bonus:multi-token");
-  }
-
-  if (tokens.length > 0 && matchedTokenCount === tokens.length) {
-    score += weights.allTokensBonus;
-    maybePushReason(reasons, explain, "bonus:all-tokens");
-  }
-
-  if (includeRecencyBonus) {
-    const recencyBonus = getRecencyBonus(entry.note.mtime);
-    if (recencyBonus > 0) {
-      score += recencyBonus;
-      maybePushReason(reasons, explain, `bonus:recent+${recencyBonus}`);
-    }
-  }
-
-  return {
-    score,
-    matchedTokenCount,
-    reasons: [...new Set(reasons)],
-    entry: buildResultEntry(entry.note, tokens),
-  };
-}
-
-function scoreEntryHybridBm25(
+function scoreEntry(
   entry: SearchEntry,
   tokens: string[],
   index: SearchIndexSnapshot,
@@ -573,6 +509,7 @@ function scoreEntryHybridBm25(
   bm25: Bm25Options,
   includeRecencyBonus: boolean,
   explain: boolean,
+  contentScorer: ContentScorer,
 ): StructuredSearchResult {
   let score = 0;
   let matchedTokenCount = 0;
@@ -600,10 +537,10 @@ function scoreEntryHybridBm25(
       tokenMatched = true;
     }
 
-    const contentScore = bm25ContentScore(entry, token, index, bm25) * weights.contentMatch;
-    if (contentScore > 0) {
-      score += contentScore;
-      maybePushReason(reasons, explain, `bm25:content:${token}`);
+    const content = contentScorer(entry, token, index, weights, bm25);
+    if (content.score > 0) {
+      score += content.score;
+      maybePushReason(reasons, explain, content.reason);
       tokenMatched = true;
     }
 
@@ -635,6 +572,26 @@ function scoreEntryHybridBm25(
     entry: buildResultEntry(entry.note, tokens),
   };
 }
+
+type ContentScorer = (
+  entry: SearchEntry,
+  token: string,
+  index: SearchIndexSnapshot,
+  weights: SearchWeights,
+  bm25: Bm25Options,
+) => { score: number; reason: string };
+
+const classicContentScorer: ContentScorer = (entry, token, _index, weights) => {
+  const score = contentFrequencyScore(entry.normalizedContent, token, weights.contentMatch);
+  if (score <= 0) return { score: 0, reason: "" };
+  return { score, reason: `content:${token}(x${Math.round(score / weights.contentMatch)})` };
+};
+
+const hybridContentScorer: ContentScorer = (entry, token, index, weights, bm25) => {
+  const score = bm25ContentScore(entry, token, index, bm25) * weights.contentMatch;
+  if (score <= 0) return { score: 0, reason: "" };
+  return { score, reason: `bm25:content:${token}` };
+};
 
 export function resolveSearchStrategy(
   strategy: SearchStrategy | undefined,
@@ -673,17 +630,16 @@ export function executeStructuredSearch(
 
   const ranked = index.entries
     .map((entry) =>
-      appliedStrategy === "classic"
-        ? scoreEntryClassic(entry, expandedTokens, weights, includeRecencyBonus, explain)
-        : scoreEntryHybridBm25(
-            entry,
-            expandedTokens,
-            index,
-            weights,
-            bm25,
-            includeRecencyBonus,
-            explain,
-          ),
+      scoreEntry(
+        entry,
+        expandedTokens,
+        index,
+        weights,
+        bm25,
+        includeRecencyBonus,
+        explain,
+        appliedStrategy === "classic" ? classicContentScorer : hybridContentScorer,
+      ),
     )
     .filter((result) => result.score > 0)
     .sort((left, right) => right.score - left.score || right.entry.mtime - left.entry.mtime)
@@ -705,8 +661,4 @@ export function noteMatchesDateRange(entry: NoteEntry, from?: string, to?: strin
   if (from && noteDate < from) return false;
   if (to && noteDate > to) return false;
   return true;
-}
-
-export async function readNoteEntries(notesDir: string): Promise<NoteEntry[]> {
-  return getSearchIndexNotes(await getCachedSearchIndex(notesDir));
 }
