@@ -32,6 +32,7 @@ export class DashboardPanel {
   private readonly _handleMessage: (message: Record<string, unknown>) => Promise<void>;
   private _disposables: vscode.Disposable[] = [];
   private _cancelToken: vscode.CancellationTokenSource | undefined;
+  private _initialized = false;
 
   static createOrShow(
     getNotesDir: () => string | undefined,
@@ -132,6 +133,7 @@ export class DashboardPanel {
       this._panel.webview.html = buildDashboardLoadingHtml(
         "Notes directory is not configured. Run Setup first.",
       );
+      this._initialized = false;
       return;
     }
 
@@ -162,7 +164,7 @@ export class DashboardPanel {
     const summary = buildSummary(taskViews, sectionCounts);
     const availableModels = await listCopilotModels();
 
-    this._panel.webview.html = this._getHtml({
+    const data: DashboardData = {
       today,
       tasks: taskViews,
       week,
@@ -170,7 +172,17 @@ export class DashboardPanel {
       sectionCounts,
       summary,
       availableModels: availableModels.map((m) => ({ id: m.id, name: m.name })),
-    });
+    };
+
+    if (!this._initialized) {
+      // First paint: full HTML shell with embedded data.
+      this._panel.webview.html = this._getHtml(data);
+      this._initialized = true;
+      return;
+    }
+
+    // Subsequent refreshes update the existing page in place.
+    void this._panel.webview.postMessage({ type: "dashboardData", data });
   }
 
   // ---------------------------------------------------------------------------

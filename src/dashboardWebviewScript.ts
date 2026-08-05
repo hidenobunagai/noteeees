@@ -12,12 +12,12 @@ export function buildDashboardWebviewScript(
 ): string {
   return `<script nonce="${nonce}">
     const vscode = acquireVsCodeApi();
-    const dashboardData = ${dashboardData};
+    let dashboardData = ${dashboardData};
     const savedState = vscode.getState() || {};
     const pendingCandidateAdds = [];
 
     // Populate model selector with available models
-    (function populateModelSelector() {
+    function populateModelSelector() {
       const modelSelect = document.getElementById("ai-model-select");
       if (modelSelect && dashboardData.availableModels && dashboardData.availableModels.length > 0) {
         // Keep the first "Auto select" option
@@ -44,7 +44,7 @@ export function buildDashboardWebviewScript(
           modelSelect.value = savedState.selectedModel;
         }
       }
-    })();
+    }
 
     const browserDueTokenPattern = new RegExp(${browserDueTokenPatternSource}, "i");
 
@@ -1205,9 +1205,21 @@ export function buildDashboardWebviewScript(
         mergeCandidateBatch("notes", message.tasks || []);
         persistState();
         rerender();
+        return;
+      }
+
+      if (message.type === "dashboardData") {
+        if (message.data) {
+          dashboardData = message.data;
+          populateModelSelector();
+          syncStaticInputs();
+          rerender();
+        }
+        return;
       }
     });
 
+    populateModelSelector();
     syncStaticInputs();
     rerender();
   </script>`;
