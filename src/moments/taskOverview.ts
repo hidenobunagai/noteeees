@@ -2,6 +2,7 @@ import * as fs from "fs/promises";
 import * as path from "path";
 import * as vscode from "vscode";
 import { buildQueryExcerpt } from "../noteCommands.js";
+import { t } from "../i18n.js";
 import type { TaskOverviewItem, InboxTaskFilter } from "./types.js";
 import {
   filterTaskOverviewItems,
@@ -56,7 +57,7 @@ export function buildTaskSearchDetail(item: TaskOverviewItem, query: string = ""
 
   if (normalizedQuery) {
     const excerpt = buildQueryExcerpt(
-      `${item.relativePath} ${item.date} ${item.time} ${item.done ? "done" : "open"} ${searchText}`,
+      `${item.relativePath} ${item.date} ${item.time} ${item.done ? t("done") : t("open")} ${searchText}`,
       normalizedQuery,
       90,
     );
@@ -74,12 +75,12 @@ function toOpenTaskQuickPickItem(
 ): OpenTaskQuickPickItem {
   return {
     label: `$(checklist) ${normalizeMomentTextForSearch(item.text)}`,
-    description: `${item.date} • ${item.time} • ${item.done ? "Done" : "Open"}`,
+    description: `${item.date} • ${item.time} • ${item.done ? t("done") : t("open")}`,
     detail: buildTaskSearchDetail(item, query),
     buttons: [
       {
         iconPath: new vscode.ThemeIcon(item.done ? "circle-large-outline" : "check"),
-        tooltip: item.done ? "Mark as open" : "Mark as done",
+        tooltip: item.done ? t("markAsOpen") : t("markAsDone"),
       },
     ],
     task: item,
@@ -88,24 +89,24 @@ function toOpenTaskQuickPickItem(
 
 function getInboxFilterLabel(filter: InboxTaskFilter): string {
   if (filter === "open") {
-    return "Open Only";
+    return t("inboxFilterOpenOnly");
   }
 
   if (filter === "done") {
-    return "Done Only";
+    return t("inboxFilterDoneOnly");
   }
 
   if (filter === "overdue") {
-    return "Overdue";
+    return t("inboxFilterOverdue");
   }
 
-  return "All Moments";
+  return t("inboxFilterAllMoments");
 }
 
 function buildInboxFilterButton(filter: InboxTaskFilter): vscode.QuickInputButton {
   return {
     iconPath: new vscode.ThemeIcon("filter"),
-    tooltip: `Switch inbox filter (${getInboxFilterLabel(filter)})`,
+    tooltip: t("switchInboxFilter", { label: getInboxFilterLabel(filter) }),
   };
 }
 
@@ -195,16 +196,16 @@ export async function showOpenTasksOverview(notesDir: string): Promise<void> {
   const refreshItems = async (query: string = quickPick.value): Promise<number> => {
     const items = await collectOpenTaskOverview(notesDir);
     const filteredItems = filterTaskOverviewItems(items, activeFilter);
-    quickPick.title = `Moments Inbox • ${getInboxFilterLabel(activeFilter)}`;
+    quickPick.title = t("momentsInboxTitle", { filter: getInboxFilterLabel(activeFilter) });
     quickPick.buttons = [buildInboxFilterButton(activeFilter)];
     quickPick.items = filteredItems.map((item) => toOpenTaskQuickPickItem(item, query));
     const openCount = items.filter((item) => !item.done).length;
     const doneCount = items.length - openCount;
 
     if (filteredItems.length === 0 && items.length > 0) {
-      quickPick.placeholder = `No ${getInboxFilterLabel(activeFilter).toLowerCase()} match the current filter. Type to search by text, date, state, or file.`;
+      quickPick.placeholder = t("noOpenTasksMatch", { filter: getInboxFilterLabel(activeFilter) });
     } else {
-      quickPick.placeholder = `${openCount} open • ${doneCount} done across Moments. Type to filter by text, date, state, or file.`;
+      quickPick.placeholder = t("openDoneSummary", { open: openCount, done: doneCount });
     }
 
     return items.length;
@@ -212,7 +213,7 @@ export async function showOpenTasksOverview(notesDir: string): Promise<void> {
 
   if ((await refreshItems()) === 0) {
     quickPick.dispose();
-    vscode.window.showInformationMessage("No moments found across all days.");
+    vscode.window.showInformationMessage(t("noMomentsFound"));
     return;
   }
 

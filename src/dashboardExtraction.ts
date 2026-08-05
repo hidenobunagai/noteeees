@@ -14,7 +14,16 @@ import {
   buildExtractedTaskStatusMessage,
   filterExtractedTasksForDisplay,
 } from "./dashboardTaskUtils.js";
+import { t } from "./i18n.js";
 import type { DashTask, DashboardCandidateTask, DismissedExtractedTask } from "./dashboardTypes.js";
+
+export function buildMomentsCandidateSummary(dayCount: number, candidateCount: number): string {
+  return t("extractedMomentsCount", { days: dayCount, count: candidateCount });
+}
+
+export function buildNotesCandidateSummary(noteCount: number, candidateCount: number): string {
+  return t("extractedNotesCount", { notes: noteCount, count: candidateCount });
+}
 
 export interface DashboardExtractionResult {
   status: "error" | "done";
@@ -165,7 +174,7 @@ export async function extractDashboardMomentsCandidates({
   if (!combinedText) {
     return {
       status: "error",
-      message: `${fromDate} ～ ${toDate} の期間に該当する Moments が見つかりません。`,
+      message: t("noMomentsInRange", { from: fromDate, to: toDate }),
       tasks: [],
     };
   }
@@ -191,7 +200,7 @@ export async function extractDashboardMomentsCandidates({
 
   return {
     status: "done",
-    message: `${datesWithContent.length}日分の Moments から${filtered.visibleTasks.length}件のタスク候補を抽出しました。`,
+    message: buildMomentsCandidateSummary(datesWithContent.length, filtered.visibleTasks.length),
     tasks: filtered.visibleTasks,
   };
 }
@@ -223,7 +232,7 @@ export async function extractDashboardNotesCandidates({
   if (noteContents.length === 0) {
     return {
       status: "error",
-      message: `${fromDate} ～ ${toDate} の期間に該当するノートが見つかりません。`,
+      message: t("noNotesInRange", { from: fromDate, to: toDate }),
       tasks: [],
     };
   }
@@ -242,7 +251,7 @@ export async function extractDashboardNotesCandidates({
 
   return {
     status: "done",
-    message: `${noteContents.length}件のノートから${filtered.visibleTasks.length}件のタスク候補を抽出しました。`,
+    message: buildNotesCandidateSummary(noteContents.length, filtered.visibleTasks.length),
     tasks: filtered.visibleTasks,
   };
 }

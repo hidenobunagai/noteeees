@@ -24,7 +24,8 @@ export type NotesConfigKey =
   | "dailyNoteTemplate"
   | "workspaceNotesDirectory"
   | "ai.autoEnrich"
-  | "statusBarTasks";
+  | "statusBarTasks"
+  | "locale";
 
 function getNotesConfiguration(): vscode.WorkspaceConfiguration {
   return vscode.workspace.getConfiguration("notes");

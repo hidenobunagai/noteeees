@@ -5,6 +5,7 @@ import * as path from "path";
 import * as vscode from "vscode";
 import type { NoteContent } from "../aiTaskProcessor";
 import {
+  buildNotesCandidateSummary,
   collectDashboardMomentsText,
   collectDashboardNotesByDate,
   extractDashboardMomentsCandidates,
@@ -147,7 +148,11 @@ suite("Dashboard Extraction Test Suite", () => {
       });
 
       assert.strictEqual(result.status, "done");
-      assert.strictEqual(result.message, "1件のノートから1件のタスク候補を抽出しました。");
+      assert.strictEqual(
+        result.message,
+        buildNotesCandidateSummary(1, 1),
+        "expected the notes extraction summary builder to be wired into the result message",
+      );
       assert.strictEqual(result.tasks.length, 1);
       assert.strictEqual(result.tasks[0].source, "notes");
       assert.strictEqual(result.tasks[0].sourceLabel, "2026-03-20-note.md");

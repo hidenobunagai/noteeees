@@ -81,7 +81,7 @@ suite("Dashboard Webview Test Suite", () => {
       "expected dashboard script to define the filter chip set",
     );
     assert.ok(
-      html.includes('{ id: "all", label: "All", count:'),
+      html.includes("{ id: \"all\", label: UI('filterAll'), count:"),
       "expected All filter chip definition in the dashboard toolbar",
     );
     assert.ok(
@@ -114,10 +114,22 @@ suite("Dashboard Webview Test Suite", () => {
   test("simplified filter set is exactly All/Today/Planned/Done", async () => {
     const html = await renderSettledDashboardWebviewHtml();
 
-    assert.ok(html.includes('{ id: "all", label: "All"'), "expected All filter chip");
-    assert.ok(html.includes('{ id: "today", label: "Today"'), "expected Today filter chip");
-    assert.ok(html.includes('{ id: "planned", label: "Planned"'), "expected Planned filter chip");
-    assert.ok(html.includes('{ id: "done", label: "Done"'), "expected Done filter chip");
+    assert.ok(
+      html.includes('"filterAll":"All"'),
+      "expected English default for the All filter chip",
+    );
+    assert.ok(
+      html.includes('"filterToday":"Today"'),
+      "expected English default for the Today filter chip",
+    );
+    assert.ok(
+      html.includes('"filterPlanned":"Planned"'),
+      "expected English default for the Planned filter chip",
+    );
+    assert.ok(
+      html.includes('"filterDone":"Done"'),
+      "expected English default for the Done filter chip",
+    );
     assert.ok(
       !html.includes('{ id: "attention", label:'),
       "expected no Attention filter in simplified UI",
@@ -147,10 +159,32 @@ suite("Dashboard Webview Test Suite", () => {
   test("simplified section model under All renders Today/Planned/Unsorted/Done", async () => {
     const html = await renderSettledDashboardWebviewHtml();
 
-    assert.ok(html.includes('today: "Today"'), "expected Today section title mapping");
-    assert.ok(html.includes('planned: "Planned"'), "expected Planned section title mapping");
-    assert.ok(html.includes('unsorted: "Unsorted"'), "expected Unsorted section title mapping");
-    assert.ok(html.includes('done: "Done"'), "expected Done section title mapping");
+    assert.ok(html.includes("today: UI('sectionToday')"), "expected Today section title mapping");
+    assert.ok(
+      html.includes("planned: UI('sectionPlanned')"),
+      "expected Planned section title mapping",
+    );
+    assert.ok(
+      html.includes("unsorted: UI('sectionUnsorted')"),
+      "expected Unsorted section title mapping",
+    );
+    assert.ok(html.includes("done: UI('sectionDone')"), "expected Done section title mapping");
+    assert.ok(
+      html.includes('"sectionToday":"Today"'),
+      "expected English default for the Today section title",
+    );
+    assert.ok(
+      html.includes('"sectionPlanned":"Planned"'),
+      "expected English default for the Planned section title",
+    );
+    assert.ok(
+      html.includes('"sectionUnsorted":"Unsorted"'),
+      "expected English default for the Unsorted section title",
+    );
+    assert.ok(
+      html.includes('"sectionDone":"Done"'),
+      "expected English default for the Done section title",
+    );
     assert.ok(
       !html.includes('overdue: "Overdue"'),
       "expected no Overdue section in simplified model",
@@ -205,7 +239,7 @@ suite("Dashboard Webview Test Suite", () => {
     assert.ok(
       html.includes('const subtitle = state.filter === "all"') &&
         html.includes("? simplifiedSectionDescriptions[section.key]") &&
-        html.includes(': "filtered items";'),
+        html.includes(": UI('filteredItems');"),
       "expected flat filter subtitles to fall back to a defined label instead of undefined",
     );
   });
@@ -593,9 +627,9 @@ suite("Dashboard Webview Test Suite", () => {
         secondaryActionsClusterMatch[1].includes(
           'class="task-row-action-icon" data-action="delete"',
         ) &&
-        secondaryActionsClusterMatch[1].includes('aria-label="Edit"') &&
-        secondaryActionsClusterMatch[1].includes('aria-label="Open"') &&
-        secondaryActionsClusterMatch[1].includes('aria-label="Delete"') &&
+        secondaryActionsClusterMatch[1].includes(`aria-label="' + UI('edit') + '"`) &&
+        secondaryActionsClusterMatch[1].includes(`aria-label="' + UI('open') + '"`) &&
+        secondaryActionsClusterMatch[1].includes(`aria-label="' + UI('delete') + '"`) &&
         !secondaryActionsClusterMatch[1].includes(">Edit</button>") &&
         !secondaryActionsClusterMatch[1].includes(">Open</button>") &&
         !secondaryActionsClusterMatch[1].includes(">Delete</button>"),
@@ -645,11 +679,11 @@ suite("Dashboard Webview Test Suite", () => {
     assert.ok(
       moreDropdownMarkupMatch !== null &&
         moreDropdownMarkupMatch[1].includes('data-action="edit"') &&
-        moreDropdownMarkupMatch[1].includes(">Edit</button>") &&
+        moreDropdownMarkupMatch[1].includes(`>' + UI('edit') + '</button>`) &&
         moreDropdownMarkupMatch[1].includes('data-action="open"') &&
-        moreDropdownMarkupMatch[1].includes(">Open</button>") &&
+        moreDropdownMarkupMatch[1].includes(`>' + UI('open') + '</button>`) &&
         moreDropdownMarkupMatch[1].includes('data-action="delete"') &&
-        moreDropdownMarkupMatch[1].includes(">Delete</button>"),
+        moreDropdownMarkupMatch[1].includes(`>' + UI('delete') + '</button>`),
       "expected More dropdown to keep visible Edit, Open, and Delete text actions at narrow widths",
     );
   });
@@ -660,16 +694,16 @@ suite("Dashboard Webview Test Suite", () => {
     assert.ok(
       html.includes("function renderCandidateItem(task, index)") &&
         html.includes("task-row-candidate") &&
-        html.includes('badge task-row-label">Candidate</span>'),
+        html.includes(`badge task-row-label">' + UI('candidate') + '</span>`),
       "expected candidate rows to render with proper styling",
     );
     assert.ok(
-      html.includes(">Already exists</span>") &&
+      html.includes(`>' + UI('alreadyExists') + '</span>`) &&
         html.includes('data-action="dismiss-candidate"') &&
         html.includes('data-action="add-candidate"') &&
         html.includes(' data-index="') &&
         html.includes(" disabled") &&
-        html.includes(">Add</button>"),
+        html.includes(`>' + UI('addBtn') + '</button>`),
       "expected duplicate candidate rows to keep Dismiss, keep Add visible but disabled, and still communicate Already exists",
     );
     assert.ok(
@@ -759,7 +793,8 @@ suite("Dashboard Webview Test Suite", () => {
       "expected empty states to render compact structured messaging",
     );
     assert.ok(
-      html.includes('"No tasks yet||Use Add Task or AI Extract to create your first task."'),
+      html.includes("UI('noTasksYet') + \"||\" + UI('noTasksYetBody')") &&
+        html.includes('"noTasksYetBody":"Use Add Task or AI Extract to create your first task."'),
       "expected All empty state to direct users to Add Task or AI Extract",
     );
   });

@@ -153,6 +153,7 @@ When `notes.templates` is set, a picker will appear on note creation to choose b
 | `notes.momentsFeedDays` | Number of days shown in the stacked Moments feed (`1`-`30`) |
 | `notes.ai.autoEnrich` | Auto-run AI task enrichment on file save (requires GitHub Copilot) |
 | `notes.statusBarTasks` | Show the `Tasks` status bar item that opens the Task Dashboard (`true` by default) |
+| `notes.locale` | UI language for webviews and notifications: `auto` (follows VS Code), `en`, or `ja` |
 
 ## Supercharge with MCP
 

@@ -297,10 +297,7 @@ export async function collectMomentsFeed(
  * Searches every Moments file (not just the recent feed) for entries whose
  * text contains the query. Sections are returned newest date first.
  */
-export async function searchMomentsFeed(
-  notesDir: string,
-  query: string,
-): Promise<MomentsFeedData> {
+export async function searchMomentsFeed(notesDir: string, query: string): Promise<MomentsFeedData> {
   const today = todayDateString();
   const needle = query.trim().toLowerCase();
   const sections: MomentDaySection[] = [];

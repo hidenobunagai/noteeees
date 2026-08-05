@@ -342,5 +342,4 @@ suite("Dashboard Core Test Suite", () => {
       false,
     );
   });
-
 });

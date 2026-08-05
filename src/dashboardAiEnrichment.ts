@@ -3,6 +3,7 @@ import * as vscode from "vscode";
 import type { Memento, CancellationToken } from "vscode";
 import { TASK_RE, normalizeExtractedTaskIdentity, notesDirHash } from "./dashboardTaskUtils.js";
 import { extractJsonPayload } from "./aiTaskProcessor.js";
+import { t } from "./i18n.js";
 
 export interface AiTaskEnrichment {
   category: string;
@@ -78,19 +79,7 @@ export async function enrichTasksInFile(
     }
     const model = models[0];
 
-    const prompt = `以下のタスク一覧の各項目について、カテゴリ、優先度、および所要時間（見積もり）を判定してください。
-タスクの元の文字列は「絶対に」変更しないでください。JSON配列の "text" フィールドには、入力されたタスクのテキストをそのまま正確に出力してください。
-
-各タスクについて以下のフィールドを持つオブジェクトのJSON配列として返してください:
-- "text": 入力されたタスクのテキスト（変更せずそのまま）
-- "category": "work" | "personal" | "health" | "learning" | "admin" のいずれか
-- "priority": "high" | "medium" | "low" のいずれか
-- "timeEstimateMin": 所要時間の見積もり（分、整数）
-
-JSON 配列のみ返してください。その他の説明文や markdown 記法（\`\`\`json など）は不要です。
-
-タスク一覧:
-${tasksToEnrich.map((t) => `- ${t}`).join("\n")}`;
+    const prompt = `${t("promptEnrichTasks")}${tasksToEnrich.map((task) => `- ${task}`).join("\n")}`;
 
     const response = await model.sendRequest(
       [vscode.LanguageModelChatMessage.User(prompt)],

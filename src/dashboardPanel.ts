@@ -7,6 +7,7 @@ import {
 } from "./dashboardMessageHandler.js";
 import { buildDashboardLoadingHtml, buildDashboardPanelHtml } from "./dashboardPanelHtml.js";
 import { shiftDate, todayDateString } from "./dashboardTaskUtils.js";
+import { resolveLocale } from "./i18n.js";
 import type { DashboardData } from "./dashboardTypes.js";
 import { getMomentsSubfolderSetting } from "./notesConfig.js";
 
@@ -166,6 +167,7 @@ export class DashboardPanel {
 
     const data: DashboardData = {
       today,
+      locale: resolveLocale(),
       tasks: taskViews,
       week,
       catCount,

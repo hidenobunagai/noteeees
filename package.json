@@ -23,37 +23,37 @@
     "walkthroughs": [
       {
         "id": "noteeees.welcome",
-        "title": "Welcome to Noteeees",
-        "description": "Get started with your markdown notes extension.",
+        "title": "%walkthroughs.noteeees.welcome.title%",
+        "description": "%walkthroughs.noteeees.welcome.description%",
         "steps": [
           {
             "id": "setupDirectory",
-            "title": "Set up your notes directory",
-            "description": "Choose where your notes will be stored on this machine.\n[Run Setup](command:notes.runSetup)",
+            "title": "%walkthroughs.noteeees.welcome.steps[0].title%",
+            "description": "%walkthroughs.noteeees.welcome.steps[0].description%",
             "media": {
               "markdown": "assets/walkthrough-setup.md"
             }
           },
           {
             "id": "firstNote",
-            "title": "Create your first note",
-            "description": "Press the shortcut (`Cmd+Shift+N` on Mac, `Ctrl+Shift+N` on Windows/Linux) or click the button to create a new markdown note.\n[Create Note](command:notes.newNote)",
+            "title": "%walkthroughs.noteeees.welcome.steps[1].title%",
+            "description": "%walkthroughs.noteeees.welcome.steps[1].description%",
             "media": {
               "markdown": "assets/walkthrough-note.md"
             }
           },
           {
             "id": "moments",
-            "title": "Capture a Moment",
-            "description": "Open the Moments panel from the Activity Bar (the lightning icon) to quickly capture checkable posts.\n[Open Moments](command:notesMomentsView.focus)",
+            "title": "%walkthroughs.noteeees.welcome.steps[2].title%",
+            "description": "%walkthroughs.noteeees.welcome.steps[2].description%",
             "media": {
               "markdown": "assets/walkthrough-moments.md"
             }
           },
           {
             "id": "dashboard",
-            "title": "Open the Task Dashboard",
-            "description": "Turn Moments and notes into structured tasks, triage them by due date, and let AI extract action items automatically.\n[Open Dashboard](command:notes.openDashboard)",
+            "title": "%walkthroughs.noteeees.welcome.steps[3].title%",
+            "description": "%walkthroughs.noteeees.welcome.steps[3].description%",
             "media": {
               "markdown": "assets/walkthrough-dashboard.md"
             }
@@ -70,78 +70,78 @@
     "commands": [
       {
         "command": "notes.runSetup",
-        "title": "Noteeees: Run Setup"
+        "title": "%notes.runSetup.title%"
       },
       {
         "command": "notes.refreshSidebar",
-        "title": "Noteeees: Refresh Sidebar",
+        "title": "%notes.refreshSidebar.title%",
         "icon": "$(refresh)"
       },
       {
         "command": "notes.newNote",
-        "title": "Noteeees Note: New"
+        "title": "%notes.newNote.title%"
       },
       {
         "command": "notes.listNotes",
-        "title": "Noteeees Note: Search"
+        "title": "%notes.listNotes.title%"
       },
       {
         "command": "notes.focusMoments",
-        "title": "Noteeees: Open Moments"
+        "title": "%notes.focusMoments.title%"
       },
       {
         "command": "notes.showOpenTasksOverview",
-        "title": "Noteeees Moments: Show Moments Inbox"
+        "title": "%notes.showOpenTasksOverview.title%"
       },
       {
         "command": "notes.searchTags",
-        "title": "Noteeees Sidebar: Search Tags",
+        "title": "%notes.searchTags.title%",
         "icon": "$(tag)"
       },
       {
         "command": "notes.toggleTagSort",
-        "title": "Noteeees Sidebar: Toggle Tag Sort",
+        "title": "%notes.toggleTagSort.title%",
         "icon": "$(arrow-swap)"
       },
       {
         "command": "notes.pinNote",
-        "title": "Pin Note",
+        "title": "%notes.pinNote.title%",
         "icon": "$(pin)"
       },
       {
         "command": "notes.unpinNote",
-        "title": "Unpin Note",
+        "title": "%notes.unpinNote.title%",
         "icon": "$(pinned)"
       },
       {
         "command": "notes.movePinnedNoteUp",
-        "title": "Move Pinned Note Up",
+        "title": "%notes.movePinnedNoteUp.title%",
         "icon": "$(arrow-up)"
       },
       {
         "command": "notes.movePinnedNoteDown",
-        "title": "Move Pinned Note Down",
+        "title": "%notes.movePinnedNoteDown.title%",
         "icon": "$(arrow-down)"
       },
       {
         "command": "notes.openDailyNote",
-        "title": "Open Daily Note",
+        "title": "%notes.openDailyNote.title%",
         "category": "Notes",
         "icon": "$(calendar)"
       },
       {
         "command": "notes.archiveMoments",
-        "title": "Noteeees Moments: Archive Old Moments",
+        "title": "%notes.archiveMoments.title%",
         "icon": "$(archive)"
       },
       {
         "command": "notes.openDashboard",
-        "title": "Noteeees: Open Task Dashboard",
+        "title": "%notes.openDashboard.title%",
         "icon": "$(checklist)"
       },
       {
         "command": "notes.aiExtractTasks",
-        "title": "Noteeees: AI - Extract Tasks from Today's Moments"
+        "title": "%notes.aiExtractTasks.title%"
       }
     ],
     "keybindings": [
@@ -183,7 +183,7 @@
       "activitybar": [
         {
           "id": "notesMoments",
-          "title": "Moments",
+          "title": "%notesMomentsContainer.title%",
           "icon": "assets/moments-icon.svg"
         }
       ]
@@ -192,22 +192,22 @@
       "explorer": [
         {
           "id": "notesExplorer",
-          "name": "Noteeees",
+          "name": "%notesExplorer.name%",
           "icon": "$(notebook)",
-          "contextualTitle": "Memory Notes"
+          "contextualTitle": "%notesExplorer.contextualTitle%"
         },
         {
           "id": "notesBacklinks",
-          "name": "Backlinks",
+          "name": "%notesBacklinks.name%",
           "icon": "$(references)",
-          "contextualTitle": "Notes Backlinks"
+          "contextualTitle": "%notesBacklinks.contextualTitle%"
         }
       ],
       "notesMoments": [
         {
           "type": "webview",
           "id": "notesMomentsView",
-          "name": "Moments"
+          "name": "%notesMomentsView.name%"
         }
       ]
     },
@@ -258,13 +258,13 @@
       ]
     },
     "configuration": {
-      "title": "Noteeees",
+      "title": "%configuration.title%",
       "properties": {
         "notes.notesDirectory": {
           "type": "string",
           "default": "",
           "scope": "machine",
-          "description": "Legacy fallback setting for importing older Notes directory values. Run Setup now stores the selected folder locally per machine in extension storage."
+          "description": "%notes.notesDirectory.description%"
         },
         "notes.dateFormat": {
           "type": "string",
@@ -275,17 +275,17 @@
             "MM/DD/YYYY HH:mm",
             "DD.MM.YYYY HH:mm"
           ],
-          "description": "Date format for new entries."
+          "description": "%notes.dateFormat.description%"
         },
         "notes.defaultNoteTitle": {
           "type": "string",
           "default": "{dt}_{title}.{ext}",
-          "description": "Filename format for new notes. Tokens: {dt} = datetime, {title} = input title, {ext} = file extension."
+          "description": "%notes.defaultNoteTitle.description%"
         },
         "notes.noteTitleConvertSpaces": {
           "type": "string",
           "default": "_",
-          "description": "Character to replace spaces in note titles. Set to empty string to keep spaces."
+          "description": "%notes.noteTitleConvertSpaces.description%"
         },
         "notes.defaultSnippet": {
           "type": "object",
@@ -303,7 +303,7 @@
               "description": "Snippet name to insert. Set to null to disable."
             }
           },
-          "description": "Default VS Code snippet to insert after creating a note."
+          "description": "%notes.defaultSnippet.description%"
         },
         "notes.templates": {
           "type": "array",
@@ -311,13 +311,13 @@
           "items": {
             "type": "string"
           },
-          "description": "List of custom template names. Each name maps to a VS Code snippet named noteeees_template_{name}."
+          "description": "%notes.templates.description%"
         },
         "notes.sidebarRecentLimit": {
           "type": "number",
           "default": 20,
           "minimum": 0,
-          "description": "Number of notes shown in the Recent section of the sidebar. Set to 0 to show all notes."
+          "description": "%notes.sidebarRecentLimit.description%"
         },
         "notes.sidebarTagSort": {
           "type": "string",
@@ -326,25 +326,25 @@
             "frequency",
             "alphabetical"
           ],
-          "description": "Sort mode for the Tags section in the sidebar."
+          "description": "%notes.sidebarTagSort.description%"
         },
         "notes.momentsSubfolder": {
           "type": "string",
           "default": "moments",
           "scope": "machine",
-          "description": "Subfolder within the notes directory where Moments entries are stored. Each day creates a YYYY-MM-DD.md file."
+          "description": "%notes.momentsSubfolder.description%"
         },
         "notes.momentsSendOnEnter": {
           "type": "boolean",
           "default": true,
-          "description": "If true, pressing Enter sends the Moment entry. Use Shift+Enter for a newline. If false, use Ctrl+Enter / Cmd+Enter to send."
+          "description": "%notes.momentsSendOnEnter.description%"
         },
         "notes.momentsFeedDays": {
           "type": "number",
           "default": 7,
           "minimum": 1,
           "maximum": 30,
-          "description": "Number of days shown in the continuous Moments feed, counting backward from today."
+          "description": "%notes.momentsFeedDays.description%"
         },
         "notes.momentsInboxFilter": {
           "type": "string",
@@ -354,34 +354,44 @@
             "open",
             "done"
           ],
-          "description": "Default filter for the Moments Inbox overview. The last selected value is saved here and reused the next time Inbox opens."
+          "description": "%notes.momentsInboxFilter.description%"
         },
         "notes.momentsArchiveAfterDays": {
           "type": "number",
           "default": 90,
           "minimum": 1,
-          "description": "Number of days after which Moments files are moved to the archive folder when running 'Archive Moments'. Files newer than this threshold are kept in place."
+          "description": "%notes.momentsArchiveAfterDays.description%"
         },
         "notes.dailyNoteTemplate": {
           "type": "string",
           "default": "",
-          "description": "Path to a template file for daily notes. Supports {date}, {weekday}, {time} tokens. Leave empty to use the built-in default."
+          "description": "%notes.dailyNoteTemplate.description%"
         },
         "notes.workspaceNotesDirectory": {
           "type": "string",
           "default": "",
           "scope": "resource",
-          "description": "Workspace-specific notes directory. When set, overrides the machine-global notes directory for this workspace only."
+          "description": "%notes.workspaceNotesDirectory.description%"
         },
         "notes.ai.autoEnrich": {
           "type": "boolean",
           "default": false,
-          "description": "ファイル保存時に自動で AI タスクエンリッチを実行する。GitHub Copilot が必要です。"
+          "description": "%notes.ai.autoEnrich.description%"
         },
         "notes.statusBarTasks": {
           "type": "boolean",
           "default": true,
-          "description": "Show the Tasks status bar item that opens the Task Dashboard. Set to false to hide it."
+          "description": "%notes.statusBarTasks.description%"
+        },
+        "notes.locale": {
+          "type": "string",
+          "default": "auto",
+          "enum": [
+            "auto",
+            "en",
+            "ja"
+          ],
+          "description": "%notes.locale.description%"
         }
       }
     }

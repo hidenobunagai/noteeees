@@ -19,6 +19,7 @@ import type {
 } from "./aiTaskProcessor.js";
 import { isPathInside } from "../shared/pathSafety.js";
 import { stripDueDateTokens } from "../shared/taskSyntax.js";
+import { t } from "./i18n.js";
 export { DUE_DATE_RE, TAG_RE, TASK_RE } from "../shared/taskSyntax.js";
 export { isPathInside } from "../shared/pathSafety.js";
 
@@ -331,33 +332,36 @@ export function filterExtractedTasksForDisplay(
 export function buildExtractedTaskStatusMessage(result: ExtractedTaskFilterResult): string {
   const hiddenParts: string[] = [];
   if (result.hiddenDismissed > 0) {
-    hiddenParts.push(`${result.hiddenDismissed}件は一時非表示`);
+    hiddenParts.push(t("hiddenDismissed", { count: result.hiddenDismissed }));
   }
   if (result.hiddenDuplicates > 0) {
-    hiddenParts.push(`${result.hiddenDuplicates}件は候補内で重複`);
+    hiddenParts.push(t("hiddenDuplicates", { count: result.hiddenDuplicates }));
   }
 
   if (result.visibleTasks.length === 0) {
     return hiddenParts.length > 0
-      ? `新しい候補はありません。${hiddenParts.join("、")}として除外しました。`
-      : "実行可能なタスクは見つかりませんでした。";
+      ? t("noNewCandidates", { hidden: hiddenParts.join("、") })
+      : t("noActionableTasks");
   }
 
   return hiddenParts.length > 0
-    ? `${result.visibleTasks.length}件の候補を表示しています。${hiddenParts.join("、")}として除外しました。`
-    : `${result.visibleTasks.length}件の候補を表示しています。`;
+    ? t("candidatesShown", {
+        count: result.visibleTasks.length,
+        hidden: hiddenParts.join("、"),
+      })
+    : t("candidatesShownSimple", { count: result.visibleTasks.length });
 }
 
 export function buildExtractedTaskFailureMessage(reason: ExtractTasksFailureReason): string {
   if (reason === "modelUnavailable") {
-    return "AI 抽出を実行できませんでした。GitHub Copilot Chat の利用状態を確認してください。";
+    return t("modelUnavailable");
   }
 
   if (reason === "requestFailed") {
-    return "AI 抽出に失敗しました。少し待ってからもう一度お試しください。";
+    return t("requestFailed");
   }
 
-  return "実行可能なタスクは見つかりませんでした。";
+  return t("noActionableTasks");
 }
 
 export function buildDashboardEmptyMessage(filter: DashboardListFilter): string {

@@ -97,6 +97,7 @@ export interface DashboardSummary {
 
 export interface DashboardData {
   today: string;
+  locale: string;
   tasks: DashboardTaskView[];
   week: WeekDay[];
   catCount: Record<string, number>;

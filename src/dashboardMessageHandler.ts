@@ -12,6 +12,7 @@ import {
   updateDashboardTask,
 } from "./dashboardTaskPersistence.js";
 import { normalizeOptionalDate } from "./dashboardTaskUtils.js";
+import { t } from "./i18n.js";
 import type { DashboardCandidateAddAck } from "./dashboardTypes.js";
 import { getMomentsSubfolderSetting } from "./notesConfig.js";
 
@@ -84,7 +85,7 @@ export function createDashboardMessageHandler(deps: DashboardMessageHandlerDeps)
 
     const result = await updateDashboardTask(notesDir, taskId, text, dueDate);
     if (result === "invalid-text") {
-      void vscode.window.showErrorMessage("Task text cannot be empty.");
+      void vscode.window.showErrorMessage(t("taskTextEmpty"));
       return;
     }
 
@@ -117,7 +118,7 @@ export function createDashboardMessageHandler(deps: DashboardMessageHandlerDeps)
     const createTask = deps.createTask ?? createDashboardTask;
     const result = await createTask(notesDir, text, targetDate, dueDate);
     if (result === "invalid-text") {
-      void vscode.window.showErrorMessage("Task text cannot be empty.");
+      void vscode.window.showErrorMessage(t("taskTextEmpty"));
       return false;
     }
 
@@ -143,7 +144,7 @@ export function createDashboardMessageHandler(deps: DashboardMessageHandlerDeps)
   }): Promise<void> {
     const notesDir = deps.getNotesDir();
     if (!notesDir) {
-      _postCandidateAddFailed(requestId, "Notes directory is not configured.");
+      _postCandidateAddFailed(requestId, t("notesDirNotConfigured"));
       return;
     }
 
@@ -156,13 +157,13 @@ export function createDashboardMessageHandler(deps: DashboardMessageHandlerDeps)
     try {
       const created = await _createTask(text, targetDate, dueDate);
       if (!created) {
-        _postCandidateAddFailed(requestId, "Task text cannot be empty.");
+        _postCandidateAddFailed(requestId, t("taskTextEmpty"));
         return;
       }
 
       _postCandidateAddResult({ requestId, status: "added" });
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Failed to add candidate task.";
+      const message = error instanceof Error ? error.message : t("addCandidateFailed");
       void vscode.window.showErrorMessage(message);
       _postCandidateAddFailed(requestId, message);
     }
@@ -242,7 +243,7 @@ export function createDashboardMessageHandler(deps: DashboardMessageHandlerDeps)
       modelId,
       statusType: "aiStatus",
       resultType: "extractResult",
-      processingMessage: `${fromDate} ～ ${toDate} の Moments を分析しています...`,
+      processingMessage: t("aiMomentsProcessing", { from: fromDate, to: toDate }),
       extract: extractDashboardMomentsCandidates,
     });
   }
@@ -258,7 +259,7 @@ export function createDashboardMessageHandler(deps: DashboardMessageHandlerDeps)
       modelId,
       statusType: "notesAiStatus",
       resultType: "notesExtractResult",
-      processingMessage: `${fromDate} ～ ${toDate} のノートを分析しています...`,
+      processingMessage: t("aiNotesProcessing", { from: fromDate, to: toDate }),
       extract: extractDashboardNotesCandidates,
     });
   }

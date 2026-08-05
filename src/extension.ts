@@ -15,6 +15,7 @@ import {
   pickIndexedNote,
 } from "./noteCommands";
 import { getIndexedNotesCached } from "./notesIndexCache.js";
+import { resolveLocale, t } from "./i18n.js";
 import {
   affectsNotesConfiguration,
   getAiAutoEnrichSetting,
@@ -152,7 +153,7 @@ export function activate(context: vscode.ExtensionContext) {
       canSelectFiles: false,
       canSelectFolders: true,
       canSelectMany: false,
-      openLabel: "Select Notes Directory",
+      openLabel: t("selectNotesDirectory"),
     });
 
     if (selected && selected[0]) {
@@ -168,9 +169,7 @@ export function activate(context: vscode.ExtensionContext) {
     if (!notesDir) {
       notesDir = await selectNotesDirectory();
       if (!notesDir) {
-        vscode.window.showErrorMessage(
-          "Notes directory is not configured. Run 'Notes: Run Setup' first.",
-        );
+        vscode.window.showErrorMessage(t("notesDirNotConfigured"));
         return undefined;
       }
     }
@@ -189,12 +188,12 @@ export function activate(context: vscode.ExtensionContext) {
     const tagItems = buildTagSearchItems(indexedNotes, getSidebarTagSortSetting());
 
     if (tagItems.length === 0) {
-      vscode.window.showInformationMessage("No tags found.");
+      vscode.window.showInformationMessage(t("noTagsFound"));
       return;
     }
 
     const selectedTag = await vscode.window.showQuickPick(tagItems, {
-      placeHolder: "Search tags",
+      placeHolder: t("searchTagsPlaceholder"),
       matchOnDescription: true,
       matchOnDetail: true,
     });
@@ -206,7 +205,10 @@ export function activate(context: vscode.ExtensionContext) {
     const matchingNotes = indexedNotes.filter((note) =>
       note.metadata.tags.includes(selectedTag.label),
     );
-    const selectedNote = await pickIndexedNote(matchingNotes, `Notes tagged ${selectedTag.label}`);
+    const selectedNote = await pickIndexedNote(
+      matchingNotes,
+      t("notesTagged", { tag: selectedTag.label }),
+    );
 
     if (!selectedNote) {
       return;
@@ -332,8 +334,8 @@ export function activate(context: vscode.ExtensionContext) {
 
   // Task dashboard status bar item
   const aiStatusBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
-  aiStatusBar.text = "$(checklist) Tasks";
-  aiStatusBar.tooltip = "Open Task Dashboard";
+  aiStatusBar.text = `$(checklist) ${t("tasksStatusBar")}`;
+  aiStatusBar.tooltip = t("dashboardTitle");
   aiStatusBar.command = "notes.openDashboard";
   const syncStatusBarVisibility = () => {
     if (getStatusBarTasksSetting()) {
@@ -345,8 +347,10 @@ export function activate(context: vscode.ExtensionContext) {
   syncStatusBarVisibility();
   context.subscriptions.push(aiStatusBar);
 
+  const analyzingText = `$(loading~spin) ${t("tasksAnalyzing")}`;
+  const idleText = `$(checklist) ${t("tasksStatusBar")}`;
   DashboardPanel.setStatusListener((processing) => {
-    aiStatusBar.text = processing ? "$(loading~spin) Tasks: 解析中…" : "$(checklist) Tasks";
+    aiStatusBar.text = processing ? analyzingText : idleText;
   });
 
   // Hook file save events for AI task auto-enrichment
@@ -369,7 +373,7 @@ export function activate(context: vscode.ExtensionContext) {
       return;
     }
 
-    aiStatusBar.text = "$(loading~spin) Tasks: 解析中…";
+    aiStatusBar.text = analyzingText;
     const cts = new vscode.CancellationTokenSource();
 
     try {
@@ -377,7 +381,7 @@ export function activate(context: vscode.ExtensionContext) {
     } catch (e) {
       console.error("Error during auto-enrichment on save:", e);
     } finally {
-      aiStatusBar.text = "$(checklist) Tasks";
+      aiStatusBar.text = idleText;
       DashboardPanel.refresh();
     }
   });
@@ -387,6 +391,11 @@ export function activate(context: vscode.ExtensionContext) {
   const configChangeDisposable = vscode.workspace.onDidChangeConfiguration((event) => {
     if (affectsNotesConfiguration(event, "statusBarTasks")) {
       syncStatusBarVisibility();
+    }
+
+    if (affectsNotesConfiguration(event, "locale")) {
+      refreshNotesViews();
+      DashboardPanel.refresh();
     }
 
     if (
@@ -423,17 +432,17 @@ export function activate(context: vscode.ExtensionContext) {
       const choice = await vscode.window.showQuickPick(
         [
           {
-            label: "$(globe) Global (all workspaces)",
-            description: "Stored in machine-local extension storage",
+            label: t("globalScope"),
+            description: t("globalScopeDesc"),
             value: "global" as const,
           },
           {
-            label: "$(folder) This Workspace only",
-            description: "Stored in workspace settings (.vscode/settings.json)",
+            label: t("workspaceScope"),
+            description: t("workspaceScopeDesc"),
             value: "workspace" as const,
           },
         ],
-        { placeHolder: "Set notes directory for..." },
+        { placeHolder: t("setNotesDirFor") },
       );
       if (!choice) {
         return;
@@ -445,8 +454,8 @@ export function activate(context: vscode.ExtensionContext) {
     if (notesDir) {
       refreshMarkdownWatcher();
       refreshNotesViews();
-      const scopeLabel = scope === "workspace" ? "workspace" : "global";
-      vscode.window.showInformationMessage(`Notes directory set (${scopeLabel}): ${notesDir}`);
+      const scopeLabel = scope === "workspace" ? t("workspaceScope") : t("globalScope");
+      vscode.window.showInformationMessage(t("notesDirSet", { scope: scopeLabel, dir: notesDir }));
     }
   });
 
@@ -464,7 +473,7 @@ export function activate(context: vscode.ExtensionContext) {
       await updateSidebarTagSortSetting(nextMode, vscode.ConfigurationTarget.Global);
 
       notesTreeProvider.refresh();
-      vscode.window.showInformationMessage(`Sidebar tag sort: ${nextMode}`);
+      vscode.window.showInformationMessage(t("tagSortSet", { mode: nextMode }));
     },
   );
 
@@ -643,23 +652,19 @@ export function activate(context: vscode.ExtensionContext) {
       const afterDays = getMomentsArchiveAfterDaysSetting();
 
       const confirm = await vscode.window.showWarningMessage(
-        `Move Moments files older than ${afterDays} days to archive?`,
-        "Archive",
-        "Cancel",
+        t("archiveConfirm", { days: afterDays }),
+        t("archiveBtn"),
+        t("cancelBtn"),
       );
-      if (confirm !== "Archive") {
+      if (confirm !== t("archiveBtn")) {
         return;
       }
 
       const { archived, skipped } = await archiveMoments(notesDir);
       if (archived === 0) {
-        vscode.window.showInformationMessage(
-          `No Moments files to archive (${skipped} recent files kept).`,
-        );
+        vscode.window.showInformationMessage(t("noMomentsToArchive", { skipped }));
       } else {
-        vscode.window.showInformationMessage(
-          `Archived ${archived} Moments file${archived === 1 ? "" : "s"} (${skipped} recent files kept).`,
-        );
+        vscode.window.showInformationMessage(t("archivedMoments", { count: archived, skipped }));
         momentsProvider.refresh();
       }
     },

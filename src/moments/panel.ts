@@ -14,6 +14,7 @@ import {
   searchMomentsFeed,
 } from "./fileIo.js";
 import { formatDateString } from "../dashboardTaskUtils.js";
+import { buildWebviewI18nScript, resolveLocale } from "../i18n.js";
 
 import type { PinnedEntryData } from "./types.js";
 
@@ -96,13 +97,16 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
 
         case "searchMoments": {
           const query = typeof message.query === "string" ? message.query : "";
-          const feed = notesDir ? await searchMomentsFeed(notesDir, query) : { sections: [], hasMoreOlder: false };
+          const feed = notesDir
+            ? await searchMomentsFeed(notesDir, query)
+            : { sections: [], hasMoreOlder: false };
           this._view?.webview.postMessage({
             command: "update",
             sections: feed.sections,
             sendOnEnter: getMomentsSendOnEnterSetting(),
             todayDate: formatDateString(new Date()),
             anchorDate: this._anchorDate,
+            locale: resolveLocale(),
             pinnedEntries: [],
             hasMoreOlder: false,
           });
@@ -332,6 +336,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
       sendOnEnter,
       todayDate: today,
       anchorDate,
+      locale: resolveLocale(),
       pinnedEntries: resolvePinnedEntries(this._getPinnedEntries(), sections),
       hasMoreOlder: feed.hasMoreOlder,
     });
@@ -351,6 +356,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
 
   private _getHtml(): string {
     const dueDatePatternSource = JSON.stringify(DUE_DATE_RE.source);
+    const i18nScript = buildWebviewI18nScript();
 
     return /* html */ `<!DOCTYPE html>
 <html lang="en">
@@ -1165,7 +1171,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
       </button>
       <input type="date" id="jumpDateInput" aria-label="Jump to date" />
-      <button class="nav-btn" id="backToTodayBtn" title="Back to today" aria-label="Back to today" style="display:none">Today</button>
+      <button class="nav-btn" id="backToTodayBtn" title="Back to today" aria-label="Back to today" style="display:none"></button>
       <button class="open-btn export-btn" id="exportBtn" title="Export selected" aria-label="Export selected entries">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path><polyline points="16 6 12 2 8 6"></polyline><line x1="12" y1="2" x2="12" y2="15"></line></svg>
       </button>
@@ -1201,18 +1207,20 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     <path d="M12 20h9"></path>
     <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
   </svg>
-  <div>No moments yet today</div>
-  <div style="font-size: 11px; margin-top: 4px; opacity: 0.8;">Capture ideas, or add #tags to categorize</div>
+  <div id="emptyTitle"></div>
+  <div id="emptyHint" style="font-size: 11px; margin-top: 4px; opacity: 0.8;"></div>
 </div>
 </div>
 
 <div class="export-action-bar" id="exportActionBar">
-  <span class="selected-count-label" id="selectedCountLabel">0 selected</span>
-  <button class="export-note-btn" id="exportNoteBtn">Export as Note</button>
-  <button class="export-cancel-btn" id="exportCancelBtn">Cancel</button>
+  <span class="selected-count-label" id="selectedCountLabel"></span>
+  <button class="export-note-btn" id="exportNoteBtn"></button>
+  <button class="export-cancel-btn" id="exportCancelBtn"></button>
 </div>
 
 <script>
+  ${i18nScript}
+
   const vscode = acquireVsCodeApi();
   let sendOnEnter = true;
   let isComposing = false; // IME composition guard
@@ -1262,6 +1270,8 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     const msg = event.data;
     if (msg.command === 'update') {
       sendOnEnter = msg.sendOnEnter;
+      currentLocale = msg.locale || 'en';
+      applyStaticStrings();
       latestSections = msg.sections;
       todayDate = msg.todayDate || '';
       anchorDate = msg.anchorDate || todayDate;
@@ -1298,6 +1308,33 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     setTimeout(() => { errorBanner.style.display = 'none'; }, 4000);
   }
 
+  function applyStaticStrings() {
+    allBtn.title = UI('allMoments');
+    allBtn.setAttribute('aria-label', UI('allMoments'));
+    inboxBtn.title = UI('taskInbox');
+    inboxBtn.setAttribute('aria-label', UI('taskInbox'));
+    openFileBtn.title = UI('openTodayFile');
+    openFileBtn.setAttribute('aria-label', UI('openTodayFile'));
+    jumpDateBtn.title = UI('jumpToDate');
+    jumpDateBtn.setAttribute('aria-label', UI('jumpToDate'));
+    jumpDateInput.setAttribute('aria-label', UI('jumpToDate'));
+    backToTodayBtn.title = UI('backToToday');
+    backToTodayBtn.setAttribute('aria-label', UI('backToToday'));
+    backToTodayBtn.textContent = UI('backToToday');
+    exportBtn.title = UI('exportSelected');
+    exportBtn.setAttribute('aria-label', UI('exportSelected'));
+    clearSearch.title = UI('clearSearch');
+    searchInput.placeholder = UI('searchPlaceholder');
+    inputBox.placeholder = UI('capturePlaceholder');
+    sendBtn.title = UI('sendBtn');
+    exportNoteBtn.textContent = UI('exportAsNote');
+    exportCancelBtn.textContent = UI('cancelBtn');
+    const emptyTitle = document.getElementById('emptyTitle');
+    const emptyHint = document.getElementById('emptyHint');
+    if (emptyTitle) emptyTitle.textContent = UI('emptyToday');
+    if (emptyHint) emptyHint.textContent = UI('emptyHint');
+  }
+
   function updateTopbar(dateStr, sections, anchorDate) {
     // Format date label
     const anchor = anchorDate || dateStr;
@@ -1305,7 +1342,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
       const d = new Date(anchor + 'T00:00:00');
       const opts = { month: 'short', day: 'numeric', year: 'numeric' };
       const label = d.toLocaleDateString('en-US', opts);
-      topbarDate.textContent = anchor === dateStr ? label + ' · Today' : label;
+      topbarDate.textContent = anchor === dateStr ? label + ' ' + UI('todaySuffix') : label;
     } else {
       topbarDate.textContent = '';
     }
@@ -1425,20 +1462,20 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     allBtn.setAttribute('aria-pressed', 'true');
     activeTagBtn.style.display = activeTag ? '' : 'none';
     activeTagBtn.textContent = activeTag ? activeTagLabel + ' ×' : '';
-    activeTagBtn.title = activeTag ? ('Clear hashtag filter ' + activeTagLabel) : 'Clear active hashtag filter';
-    activeTagBtn.setAttribute('aria-label', activeTag ? ('Clear hashtag filter ' + activeTagLabel) : 'Clear active hashtag filter');
+    activeTagBtn.title = activeTag ? UI('clearSearch') : UI('clearSearch');
+    activeTagBtn.setAttribute('aria-label', activeTag ? UI('clearSearch') : UI('clearSearch'));
 
     if (visibleSections.length === 0) {
       emptyState.style.display = 'block';
       timeline.querySelectorAll('.day-section, .pinned-section').forEach(e => e.remove());
       if (currentSearchText && activeTag) {
-        emptyState.textContent = 'No moments tagged ' + activeTagLabel + ' matching "' + currentSearchText + '"';
+        emptyState.textContent = UI('noMomentsSearchTag', { tag: activeTagLabel, query: currentSearchText });
       } else if (currentSearchText) {
-        emptyState.textContent = 'No moments matching "' + currentSearchText + '"';
+        emptyState.textContent = UI('noMomentsSearch', { query: currentSearchText });
       } else if (activeTag) {
-        emptyState.textContent = 'No moments tagged ' + activeTagLabel + ' in this recent feed';
+        emptyState.textContent = UI('noMomentsTagged', { tag: activeTagLabel });
       } else {
-        emptyState.textContent = 'No moments yet — capture your first thought!';
+        emptyState.textContent = UI('noMomentsEmpty');
       }
       return;
     }
@@ -1456,7 +1493,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
       pinnedHeader.className = 'pinned-section-header';
       const pinnedLabel = document.createElement('span');
       pinnedLabel.className = 'pinned-section-label';
-      pinnedLabel.textContent = '📌 Pinned';
+      pinnedLabel.textContent = '📌 ' + UI('pinnedHeader');
       pinnedHeader.appendChild(pinnedLabel);
       pinnedSectionEl.appendChild(pinnedHeader);
 
@@ -1574,7 +1611,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
         }
         const dueBadge = document.createElement('span');
         dueBadge.className = 'due-badge';
-        dueBadge.textContent = dueDateStatus === 'today' ? 'Today' : dueDate;
+        dueBadge.textContent = dueDateStatus === 'today' ? UI('todayBadge') : dueDate;
         meta.appendChild(dueBadge);
       }
 
@@ -1584,7 +1621,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
 
         const editInput = document.createElement('textarea');
         editInput.value = editingText;
-        editInput.setAttribute('aria-label', 'Edit Moment entry');
+        editInput.setAttribute('aria-label', UI('edit'));
         editInput.addEventListener('input', () => {
           editingText = editInput.value;
           autoResizeTextarea(editInput);
@@ -1605,7 +1642,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
               event.preventDefault();
               const nextText = editInput.value.trim();
               if (!nextText) {
-                showError('Moment text cannot be empty.');
+                showError(UI('momentTextEmpty'));
                 return;
               }
               editingEntryKey = null;
@@ -1627,12 +1664,12 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
         const saveButton = document.createElement('button');
         saveButton.className = 'entry-action save';
         saveButton.type = 'button';
-        saveButton.title = 'Save';
+        saveButton.title = UI('save');
         saveButton.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><polyline points="20 6 9 17 4 12"></polyline></svg>';
         saveButton.addEventListener('click', () => {
           const nextText = editInput.value.trim();
           if (!nextText) {
-            showError('Moment text cannot be empty.');
+            showError(UI('momentTextEmpty'));
             return;
           }
           editingEntryKey = null;
@@ -1643,7 +1680,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
         const cancelButton = document.createElement('button');
         cancelButton.className = 'entry-action';
         cancelButton.type = 'button';
-        cancelButton.title = 'Cancel';
+        cancelButton.title = UI('cancelBtn');
         cancelButton.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>';
         cancelButton.addEventListener('click', () => {
           editingEntryKey = null;
@@ -1703,7 +1740,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
       const editButton = document.createElement('button');
       editButton.className = 'entry-action';
       editButton.type = 'button';
-      editButton.title = 'Edit';
+      editButton.title = UI('edit');
       editButton.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"></path></svg>';
       editButton.addEventListener('click', () => {
         editingEntryKey = entryKey;
@@ -1714,7 +1751,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
       const deleteButton = document.createElement('button');
       deleteButton.className = 'entry-action danger';
       deleteButton.type = 'button';
-      deleteButton.title = 'Delete';
+      deleteButton.title = UI('delete');
       deleteButton.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>';
       deleteButton.addEventListener('click', () => {
         if (editingEntryKey === entryKey) {
@@ -1730,8 +1767,8 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
       const pinButton = document.createElement('button');
       pinButton.className = 'pin-btn' + (isPinned ? ' pinned' : '');
       pinButton.type = 'button';
-      pinButton.title = isPinned ? 'Unpin' : 'Pin';
-      pinButton.setAttribute('aria-label', isPinned ? 'Unpin' : 'Pin');
+      pinButton.title = isPinned ? UI('unpin') : UI('pin');
+      pinButton.setAttribute('aria-label', isPinned ? UI('unpin') : UI('pin'));
       pinButton.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><line x1="18" y1="8" x2="22" y2="12"></line><line x1="12" y1="2" x2="12" y2="6"></line><path d="M12 6H8a2 2 0 0 0-2 2v3.586a1 1 0 0 1-.293.707l-2.828 2.828a1 1 0 0 0 0 1.414L6 19.5a1 1 0 0 0 1.414 0l2.828-2.828a1 1 0 0 1 .707-.293H15a2 2 0 0 0 2-2V8"></path></svg>';
       pinButton.addEventListener('click', () => {
         if (isPinned) {
@@ -1863,7 +1900,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
 
   function updateExportBar() {
     const count = selectedEntries.size;
-    selectedCountLabel.textContent = count + ' selected';
+    selectedCountLabel.textContent = UI('selectedCount', { count: count });
     exportNoteBtn.disabled = count === 0;
   }
 

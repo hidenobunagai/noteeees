@@ -3,6 +3,7 @@ import * as path from "path";
 import * as vscode from "vscode";
 import { resolveUniqueFilePath } from "../shared/pathSafety.js";
 import { formatDateString, formatTimeHM } from "./dashboardTaskUtils.js";
+import { t } from "./i18n.js";
 import { getIndexedNotesCached } from "./notesIndexCache.js";
 import {
   getDefaultNoteTitleSetting,
@@ -334,7 +335,7 @@ export async function pickIndexedNote(
       const items: NoteQuickPickItem[] = notes.map((note) => toNoteQuickPickItem(note, query));
       if (query.trim()) {
         items.unshift({
-          label: `$(plus) Create new note: "${query.trim()}"`,
+          label: `$(plus) ${t("createNewNote", { title: query.trim() })}`,
           alwaysShow: true,
           isCreateNew: true,
           createTitle: query.trim(),
@@ -392,8 +393,8 @@ export async function createNewNote(notesDir: string, initialTitle?: string): Pr
   const titleInput =
     initialTitle ||
     (await vscode.window.showInputBox({
-      prompt: "Enter note title (use / for subfolders)",
-      placeHolder: "Meeting Notes  or  projects/ProjectX",
+      prompt: t("noteTitlePrompt"),
+      placeHolder: t("noteTitlePlaceholder"),
     }));
 
   if (!titleInput) {
@@ -426,11 +427,11 @@ export async function createNewNote(notesDir: string, initialTitle?: string): Pr
   try {
     await fs.access(filePath);
     const overwrite = await vscode.window.showWarningMessage(
-      `File "${path.basename(filePath)}" already exists. Overwrite?`,
-      "Yes",
-      "No",
+      t("overwriteConfirm", { name: path.basename(filePath) }),
+      t("yesBtn"),
+      t("noBtn"),
     );
-    if (overwrite !== "Yes") {
+    if (overwrite !== t("yesBtn")) {
       return;
     }
   } catch {
@@ -452,40 +453,40 @@ export async function createNewNote(notesDir: string, initialTitle?: string): Pr
       const langId = defaultSnippet.langId || "markdown";
       await insertSnippetByName(editor, langId, defaultSnippet.name);
     }
-    vscode.window.showInformationMessage(`Note created: ${path.basename(filePath)}`);
+    vscode.window.showInformationMessage(t("noteCreated", { name: path.basename(filePath) }));
     return;
   }
 
   // Show the picker only when custom templates are configured.
-  const templateItems: vscode.QuickPickItem[] = [
-    { label: "$(file) Default", description: "Use default template" },
-    { label: "$(file-text) Empty", description: "No template" },
-    ...templates.map((t) => ({
-      label: `$(file-code) ${t}`,
-      description: `${SNIPPET_PREFIX}${t}`,
+  const templateItems: (vscode.QuickPickItem & { templateName?: string })[] = [
+    { label: t("templateDefault"), templateName: "default" },
+    { label: t("templateEmpty"), templateName: "empty" },
+    ...templates.map((name) => ({
+      label: `$(file-code) ${name}`,
+      description: `${SNIPPET_PREFIX}${name}`,
+      templateName: name,
     })),
   ];
 
   const selected = await vscode.window.showQuickPick(templateItems, {
-    placeHolder: "Select a template",
+    placeHolder: t("selectTemplate"),
   });
 
-  if (!selected || selected.label.includes("Default")) {
-    // Default or Esc: use default snippet
+  if (!selected || selected.templateName === "default") {
+    // Esc or Default: use default snippet
     if (defaultSnippet?.name) {
       const langId = defaultSnippet.langId || "markdown";
       await insertSnippetByName(editor, langId, defaultSnippet.name);
     }
-  } else if (!selected.label.includes("Empty")) {
+  } else if (selected.templateName !== "empty") {
     // Custom template selected
-    const templateName = selected.label.replace("$(file-code) ", "");
-    const snippetName = `${SNIPPET_PREFIX}${templateName}`;
+    const snippetName = `${SNIPPET_PREFIX}${selected.templateName}`;
     const langId = defaultSnippet?.langId || "markdown";
     await insertSnippetByName(editor, langId, snippetName);
   }
   // "Empty" selected: do nothing (empty file)
 
-  vscode.window.showInformationMessage(`Note created: ${path.basename(filePath)}`);
+  vscode.window.showInformationMessage(t("noteCreated", { name: path.basename(filePath) }));
 }
 
 const DAILY_NOTE_DEFAULT_TEMPLATE = "# {date}\n\n## Tasks\n\n## Notes\n\n## Journal\n";
@@ -545,7 +546,7 @@ export async function listNotes(notesDir: string): Promise<void> {
   const indexedNotes = await getIndexedNotesCached(notesDir, [momentsSubfolder]);
 
   if (indexedNotes.length === 0) {
-    vscode.window.showInformationMessage("No notes found.");
+    vscode.window.showInformationMessage(t("noNotesFound"));
     return;
   }
 
@@ -554,7 +555,7 @@ export async function listNotes(notesDir: string): Promise<void> {
 
   const selected = await pickIndexedNote(
     indexedNotes,
-    `${indexedNotes.length} notes found. Search by title, path, tag, or body text.`,
+    t("notesFound", { count: indexedNotes.length }),
   );
 
   if (selected) {

@@ -13,6 +13,7 @@ export function buildDashboardWebviewScript(
   return `<script nonce="${nonce}">
     const vscode = acquireVsCodeApi();
     let dashboardData = ${dashboardData};
+    currentLocale = dashboardData.locale || 'en';
     const savedState = vscode.getState() || {};
     const pendingCandidateAdds = [];
 
@@ -28,7 +29,7 @@ export function buildDashboardWebviewScript(
         } else {
           const defaultOption = document.createElement("option");
           defaultOption.value = "";
-          defaultOption.textContent = "自動選択";
+          defaultOption.textContent = UI('autoSelect');
           modelSelect.appendChild(defaultOption);
         }
 
@@ -251,23 +252,23 @@ export function buildDashboardWebviewScript(
 
     const simplifiedSectionOrder = ["today", "planned", "unsorted", "done"];
     const simplifiedSectionTitles = {
-      today: "Today",
-      planned: "Planned",
-      unsorted: "Unsorted",
-      done: "Done",
+      today: UI('sectionToday'),
+      planned: UI('sectionPlanned'),
+      unsorted: UI('sectionUnsorted'),
+      done: UI('sectionDone'),
     };
     const simplifiedSectionDescriptions = {
-      today: "今日と期限超過",
-      planned: "7日以内と先の予定",
-      unsorted: "inbox や日付なしの棚卸し待ち",
-      done: "完了済み",
+      today: UI('sectionTodayDesc'),
+      planned: UI('sectionPlannedDesc'),
+      unsorted: UI('sectionUnsortedDesc'),
+      done: UI('sectionDoneDesc'),
     };
 
     const filterDefinitions = [
-      { id: "all", label: "All", count: dashboardData.tasks.length },
-      { id: "today", label: "Today", count: dashboardData.sectionCounts.overdue + dashboardData.sectionCounts.today },
-      { id: "planned", label: "Planned", count: dashboardData.sectionCounts.upcoming + dashboardData.sectionCounts.scheduled },
-      { id: "done", label: "Done", count: dashboardData.sectionCounts.done },
+      { id: "all", label: UI('filterAll'), count: dashboardData.tasks.length },
+      { id: "today", label: UI('filterToday'), count: dashboardData.sectionCounts.overdue + dashboardData.sectionCounts.today },
+      { id: "planned", label: UI('filterPlanned'), count: dashboardData.sectionCounts.upcoming + dashboardData.sectionCounts.scheduled },
+      { id: "done", label: UI('filterDone'), count: dashboardData.sectionCounts.done },
     ];
 
     const taskSearchInput = document.getElementById("task-search");
@@ -315,7 +316,7 @@ export function buildDashboardWebviewScript(
 
     function formatDateLabel(date) {
       if (!date) {
-        return "No date";
+        return UI('noDate');
       }
 
       const parts = date.split("-");
@@ -418,15 +419,15 @@ export function buildDashboardWebviewScript(
       function buildDashboardEmptyMessage(filter) {
         switch (filter) {
           case "all":
-            return "No tasks yet||Use Add Task or AI Extract to create your first task.";
+            return UI('noTasksYet') + "||" + UI('noTasksYetBody');
           case "today":
-            return "Nothing scheduled for today";
+            return UI('nothingScheduledToday');
           case "planned":
-            return "No planned tasks";
+            return UI('noPlannedTasks');
           case "done":
-            return "No completed tasks";
+            return UI('noCompletedTasks');
           default:
-            return "No items in this filter";
+            return UI('noItemsInFilter');
         }
       }
 
@@ -439,7 +440,7 @@ export function buildDashboardWebviewScript(
       });
       if (filter === "all") {
         if (normalizedSearch && visibleItems.length === 0) {
-          return { sections: [], emptyMessage: "No matching tasks" };
+          return { sections: [], emptyMessage: UI('noMatchingTasks') };
         }
 
         if (!normalizedSearch && filteredItems.length === 0) {
@@ -485,7 +486,7 @@ export function buildDashboardWebviewScript(
       if (visibleItems.length === 0) {
         return {
           sections: [],
-          emptyMessage: normalizedSearch ? "No matching tasks" : buildDashboardEmptyMessage(filter),
+            emptyMessage: normalizedSearch ? UI('noMatchingTasks') : buildDashboardEmptyMessage(filter),
         };
       }
 
@@ -568,7 +569,7 @@ export function buildDashboardWebviewScript(
       }
       if (task.dueDate) {
         const dueClass = task.section === "overdue" ? " is-danger" : task.section === "today" ? " is-warning" : " is-accent";
-        badges.push('<span class="badge task-row-meta-item task-row-meta-due' + dueClass + '">Due ' + esc(formatDateLabel(task.dueDate)) + "</span>");
+        badges.push('<span class="badge task-row-meta-item task-row-meta-due' + dueClass + '">' + UI('due') + ' ' + esc(formatDateLabel(task.dueDate)) + "</span>");
       }
       if (task.category) {
         badges.push('<span class="badge task-row-meta-item task-row-meta-category">' + esc(task.category) + "</span>");
@@ -590,7 +591,7 @@ export function buildDashboardWebviewScript(
     function renderCandidateMeta(task) {
       const badges = [];
       if (task.dueDate) {
-        badges.push('<span class="badge is-accent task-row-meta-item task-row-meta-candidate-due">Due ' + esc(formatDateLabel(task.dueDate)) + "</span>");
+        badges.push('<span class="badge is-accent task-row-meta-item task-row-meta-candidate-due">' + UI('due') + ' ' + esc(formatDateLabel(task.dueDate)) + "</span>");
       }
       if (task.category) {
         badges.push('<span class="badge task-row-meta-item task-row-meta-category">' + esc(task.category) + "</span>");
@@ -628,23 +629,23 @@ export function buildDashboardWebviewScript(
           '<div class="task-row-body">' +
             '<div class="task-edit">' +
               '<label class="field">' +
-                "<span>Task</span>" +
+                "<span>" + UI('taskField') + "</span>" +
                 '<textarea data-role="edit-text">' + esc(task.text) + "</textarea>" +
               "</label>" +
               '<div class="field-grid">' +
                 '<label class="field-compact">' +
-                  "<span>Due</span>" +
+                  "<span>" + UI('dueField') + "</span>" +
                   '<input type="date" data-role="edit-due" value="' + esc(task.dueDate || "") + '">' +
                 "</label>" +
                 '<div class="field-compact">' +
-                  "<span>Source</span>" +
+                  "<span>" + UI('sourceField') + "</span>" +
                   '<input type="text" value="' + esc(task.relativePath) + '" disabled>' +
                 "</div>" +
               "</div>" +
               '<div class="inline-actions">' +
-                '<button type="button" class="btn btn-primary" data-action="save-edit" data-task-id="' + esc(task.id) + '">Save</button>' +
-                '<button type="button" class="btn" data-action="cancel-edit">Cancel</button>' +
-                '<button type="button" class="btn" data-action="open" data-file="' + esc(task.filePath) + '" data-line="' + task.lineIndex + '">Open File</button>' +
+                '<button type="button" class="btn btn-primary" data-action="save-edit" data-task-id="' + esc(task.id) + '">' + UI('save') + '</button>' +
+                '<button type="button" class="btn" data-action="cancel-edit">' + UI('cancelBtn') + '</button>' +
+                '<button type="button" class="btn" data-action="open" data-file="' + esc(task.filePath) + '" data-line="' + task.lineIndex + '">' + UI('openFile') + '</button>' +
               "</div>" +
             "</div>" +
           "</div>" +
@@ -657,16 +658,16 @@ export function buildDashboardWebviewScript(
           '<div class="task-row-main">' +
             '<div class="task-row-title-entry"><button type="button" class="task-row-title" data-action="open" data-file="' + esc(task.filePath) + '" data-line="' + task.lineIndex + '">' + esc(task.text) + "</button></div>" +
             '<div class="task-row-secondary-actions">' +
-              '<button type="button" class="task-row-action-icon" data-action="edit" data-task-id="' + esc(task.id) + '" title="Edit" aria-label="Edit">' + renderTaskActionIcon("edit") + '</button>' +
-              '<button type="button" class="task-row-action-icon" data-action="open" data-file="' + esc(task.filePath) + '" data-line="' + task.lineIndex + '" title="Open" aria-label="Open">' + renderTaskActionIcon("open") + '</button>' +
-              '<button type="button" class="task-row-action-icon" data-action="delete" data-task-id="' + esc(task.id) + '" title="Delete" aria-label="Delete">' + renderTaskActionIcon("delete") + '</button>' +
+              '<button type="button" class="task-row-action-icon" data-action="edit" data-task-id="' + esc(task.id) + '" title="' + UI('edit') + '" aria-label="' + UI('edit') + '">' + renderTaskActionIcon("edit") + '</button>' +
+              '<button type="button" class="task-row-action-icon" data-action="open" data-file="' + esc(task.filePath) + '" data-line="' + task.lineIndex + '" title="' + UI('open') + '" aria-label="' + UI('open') + '">' + renderTaskActionIcon("open") + '</button>' +
+              '<button type="button" class="task-row-action-icon" data-action="delete" data-task-id="' + esc(task.id) + '" title="' + UI('delete') + '" aria-label="' + UI('delete') + '">' + renderTaskActionIcon("delete") + '</button>' +
             "</div>" +
             '<div class="task-row-more-menu">' +
-              '<button type="button" class="task-row-more-btn" data-action="more" data-task-id="' + esc(task.id) + '">More</button>' +
+              '<button type="button" class="task-row-more-btn" data-action="more" data-task-id="' + esc(task.id) + '">' + UI('more') + '</button>' +
               '<div class="task-row-more-dropdown" data-more-dropdown="' + esc(task.id) + '">' +
-                '<button type="button" data-action="edit" data-task-id="' + esc(task.id) + '">Edit</button>' +
-                '<button type="button" data-action="open" data-file="' + esc(task.filePath) + '" data-line="' + task.lineIndex + '">Open</button>' +
-                '<button type="button" class="is-danger" data-action="delete" data-task-id="' + esc(task.id) + '">Delete</button>' +
+                '<button type="button" data-action="edit" data-task-id="' + esc(task.id) + '">' + UI('edit') + '</button>' +
+                '<button type="button" data-action="open" data-file="' + esc(task.filePath) + '" data-line="' + task.lineIndex + '">' + UI('open') + '</button>' +
+                '<button type="button" class="is-danger" data-action="delete" data-task-id="' + esc(task.id) + '">' + UI('delete') + '</button>' +
               "</div>" +
             "</div>" +
           "</div>" +
@@ -681,15 +682,15 @@ export function buildDashboardWebviewScript(
         .filter(Boolean)
         .join(" ");
       return '<article class="' + itemClasses + '">' +
-        '<div class="task-row-leading"><span class="badge task-row-label">AI</span></div>' +
+        '<div class="task-row-leading"><span class="badge task-row-label">' + UI('aiBadge') + '</span></div>' +
         '<div class="task-row-body">' +
           '<div class="task-row-main">' +
             '<div class="task-row-title-entry"><div class="task-row-title">' + esc(task.text) + '</div></div>' +
             '<div class="task-row-candidate-actions">' +
-              '<span class="badge task-row-label">Candidate</span>' +
-              '<button type="button" class="text-btn" data-action="dismiss-candidate" data-index="' + index + '">Dismiss</button>' +
-              '<button type="button" class="text-btn' + (canAdd ? '' : ' is-danger') + '"' + (canAdd ? '' : ' disabled') + ' data-action="add-candidate" data-index="' + index + '">Add</button>' +
-              (canAdd ? '' : '<span class="badge is-danger">Already exists</span>') +
+              '<span class="badge task-row-label">' + UI('candidate') + '</span>' +
+              '<button type="button" class="text-btn" data-action="dismiss-candidate" data-index="' + index + '">' + UI('dismiss') + '</button>' +
+              '<button type="button" class="text-btn' + (canAdd ? '' : ' is-danger') + '"' + (canAdd ? '' : ' disabled') + ' data-action="add-candidate" data-index="' + index + '">' + UI('addBtn') + '</button>' +
+              (canAdd ? '' : '<span class="badge is-danger">' + UI('alreadyExists') + '</span>') +
             '</div>' +
           '</div>' +
           renderCandidateMeta(task) +
@@ -722,14 +723,14 @@ export function buildDashboardWebviewScript(
       if (state.candidateBlockError) {
         html += '<div class="candidate-block-error">' +
           '<span class="candidate-block-error-text">' + esc(state.candidateBlockError) + '</span>' +
-          '<button type="button" class="candidate-block-error-dismiss" data-action="dismiss-candidate-error" aria-label="Dismiss error">&times;</button>' +
+          '<button type="button" class="candidate-block-error-dismiss" data-action="dismiss-candidate-error" aria-label="' + UI('dismissError') + '">&times;</button>' +
           '</div>';
       }
 
       if (!hasCandidates) {
         html += '<div class="empty-state">' +
-          '<strong class="empty-state-title">No candidates yet</strong>' +
-          '<p class="empty-state-body">Use AI Extract or From Notes to find task candidates from your Moments and notes.</p>' +
+          '<strong class="empty-state-title">' + UI('noCandidatesYet') + '</strong>' +
+          '<p class="empty-state-body">' + UI('noCandidatesBody') + '</p>' +
         '</div>';
         candidateItems.innerHTML = html;
         return;
@@ -801,7 +802,7 @@ export function buildDashboardWebviewScript(
         .map(function (section) {
           const subtitle = state.filter === "all"
             ? simplifiedSectionDescriptions[section.key]
-            : "filtered items";
+            : UI('filteredItems');
           const items = section.items
             .map(function (item) {
               if (item.kind === "candidate") {
@@ -864,6 +865,42 @@ export function buildDashboardWebviewScript(
       }
     }
 
+    function applyStaticStrings() {
+      newTaskText.placeholder = UI('addTaskPlaceholder');
+      taskSearchInput.placeholder = UI('searchTasksPlaceholder');
+      const refreshBtn = document.getElementById("btn-refresh");
+      if (refreshBtn) refreshBtn.textContent = UI('refresh');
+      const createBtn = document.getElementById("btn-create-task");
+      if (createBtn) createBtn.textContent = UI('addBtn');
+      const extractMomentsBtn = document.getElementById("btn-ai-extract");
+      if (extractMomentsBtn) {
+        extractMomentsBtn.title = UI('fromMoments');
+        extractMomentsBtn.innerHTML = '<span class="extract-icon">✦</span> ' + UI('fromMoments');
+      }
+      const extractNotesBtn = document.getElementById("btn-extract-notes");
+      if (extractNotesBtn) {
+        extractNotesBtn.title = UI('fromNotes');
+        extractNotesBtn.innerHTML = '<span class="extract-icon">📝</span> ' + UI('fromNotes');
+      }
+      const advancedBtn = document.getElementById("btn-extract-advanced");
+      if (advancedBtn) advancedBtn.title = UI('advanced');
+      const modelLabel = document.querySelector(".extract-model-select label");
+      if (modelLabel) modelLabel.textContent = UI('aiModelLabel');
+      const periodLabel = document.querySelector(".extract-date-range label");
+      if (periodLabel) periodLabel.textContent = UI('periodLabel');
+      const searchShell = document.querySelector(".search-shell");
+      if (searchShell) searchShell.setAttribute("aria-label", UI('searchTasksPlaceholder'));
+      const kpiLabels = {
+        "dashboard-kpi-open": UI('kpiOpen'),
+        "dashboard-kpi-today": UI('kpiToday'),
+        "dashboard-kpi-done": UI('kpiDone'),
+      };
+      Object.keys(kpiLabels).forEach(function (id) {
+        const labelEl = document.querySelector("#" + id + " .dashboard-kpi-label");
+        if (labelEl) labelEl.textContent = kpiLabels[id];
+      });
+    }
+
     function rerender() {
       persistState();
       renderFilters();
@@ -878,7 +915,7 @@ export function buildDashboardWebviewScript(
     document.getElementById("btn-create-task").addEventListener("click", function () {
       const text = newTaskText.value.trim();
       if (!text) {
-        setAiStatus("error", "Task text is required.");
+        setAiStatus("error", UI('taskTextRequired'));
         return;
       }
 
@@ -927,7 +964,7 @@ export function buildDashboardWebviewScript(
 
     document.getElementById("btn-ai-extract").addEventListener("click", function () {
       mergeCandidateBatch("moments", []);
-      setAiStatus("processing", state.notesFromDate + " ～ " + state.notesToDate + " の Moments を分析しています...");
+      setAiStatus("processing", UI('aiMomentsProcessing', { from: state.notesFromDate, to: state.notesToDate }));
       rerender();
       vscode.postMessage({
         command: "aiExtract",
@@ -939,7 +976,7 @@ export function buildDashboardWebviewScript(
 
     document.getElementById("btn-extract-notes").addEventListener("click", function () {
       mergeCandidateBatch("notes", []);
-      setNotesAiStatus("processing", state.notesFromDate + " ～ " + state.notesToDate + " のノートを分析しています...");
+      setNotesAiStatus("processing", UI('aiNotesProcessing', { from: state.notesFromDate, to: state.notesToDate }));
       rerender();
       vscode.postMessage({
         command: "extractFromNotes",
@@ -1211,7 +1248,9 @@ export function buildDashboardWebviewScript(
       if (message.type === "dashboardData") {
         if (message.data) {
           dashboardData = message.data;
+          currentLocale = dashboardData.locale || currentLocale;
           populateModelSelector();
+          applyStaticStrings();
           syncStaticInputs();
           rerender();
         }
@@ -1220,6 +1259,7 @@ export function buildDashboardWebviewScript(
     });
 
     populateModelSelector();
+    applyStaticStrings();
     syncStaticInputs();
     rerender();
   </script>`;
