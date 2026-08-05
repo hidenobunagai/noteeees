@@ -369,6 +369,11 @@
           "type": "boolean",
           "default": false,
           "description": "ファイル保存時に自動で AI タスクエンリッチを実行する。GitHub Copilot が必要です。"
+        },
+        "notes.statusBarTasks": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show the Tasks status bar item that opens the Task Dashboard. Set to false to hide it."
         }
       }
     }

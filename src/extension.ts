@@ -23,6 +23,7 @@ import {
   getMomentsArchiveAfterDaysSetting,
   getMomentsSubfolderSetting,
   getSidebarTagSortSetting,
+  getStatusBarTasksSetting,
   getWorkspaceNotesDirectorySetting,
   updateLegacyNotesDirectorySetting,
   updateSidebarTagSortSetting,
@@ -334,7 +335,14 @@ export function activate(context: vscode.ExtensionContext) {
   aiStatusBar.text = "$(checklist) Tasks";
   aiStatusBar.tooltip = "Open Task Dashboard";
   aiStatusBar.command = "notes.openDashboard";
-  aiStatusBar.show();
+  const syncStatusBarVisibility = () => {
+    if (getStatusBarTasksSetting()) {
+      aiStatusBar.show();
+    } else {
+      aiStatusBar.hide();
+    }
+  };
+  syncStatusBarVisibility();
   context.subscriptions.push(aiStatusBar);
 
   DashboardPanel.setStatusListener((processing) => {
@@ -377,6 +385,10 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(onSaveDisposable);
 
   const configChangeDisposable = vscode.workspace.onDidChangeConfiguration((event) => {
+    if (affectsNotesConfiguration(event, "statusBarTasks")) {
+      syncStatusBarVisibility();
+    }
+
     if (
       affectsNotesConfiguration(event, "notesDirectory") ||
       affectsNotesConfiguration(event, WORKSPACE_NOTES_DIRECTORY_KEY)

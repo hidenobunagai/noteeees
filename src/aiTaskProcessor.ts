@@ -75,15 +75,25 @@ function parseExtractedTasks(raw: string): ExtractedTask[] | null {
   return null;
 }
 
+let cachedModels: { models: CopilotModel[]; at: number } | undefined;
+const MODELS_CACHE_TTL_MS = 60_000;
+
 export async function listCopilotModels(): Promise<CopilotModel[]> {
+  const now = Date.now();
+  if (cachedModels && now - cachedModels.at < MODELS_CACHE_TTL_MS) {
+    return cachedModels.models;
+  }
+
   try {
     const models = await vscode.lm.selectChatModels({ vendor: "copilot" });
-    return models.map((model) => ({
+    const mapped = models.map((model) => ({
       id: model.id,
       name: model.name,
       vendor: model.vendor,
       family: model.family,
     }));
+    cachedModels = { models: mapped, at: now };
+    return mapped;
   } catch {
     return [];
   }

@@ -23,7 +23,8 @@ export type NotesConfigKey =
   | "momentsArchiveAfterDays"
   | "dailyNoteTemplate"
   | "workspaceNotesDirectory"
-  | "ai.autoEnrich";
+  | "ai.autoEnrich"
+  | "statusBarTasks";
 
 function getNotesConfiguration(): vscode.WorkspaceConfiguration {
   return vscode.workspace.getConfiguration("notes");
@@ -122,4 +123,8 @@ export function getDailyNoteTemplateSetting(): string | undefined {
 
 export function getAiAutoEnrichSetting(): boolean {
   return getNotesConfiguration().get<boolean>("ai.autoEnrich") ?? false;
+}
+
+export function getStatusBarTasksSetting(): boolean {
+  return getNotesConfiguration().get<boolean>("statusBarTasks") ?? true;
 }
