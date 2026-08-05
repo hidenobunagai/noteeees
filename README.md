@@ -152,6 +152,7 @@ When `notes.templates` is set, a picker will appear on note creation to choose b
 | `notes.momentsInboxFilter` | Default filter for the Moments Inbox (`all`, `open`, or `done`) |
 | `notes.momentsFeedDays` | Number of days shown in the stacked Moments feed (`1`-`30`) |
 | `notes.ai.autoEnrich` | Auto-run AI task enrichment on file save (requires GitHub Copilot) |
+| `notes.statusBarTasks` | Show the `Tasks` status bar item that opens the Task Dashboard (`true` by default) |
 
 ## Supercharge with MCP
 
@@ -185,12 +186,15 @@ bun run test:mcp
       "command": "bun",
       "args": ["/path/to/noteeees/notes-mcp/dist/notes-mcp/src/index.js"],
       "env": {
-        "NOTES_DIRECTORY": "/path/to/your/notes/directory"
+        "NOTES_DIRECTORY": "/path/to/your/notes/directory",
+        "MOMENTS_SUBFOLDER": "moments"
       }
     }
   }
 }
 ```
+
+`MOMENTS_SUBFOLDER` is optional and defaults to `moments`. Set it only if you customized `notes.momentsSubfolder` in the extension so the MCP server stays in sync.
 
 ### Available Tools
 

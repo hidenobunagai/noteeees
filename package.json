@@ -49,6 +49,14 @@
             "media": {
               "markdown": "assets/walkthrough-moments.md"
             }
+          },
+          {
+            "id": "dashboard",
+            "title": "Open the Task Dashboard",
+            "description": "Turn Moments and notes into structured tasks, triage them by due date, and let AI extract action items automatically.\n[Open Dashboard](command:notes.openDashboard)",
+            "media": {
+              "markdown": "assets/walkthrough-dashboard.md"
+            }
           }
         ]
       }
