@@ -144,6 +144,15 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
           break;
         }
 
+        case "openInbox": {
+          if (!notesDir) {
+            this._showError("Notes directory is not configured.");
+            return;
+          }
+          void vscode.commands.executeCommand("notes.showOpenTasksOverview");
+          break;
+        }
+
         case "openFile": {
           if (!notesDir) {
             return;
@@ -305,6 +314,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline';">
 <title>Moments</title>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -1718,6 +1728,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
   }
 
   openFileBtn.addEventListener('click', () => vscode.postMessage({ command: 'openFile' }));
+  inboxBtn.addEventListener('click', () => vscode.postMessage({ command: 'openInbox' }));
   timeline.addEventListener('scroll', () => {
     maybeLoadOlderEntries();
   }, { passive: true });
