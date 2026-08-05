@@ -24,7 +24,11 @@ let openDb: Database | null = null;
 function getDb(notesDir: string): Database {
   if (openDb) return openDb;
   // Cache DB lives in the OS temp dir so the notes directory stays clean.
-  const dirHash = crypto.createHash("sha1").update(path.resolve(notesDir)).digest("hex").slice(0, 16);
+  const dirHash = crypto
+    .createHash("sha1")
+    .update(path.resolve(notesDir))
+    .digest("hex")
+    .slice(0, 16);
   const dbPath = path.join(os.tmpdir(), `noteeees-index-${dirHash}.db`);
   openDb = new Database(dbPath, { create: true });
   openDb.exec(SCHEMA);
