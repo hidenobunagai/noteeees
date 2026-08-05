@@ -1,7 +1,6 @@
 import * as fs from "fs/promises";
 import * as path from "path";
 import * as vscode from "vscode";
-import { collectNoteFiles as sharedCollectNoteFiles } from "../shared/collectNoteFiles.js";
 import { enrichTasksInFile } from "./dashboardAiEnrichment.js";
 import { DashboardPanel } from "./dashboardPanel";
 import { isPathInside } from "./dashboardTaskUtils.js";
@@ -9,13 +8,13 @@ import { archiveMoments } from "./moments/fileIo.js";
 import { MomentsViewProvider } from "./moments/panel.js";
 import { showOpenTasksOverview } from "./moments/taskOverview.js";
 import {
-  buildIndexedNotes,
   createNewNote,
   type IndexedNote,
   listNotes,
   openDailyNote,
   pickIndexedNote,
 } from "./noteCommands";
+import { getIndexedNotesCached } from "./notesIndexCache.js";
 import {
   affectsNotesConfiguration,
   getAiAutoEnrichSetting,
@@ -179,13 +178,9 @@ export function activate(context: vscode.ExtensionContext) {
 
   async function getIndexedNotes(notesDir: string) {
     const momentsSubfolder = getMomentsSubfolderSetting();
-    const collected = await sharedCollectNoteFiles(notesDir, [momentsSubfolder]);
-    const noteFiles = collected.map((file) => ({
-      relativePath: file.relativePath,
-      absolutePath: file.filePath,
-      mtime: file.mtime,
-    }));
-    return (await buildIndexedNotes(noteFiles)).sort((a, b) => b.mtime - a.mtime);
+    return (await getIndexedNotesCached(notesDir, [momentsSubfolder])).sort(
+      (a, b) => b.mtime - a.mtime,
+    );
   }
 
   async function searchTags(notesDir: string): Promise<void> {

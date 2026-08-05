@@ -1,7 +1,7 @@
 import * as path from "path";
 import * as vscode from "vscode";
-import { collectNoteFiles as sharedCollectNoteFiles } from "../shared/collectNoteFiles.js";
-import { buildIndexedNotes, buildQueryExcerpt, type IndexedNote } from "./noteCommands";
+import { buildQueryExcerpt, type IndexedNote } from "./noteCommands";
+import { getIndexedNotesCached } from "./notesIndexCache.js";
 import { getMomentsSubfolderSetting, getSidebarRecentLimitSetting } from "./notesConfig.js";
 
 export type SidebarTagSortMode = "frequency" | "alphabetical";
@@ -268,13 +268,7 @@ export class NotesTreeProvider implements vscode.TreeDataProvider<NoteTreeItem> 
 
   private async _getSidebarNotes(notesDir: string): Promise<SidebarNoteItem[]> {
     const momentsSubfolder = getMomentsSubfolderSetting();
-    const collected = await sharedCollectNoteFiles(notesDir, [momentsSubfolder]);
-    const noteFiles = collected.map((file) => ({
-      relativePath: file.relativePath,
-      absolutePath: file.filePath,
-      mtime: file.mtime,
-    }));
-    const indexedNotes = await buildIndexedNotes(noteFiles);
+    const indexedNotes = await getIndexedNotesCached(notesDir, [momentsSubfolder]);
 
     return indexedNotes
       .sort((a, b) => b.mtime - a.mtime)

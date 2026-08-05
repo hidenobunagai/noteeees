@@ -1,9 +1,9 @@
 import * as fs from "fs/promises";
 import * as path from "path";
 import * as vscode from "vscode";
-import { collectNoteFiles as sharedCollectNoteFiles } from "../shared/collectNoteFiles.js";
 import { resolveUniqueFilePath } from "../shared/pathSafety.js";
 import { formatDateString, formatTimeHM } from "./dashboardTaskUtils.js";
+import { getIndexedNotesCached } from "./notesIndexCache.js";
 import {
   getDefaultNoteTitleSetting,
   getDefaultSnippetSetting,
@@ -542,25 +542,19 @@ export async function openDailyNote(notesDir: string, templatePath?: string): Pr
 
 export async function listNotes(notesDir: string): Promise<void> {
   const momentsSubfolder = getMomentsSubfolderSetting();
-  const collected = await sharedCollectNoteFiles(notesDir, [momentsSubfolder]);
-  const noteFiles = collected.map((file) => ({
-    relativePath: file.relativePath,
-    absolutePath: file.filePath,
-    mtime: file.mtime,
-  }));
+  const indexedNotes = await getIndexedNotesCached(notesDir, [momentsSubfolder]);
 
-  if (noteFiles.length === 0) {
+  if (indexedNotes.length === 0) {
     vscode.window.showInformationMessage("No notes found.");
     return;
   }
 
   // Sort by modification time, newest first
-  noteFiles.sort((a, b) => b.mtime - a.mtime);
+  indexedNotes.sort((a, b) => b.mtime - a.mtime);
 
-  const indexedNotes = await buildIndexedNotes(noteFiles);
   const selected = await pickIndexedNote(
     indexedNotes,
-    `${noteFiles.length} notes found. Search by title, path, tag, or body text.`,
+    `${indexedNotes.length} notes found. Search by title, path, tag, or body text.`,
   );
 
   if (selected) {
