@@ -11,6 +11,7 @@ import {
   ensureMomentsFile,
   getMomentsFilePath,
   saveMomentEdit,
+  searchMomentsFeed,
 } from "./fileIo.js";
 import { formatDateString } from "../dashboardTaskUtils.js";
 
@@ -28,6 +29,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
   private readonly _extensionUri: vscode.Uri;
   private readonly _context: vscode.ExtensionContext;
   private _feedSectionCount = getMomentsFeedDayCount();
+  private _anchorDate = formatDateString(new Date());
 
   constructor(
     getNotesDir: () => string | undefined,
@@ -71,6 +73,42 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
           break;
         }
 
+        case "refreshFeed": {
+          this._sendEntries();
+          break;
+        }
+
+        case "jumpToDate": {
+          if (typeof message.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(message.date)) {
+            this._anchorDate = message.date;
+            this._feedSectionCount = Math.max(1, getMomentsFeedDayCount());
+          }
+          this._sendEntries();
+          break;
+        }
+
+        case "jumpToToday": {
+          this._anchorDate = formatDateString(new Date());
+          this._feedSectionCount = Math.max(1, getMomentsFeedDayCount());
+          this._sendEntries();
+          break;
+        }
+
+        case "searchMoments": {
+          const query = typeof message.query === "string" ? message.query : "";
+          const feed = notesDir ? await searchMomentsFeed(notesDir, query) : { sections: [], hasMoreOlder: false };
+          this._view?.webview.postMessage({
+            command: "update",
+            sections: feed.sections,
+            sendOnEnter: getMomentsSendOnEnterSetting(),
+            todayDate: formatDateString(new Date()),
+            anchorDate: this._anchorDate,
+            pinnedEntries: [],
+            hasMoreOlder: false,
+          });
+          break;
+        }
+
         case "addMoment": {
           if (!notesDir) {
             this._showError("Notes directory is not configured.");
@@ -81,6 +119,9 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
             return;
           }
           await appendMoment(notesDir, formatDateString(new Date()), message.text);
+          // Jump back to today so the new entry is visible.
+          this._anchorDate = formatDateString(new Date());
+          this._feedSectionCount = Math.max(this._feedSectionCount, getMomentsFeedDayCount());
           this._sendEntries();
           break;
         }
@@ -278,8 +319,9 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     const today = formatDateString(new Date());
     const feedSectionCount = Math.max(this._feedSectionCount, getMomentsFeedDayCount());
     this._feedSectionCount = feedSectionCount;
+    const anchorDate = this._anchorDate;
     const feed = notesDir
-      ? await collectMomentsFeed(notesDir, today, feedSectionCount)
+      ? await collectMomentsFeed(notesDir, anchorDate, feedSectionCount)
       : { sections: [], hasMoreOlder: false };
     const sections = feed.sections;
     const sendOnEnter = getMomentsSendOnEnterSetting();
@@ -289,6 +331,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
       sections,
       sendOnEnter,
       todayDate: today,
+      anchorDate,
       pinnedEntries: resolvePinnedEntries(this._getPinnedEntries(), sections),
       hasMoreOlder: feed.hasMoreOlder,
     });
@@ -1090,6 +1133,15 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     opacity: 0.8;
     color: var(--vscode-foreground);
   }
+
+  #jumpDateInput {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+    width: 1px;
+    height: 1px;
+    clip: rect(0 0 0 0);
+  }
 </style>
 </head>
 <body>
@@ -1109,6 +1161,11 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
       <button class="open-btn" id="openFileBtn" title="Open today's file" aria-label="Open today's file">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
       </button>
+      <button class="nav-btn" id="jumpDateBtn" title="Jump to date" aria-label="Jump to date">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+      </button>
+      <input type="date" id="jumpDateInput" aria-label="Jump to date" />
+      <button class="nav-btn" id="backToTodayBtn" title="Back to today" aria-label="Back to today" style="display:none">Today</button>
       <button class="open-btn export-btn" id="exportBtn" title="Export selected" aria-label="Export selected entries">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"></path><polyline points="16 6 12 2 8 6"></polyline><line x1="12" y1="2" x2="12" y2="15"></line></svg>
       </button>
@@ -1170,6 +1227,9 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
   const allBtn = document.getElementById('allBtn');
   const activeTagBtn = document.getElementById('activeTagBtn');
   const openFileBtn = document.getElementById('openFileBtn');
+  const jumpDateBtn = document.getElementById('jumpDateBtn');
+  const jumpDateInput = document.getElementById('jumpDateInput');
+  const backToTodayBtn = document.getElementById('backToTodayBtn');
   const errorBanner = document.getElementById('errorBanner');
   const searchInput = document.getElementById('searchInput');
   const clearSearch = document.getElementById('clearSearch');
@@ -1191,6 +1251,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
   let hasMoreOlder = false;
   let loadingOlder = false;
   let todayDate = '';
+  let anchorDate = '';
   const momentTagPattern = ${JSON.stringify(MOMENT_TAG_PATTERN)};
 
   // Notify extension we're ready
@@ -1203,10 +1264,12 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
       sendOnEnter = msg.sendOnEnter;
       latestSections = msg.sections;
       todayDate = msg.todayDate || '';
+      anchorDate = msg.anchorDate || todayDate;
       currentPinnedEntries = msg.pinnedEntries || [];
       hasMoreOlder = Boolean(msg.hasMoreOlder);
       loadingOlder = false;
-      updateTopbar(todayDate, latestSections);
+      updateTopbar(todayDate, latestSections, anchorDate);
+      updateAnchorChip(anchorDate, todayDate);
       if (
         editingEntryKey !== null
         && !latestSections.some((section) => section.entries.some((entry) => (section.date + ':' + entry.index) === editingEntryKey))
@@ -1235,12 +1298,14 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     setTimeout(() => { errorBanner.style.display = 'none'; }, 4000);
   }
 
-  function updateTopbar(dateStr, sections) {
+  function updateTopbar(dateStr, sections, anchorDate) {
     // Format date label
-    if (dateStr) {
-      const d = new Date(dateStr + 'T00:00:00');
+    const anchor = anchorDate || dateStr;
+    if (anchor) {
+      const d = new Date(anchor + 'T00:00:00');
       const opts = { month: 'short', day: 'numeric', year: 'numeric' };
-      topbarDate.textContent = d.toLocaleDateString('en-US', opts) + ' · Today';
+      const label = d.toLocaleDateString('en-US', opts);
+      topbarDate.textContent = anchor === dateStr ? label + ' · Today' : label;
     } else {
       topbarDate.textContent = '';
     }
@@ -1258,6 +1323,10 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     // Highlight allBtn as active (default view)
     allBtn.classList.add('active');
     allBtn.setAttribute('aria-pressed', 'true');
+  }
+
+  function updateAnchorChip(anchorDate, todayDate) {
+    backToTodayBtn.style.display = anchorDate && anchorDate !== todayDate ? '' : 'none';
   }
 
   // ---- Render ----
@@ -1729,6 +1798,24 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
 
   openFileBtn.addEventListener('click', () => vscode.postMessage({ command: 'openFile' }));
   inboxBtn.addEventListener('click', () => vscode.postMessage({ command: 'openInbox' }));
+
+  jumpDateBtn.addEventListener('click', () => {
+    if (typeof jumpDateInput.showPicker === 'function') {
+      jumpDateInput.showPicker();
+    } else {
+      jumpDateInput.click();
+    }
+  });
+  jumpDateInput.addEventListener('change', () => {
+    if (jumpDateInput.value) {
+      vscode.postMessage({ command: 'jumpToDate', date: jumpDateInput.value });
+    }
+    jumpDateInput.value = '';
+  });
+  backToTodayBtn.addEventListener('click', () => {
+    vscode.postMessage({ command: 'jumpToToday' });
+  });
+
   timeline.addEventListener('scroll', () => {
     maybeLoadOlderEntries();
   }, { passive: true });
@@ -1741,18 +1828,37 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     renderTimeline(latestSections);
   });
 
+  let searchDebounceTimer = null;
+
   searchInput.addEventListener('input', () => {
-    currentSearchText = searchInput.value.toLowerCase();
-    clearSearch.style.display = currentSearchText ? '' : 'none';
-    renderTimeline(latestSections);
+    const query = searchInput.value;
+    clearSearch.style.display = query ? '' : 'none';
+    if (searchDebounceTimer) {
+      clearTimeout(searchDebounceTimer);
+    }
+    searchDebounceTimer = setTimeout(() => {
+      const trimmed = query.trim();
+      if (trimmed) {
+        currentSearchText = trimmed.toLowerCase();
+        pendingScrollMode = 'top';
+        vscode.postMessage({ command: 'searchMoments', query });
+      } else {
+        currentSearchText = '';
+        vscode.postMessage({ command: 'refreshFeed' });
+      }
+    }, 250);
   });
 
   clearSearch.addEventListener('click', () => {
+    if (searchDebounceTimer) {
+      clearTimeout(searchDebounceTimer);
+      searchDebounceTimer = null;
+    }
     searchInput.value = '';
     currentSearchText = '';
     clearSearch.style.display = 'none';
     searchInput.focus();
-    renderTimeline(latestSections);
+    vscode.postMessage({ command: 'refreshFeed' });
   });
 
   function updateExportBar() {

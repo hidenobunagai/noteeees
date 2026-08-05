@@ -293,6 +293,43 @@ export async function collectMomentsFeed(
   };
 }
 
+/**
+ * Searches every Moments file (not just the recent feed) for entries whose
+ * text contains the query. Sections are returned newest date first.
+ */
+export async function searchMomentsFeed(
+  notesDir: string,
+  query: string,
+): Promise<MomentsFeedData> {
+  const today = todayDateString();
+  const needle = query.trim().toLowerCase();
+  const sections: MomentDaySection[] = [];
+
+  if (!needle) {
+    return { sections, hasMoreOlder: false };
+  }
+
+  const fileDates = await listMomentFileDates(notesDir);
+
+  for (const date of fileDates) {
+    const entries = (await readMoments(notesDir, date)).filter((entry) =>
+      entry.text.toLowerCase().includes(needle),
+    );
+    if (entries.length === 0) {
+      continue;
+    }
+
+    sections.push({
+      date,
+      dateLabel: buildMomentsDateLabel(date, today),
+      isToday: date === today,
+      entries,
+    });
+  }
+
+  return { sections, hasMoreOlder: false };
+}
+
 export async function ensureMomentsFile(notesDir: string, date: string): Promise<string> {
   const filePath = getMomentsFilePath(notesDir, date);
   const dir = path.dirname(filePath);

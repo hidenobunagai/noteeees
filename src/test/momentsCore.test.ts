@@ -12,6 +12,7 @@ import {
   mapMomentBodyIndexToFileLine,
   readMoments,
   saveMomentEdit,
+  searchMomentsFeed,
   toggleMomentTaskLine,
 } from "../moments/fileIo";
 import {
@@ -388,5 +389,39 @@ suite("Moments Core Test Suite", () => {
   test("normalizeInboxTaskFilter treats empty string as invalid and returns all", () => {
     assert.strictEqual(normalizeInboxTaskFilter(""), "all");
     assert.strictEqual(normalizeInboxTaskFilter("open"), "open");
+  });
+
+  test("searchMomentsFeed matches across all dates newest first", async () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "noteeees-moments-"));
+    try {
+      await appendMoment(tmpDir, "2026-03-05", "alpha note");
+      await appendMoment(tmpDir, "2026-03-06", "beta note");
+      await appendMoment(tmpDir, "2026-03-07", "ALPHA uppercase");
+
+      const matches = await searchMomentsFeed(tmpDir, "alpha");
+      assert.deepStrictEqual(
+        matches.sections.map((s) => s.date),
+        ["2026-03-07", "2026-03-05"],
+      );
+      assert.strictEqual(matches.sections[0].entries.length, 1);
+      assert.strictEqual(matches.sections[0].entries[0].text, "ALPHA uppercase");
+
+      const none = await searchMomentsFeed(tmpDir, "gamma");
+      assert.strictEqual(none.sections.length, 0);
+      assert.strictEqual(none.hasMoreOlder, false);
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  test("searchMomentsFeed returns empty sections for blank query", async () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "noteeees-moments-"));
+    try {
+      await appendMoment(tmpDir, "2026-03-07", "hello world");
+      const result = await searchMomentsFeed(tmpDir, "   ");
+      assert.deepStrictEqual(result.sections, []);
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
   });
 });
