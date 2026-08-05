@@ -178,17 +178,21 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       return textResult(
-        filtered.slice(0, toBoundedInt(limit, 10, 1, 200)).map(({ filePath: _, content, ...rest }) => ({
-          ...rest,
-          snippet: extractSnippet(content, tokens),
-        })),
+        filtered
+          .slice(0, toBoundedInt(limit, 10, 1, 200))
+          .map(({ filePath: _, content, ...rest }) => ({
+            ...rest,
+            snippet: extractSnippet(content, tokens),
+          })),
       );
     }
 
     case "get_recent_notes": {
       const { limit = 10 } = request.params.arguments as { limit?: number };
       return textResult(
-        entries.slice(0, toBoundedInt(limit, 10, 1, 200)).map(({ filePath: _, content: __, ...rest }) => rest),
+        entries
+          .slice(0, toBoundedInt(limit, 10, 1, 200))
+          .map(({ filePath: _, content: __, ...rest }) => rest),
       );
     }
 
@@ -215,7 +219,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       };
       const filtered = entries.filter((e) => noteMatchesDateRange(e, from, to));
       return textResult(
-        filtered.slice(0, toBoundedInt(limit, 20, 1, 200)).map(({ filePath: _, content: __, ...rest }) => rest),
+        filtered
+          .slice(0, toBoundedInt(limit, 20, 1, 200))
+          .map(({ filePath: _, content: __, ...rest }) => rest),
       );
     }
 
@@ -396,7 +402,12 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       await _syncTasksIfNeeded(notesDir);
       // 0 keeps its documented "unlimited" meaning; positive values are clamped.
       const safeLimit = limit === 0 ? 0 : toBoundedInt(limit, 50, 1, 500);
-      const tasks = queryTasks(notesDir, { status, dateFrom: date_from, dateTo: date_to, limit: safeLimit });
+      const tasks = queryTasks(notesDir, {
+        status,
+        dateFrom: date_from,
+        dateTo: date_to,
+        limit: safeLimit,
+      });
       return textResult(tasks);
     }
 
