@@ -19,6 +19,7 @@ import {
   enforceMaxContentSize,
   isPathInside,
   resolveSafeFilePath,
+  resolveUniqueFilePath,
   sanitizeTitle,
 } from "./pathSafety.js";
 import {
@@ -43,6 +44,10 @@ function getNotesDir(): string {
     throw new Error("NOTES_DIRECTORY environment variable not set");
   }
   return path.resolve(notesDir);
+}
+
+function getMomentsSubfolder(): string {
+  return process.env.MOMENTS_SUBFOLDER || "moments";
 }
 
 function pad(n: number): string {
@@ -83,7 +88,7 @@ function buildNoteContent(
 }
 
 function getMomentsFilePath(notesDir: string, date: string): string {
-  return path.join(notesDir, "moments", `${date}.md`);
+  return path.join(notesDir, getMomentsSubfolder(), `${date}.md`);
 }
 
 const MOMENTS_FRONT_MATTER_TEMPLATE = (date: string) =>
@@ -112,7 +117,7 @@ async function _syncTasksIfNeeded(notesDir: string): Promise<void> {
   } catch {
     return;
   }
-  const collected = await sharedCollectNoteFiles(notesDir, ["moments"]);
+  const collected = await sharedCollectNoteFiles(notesDir, [getMomentsSubfolder()]);
   const diskFiles: { filePath: string; mtime: number; content: string }[] = [];
 
   for (const file of collected) {
@@ -173,7 +178,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       }
 
       return textResult(
-        filtered.slice(0, limit).map(({ filePath: _, content, ...rest }) => ({
+        filtered.slice(0, toBoundedInt(limit, 10, 1, 200)).map(({ filePath: _, content, ...rest }) => ({
           ...rest,
           snippet: extractSnippet(content, tokens),
         })),
@@ -183,7 +188,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     case "get_recent_notes": {
       const { limit = 10 } = request.params.arguments as { limit?: number };
       return textResult(
-        entries.slice(0, limit).map(({ filePath: _, content: __, ...rest }) => rest),
+        entries.slice(0, toBoundedInt(limit, 10, 1, 200)).map(({ filePath: _, content: __, ...rest }) => rest),
       );
     }
 
@@ -210,13 +215,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       };
       const filtered = entries.filter((e) => noteMatchesDateRange(e, from, to));
       return textResult(
-        filtered.slice(0, limit).map(({ filePath: _, content: __, ...rest }) => rest),
+        filtered.slice(0, toBoundedInt(limit, 20, 1, 200)).map(({ filePath: _, content: __, ...rest }) => rest),
       );
     }
 
     case "list_notes": {
       const { limit = 50 } = request.params.arguments as { limit?: number };
-      const items = limit === 0 ? entries : entries.slice(0, limit);
+      // 0 keeps its documented "all notes" meaning; positive values are clamped.
+      const items = limit === 0 ? entries : entries.slice(0, toBoundedInt(limit, 50, 1, 200));
       return textResult(items.map(({ filePath: _, content: __, ...rest }) => rest));
     }
 
@@ -307,7 +313,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         return textResult({ error: `Invalid subfolder: ${subfolder}` });
       }
       await fs.mkdir(targetDir, { recursive: true });
-      const filePath = path.join(targetDir, filename);
+      const filePath = await resolveUniqueFilePath(targetDir, filename);
       const body = buildNoteContent(title, content, tags);
       await fs.writeFile(filePath, body, "utf8");
       clearSearchIndexCache();
@@ -338,7 +344,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
 
       const existing = await fs.readFile(filePath, "utf8");
       const separator = existing.endsWith("\n") ? "\n" : "\n\n";
-      await fs.writeFile(filePath, `${existing}${separator}${appendContent}\n`, "utf8");
+      await fs.appendFile(filePath, `${separator}${appendContent}\n`, "utf8");
       clearSearchIndexCache();
 
       return textResult({ appended: targetFilename });
@@ -369,7 +375,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const line = `- ${time} ${text}`;
       const existing = await fs.readFile(filePath, "utf8");
       const separator = existing.endsWith("\n") ? "" : "\n";
-      await fs.writeFile(filePath, `${existing}${separator}${line}\n`, "utf8");
+      await fs.appendFile(filePath, `${separator}${line}\n`, "utf8");
       clearSearchIndexCache();
 
       return textResult({ added: line, date: targetDate });
@@ -388,7 +394,9 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         limit?: number;
       };
       await _syncTasksIfNeeded(notesDir);
-      const tasks = queryTasks(notesDir, { status, dateFrom: date_from, dateTo: date_to, limit });
+      // 0 keeps its documented "unlimited" meaning; positive values are clamped.
+      const safeLimit = limit === 0 ? 0 : toBoundedInt(limit, 50, 1, 500);
+      const tasks = queryTasks(notesDir, { status, dateFrom: date_from, dateTo: date_to, limit: safeLimit });
       return textResult(tasks);
     }
 
@@ -451,7 +459,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const taskLine = `- [ ] ${taskText}`;
       const existingTaskContent = await fs.readFile(taskFilePath, "utf8");
       const sep = existingTaskContent.endsWith("\n") ? "" : "\n";
-      await fs.writeFile(taskFilePath, `${existingTaskContent}${sep}${taskLine}\n`, "utf8");
+      await fs.appendFile(taskFilePath, `${sep}${taskLine}\n`, "utf8");
       const taskStat = await fs.stat(taskFilePath);
       const taskFileContent = await fs.readFile(taskFilePath, "utf8");
       const newTasks = parseTasksFromFile(taskFilePath, taskFileContent, taskStat.mtimeMs);

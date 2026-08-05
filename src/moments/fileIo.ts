@@ -317,10 +317,8 @@ export async function appendMoment(notesDir: string, date: string, text: string)
   const entry = `- ${time} ${entryText}\n`;
 
   let content = await fs.readFile(filePath, "utf8");
-  if (!content.endsWith("\n")) {
-    content += "\n";
-  }
-  await fs.writeFile(filePath, content + entry, "utf8");
+  const prefix = content.endsWith("\n") ? "" : "\n";
+  await fs.appendFile(filePath, `${prefix}${entry}`, "utf8");
 }
 
 export async function saveMomentEdit(

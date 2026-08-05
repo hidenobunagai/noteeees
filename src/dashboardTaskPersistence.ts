@@ -123,9 +123,9 @@ export async function createDashboardTask(
   const taskFile = await ensureDashboardTaskFile(notesDir, targetDate);
   const existing = await fs.readFile(taskFile, "utf8");
   const prefix = existing.endsWith("\n") ? "" : "\n";
-  await fs.writeFile(
+  await fs.appendFile(
     taskFile,
-    `${existing}${prefix}${buildTaskMarkdownLine(false, normalizedText)}\n`,
+    `${prefix}${buildTaskMarkdownLine(false, normalizedText)}\n`,
     "utf8",
   );
   return "created";

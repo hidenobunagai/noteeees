@@ -1,7 +1,7 @@
-import { isPathInside } from "../../shared/pathSafety.js";
+import { isPathInside, resolveUniqueFilePath } from "../../shared/pathSafety.js";
 import * as path from "path";
 
-export { isPathInside };
+export { isPathInside, resolveUniqueFilePath };
 
 export function resolveSafeFilePath(notesDir: string, relativePath: string): string | null {
   const resolved = path.resolve(notesDir, relativePath);
