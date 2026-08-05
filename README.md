@@ -183,7 +183,7 @@ bun run test:mcp
     "notes-mcp": {
       "type": "stdio",
       "command": "bun",
-      "args": ["/path/to/noteeees/notes-mcp/dist/index.js"],
+      "args": ["/path/to/noteeees/notes-mcp/dist/notes-mcp/src/index.js"],
       "env": {
         "NOTES_DIRECTORY": "/path/to/your/notes/directory"
       }

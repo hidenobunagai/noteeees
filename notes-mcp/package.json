@@ -2,7 +2,7 @@
   "name": "notes-mcp",
   "version": "1.0.0",
   "description": "MCP server for Memory Notes",
-  "main": "dist/index.js",
+  "main": "dist/notes-mcp/src/index.js",
   "type": "module",
   "scripts": {
     "build": "tsc",

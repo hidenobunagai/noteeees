@@ -20,7 +20,7 @@ export function sanitizeTitle(title: string): string {
 // Input size limits — prevents DoS via huge payloads
 // ---------------------------------------------------------------------------
 
-export const MAX_CONTENT_SIZE = 1_048_576; // 1 MiB
+const MAX_CONTENT_SIZE = 1_048_576; // 1 MiB
 
 export function enforceMaxContentSize(
   value: unknown,
