@@ -404,8 +404,5 @@
     "prettier": "^3.8.1",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.52.0"
-  },
-  "dependencies": {
-    "@vscode/webview-ui-toolkit": "^1.4.0"
   }
 }

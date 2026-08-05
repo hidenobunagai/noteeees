@@ -50,7 +50,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
       enableScripts: true,
     };
 
-    webviewView.webview.html = this._getHtml(webviewView.webview);
+    webviewView.webview.html = this._getHtml();
 
     webviewView.webview.onDidReceiveMessage(async (message) => {
       const notesDir = this._getNotesDir();
@@ -297,10 +297,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     void this._context.globalState.update("moments.pinnedEntries", entries);
   }
 
-  private _getHtml(webview: vscode.Webview): string {
-    const toolkitUri = webview.asWebviewUri(
-      vscode.Uri.joinPath(this._extensionUri, "assets", "toolkit.min.js"),
-    );
+  private _getHtml(): string {
     const dueDatePatternSource = JSON.stringify(DUE_DATE_RE.source);
 
     return /* html */ `<!DOCTYPE html>
@@ -309,7 +306,6 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Moments</title>
-<script type="module" src="${toolkitUri}"></script>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
