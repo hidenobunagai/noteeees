@@ -4,6 +4,32 @@ All notable changes to the "notes" extension will be documented in this file.
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## [0.13.0] - 2026-08-05
+
+### Added
+
+- **Localization**: New `notes.locale` setting (`auto` / `en` / `ja`) selects the UI language for webviews, notifications, quick picks, and the status bar. `auto` follows the VS Code display language. Command titles, view names, walkthrough steps, and setting descriptions are localized via `package.nls.json` / `package.nls.ja.json`.
+- **Moments date jump**: Calendar button in the Moments topbar jumps the feed to any past date, with a "Back to today" chip to return.
+- **Moments full-range search**: Searching in the Moments panel now scans every Moments file instead of only the loaded recent feed.
+- **Status bar toggle**: New `notes.statusBarTasks` setting hides the Tasks status bar item.
+- **Walkthrough**: Added a Task Dashboard step to the welcome walkthrough.
+
+### Changed
+
+- **Dashboard refresh**: The dashboard webview now updates in place via `postMessage` instead of reloading the full HTML, preserving scroll position and focus during task toggles and file saves.
+- **Atomic appends**: Moments, task creation, and MCP `add_moment` / `add_task` / `append_to_note` use `fs.appendFile` (O_APPEND) instead of read-modify-write, preventing lost updates under concurrent writers.
+- **Sidebar performance**: Note indexing is cached by mtime (`notesIndexCache`), so sidebar refreshes no longer re-read every markdown file.
+- **Copilot model cache**: The model list is cached for 60 seconds instead of being re-queried on every dashboard refresh.
+- **MCP configuration**: `MOMENTS_SUBFOLDER` environment variable keeps the MCP server in sync with `notes.momentsSubfolder`. The task cache database moved from the notes directory to the OS temp directory.
+
+### Fixed
+
+- **Moments inbox button**: The "Task inbox" button in the Moments topbar was not wired to any action; it now opens the Moments Inbox overview.
+- **MCP `create_note`**: Resolves unique filenames so two notes created in the same second no longer overwrite each other.
+- **MCP limits**: `search_notes`, `get_recent_notes`, `get_notes_by_date`, `list_notes`, and `get_tasks` clamp oversized `limit` values.
+- **CSP**: The Moments panel now ships a Content-Security-Policy header.
+- **Template picker**: Template selection no longer depends on English label text, so it works correctly in Japanese.
+
 ## [0.12.0] - 2026-06-30
 
 ### Changed
