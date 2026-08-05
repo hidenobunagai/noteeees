@@ -1,6 +1,5 @@
 import * as crypto from "crypto";
-import { buildDashboardExtractSectionHtml } from "./dashboardExtractLayout.js";
-import { escHtml, toScriptData } from "./dashboardTaskUtils.js";
+import { escAttr, escHtml, shiftDate, toScriptData, todayDateString } from "./dashboardTaskUtils.js";
 import type { DashboardData } from "./dashboardTypes.js";
 import { buildDashboardWebviewCss } from "./dashboardWebviewCss.js";
 import { buildDashboardWebviewScript } from "./dashboardWebviewScript.js";
@@ -17,7 +16,7 @@ export function buildDashboardPanelHtml(data: DashboardData): string {
   const payload = toScriptData(data);
   const browserDueTokenPatternSource = JSON.stringify(DUE_DATE_TOKEN_RE.source);
 
-  const css = buildDashboardWebviewCss(nonce);
+  const css = buildDashboardWebviewCss();
   const script = buildDashboardWebviewScript(nonce, payload, browserDueTokenPatternSource);
 
   return `<!DOCTYPE html>
@@ -61,7 +60,35 @@ export function buildDashboardPanelHtml(data: DashboardData): string {
     </section>
 
     <section class="dash-extract-row" id="dash-extract-row">
-${buildDashboardExtractSectionHtml(data.today)}
+      <div class="dash-extract-main">
+        <button class="btn btn-extract" id="btn-ai-extract" type="button" title="過去7日間のMomentsから抽出">
+          <span class="extract-icon">✦</span> From Moments
+        </button>
+        <button class="btn btn-extract" id="btn-extract-notes" type="button" title="過去7日間のNotesから抽出">
+          <span class="extract-icon">📝</span> From Notes
+        </button>
+        <button class="btn btn-text" id="btn-extract-advanced" type="button" title="詳細設定">
+          <span class="extract-icon">⚙</span>
+        </button>
+      </div>
+
+      <div class="dash-extract-advanced" id="extract-advanced-panel" style="display: none;">
+        <div class="extract-model-select">
+          <label>AIモデル:</label>
+          <select id="ai-model-select">
+            <option value="">自動選択</option>
+          </select>
+        </div>
+        <div class="extract-date-range">
+          <label>期間:</label>
+          <input id="notes-from-date" type="date" value="${escAttr(shiftDate(todayDateString(), -7))}" />
+          <span>–</span>
+          <input id="notes-to-date" type="date" value="${escAttr(data.today)}" />
+        </div>
+      </div>
+
+      <span class="status-line" id="ai-status"></span>
+      <span class="status-line" id="notes-extract-status"></span>
     </section>
 
     <section class="candidate-block" id="candidate-block" style="display:none;">

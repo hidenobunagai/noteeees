@@ -37,7 +37,7 @@ export const SECTION_ORDER: Record<DashboardTaskSection, number> = {
 export const ATTENTION_SECTIONS = new Set<DashboardTaskSection>(["overdue", "today", "upcoming"]);
 const DASHBOARD_EMPTY_MESSAGE_SEPARATOR = "||";
 
-export function pad2(n: number): string {
+function pad2(n: number): string {
   return String(n).padStart(2, "0");
 }
 
@@ -57,7 +57,7 @@ export function todayDateString(): string {
   return formatDateString(new Date());
 }
 
-export function isIsoDateString(value: string | null | undefined): value is string {
+function isIsoDateString(value: string | null | undefined): value is string {
   return Boolean(value && ISO_DATE_RE.test(value));
 }
 
@@ -75,7 +75,7 @@ export function getRelativePathFromTaskId(taskId: string, fallbackFilePath: stri
   return colonIdx >= 0 ? taskId.slice(0, colonIdx) : path.basename(fallbackFilePath);
 }
 
-export function sanitizeTaskInputText(text: string): string {
+function sanitizeTaskInputText(text: string): string {
   return text
     .replace(/\r\n/g, "\n")
     .split("\n")
@@ -86,15 +86,11 @@ export function sanitizeTaskInputText(text: string): string {
     .trim();
 }
 
-export function normalizeDashboardTaskText(text: string): string {
-  return sanitizeTaskInputText(text);
-}
-
 export function normalizeExtractedTaskIdentity(text: string): string {
   return stripDashboardDueDate(text).normalize("NFKC").toLowerCase();
 }
 
-export function stripDashboardDueDate(text: string): string {
+function stripDashboardDueDate(text: string): string {
   return stripDueDateTokens(sanitizeTaskInputText(text));
 }
 
@@ -114,7 +110,7 @@ export function resolveDashboardTaskFile(notesDir: string, targetDate?: string |
     : path.join(taskDir, "inbox.md");
 }
 
-export function buildTaskFileHeader(targetDate: string | null): string {
+function buildTaskFileHeader(targetDate: string | null): string {
   return targetDate
     ? `---\ntype: tasks\ndate: ${targetDate}\n---\n\n`
     : `---\ntype: tasks\n---\n\n`;
@@ -173,7 +169,7 @@ export function shiftDate(baseDate: string, days: number): string {
   return formatDateString(d);
 }
 
-export function normalizeDashboardCandidateTask(value: unknown): DashboardCandidateTask | null {
+function normalizeDashboardCandidateTask(value: unknown): DashboardCandidateTask | null {
   if (!value || typeof value !== "object") {
     return null;
   }
@@ -209,36 +205,6 @@ export function normalizeDashboardCandidateTask(value: unknown): DashboardCandid
           : "Moments",
     existsAlready: Boolean(task.existsAlready),
     extractRunAt: typeof task.extractRunAt === "string" ? task.extractRunAt : undefined,
-  };
-}
-
-export function normalizeDashboardCandidateTaskForSource(
-  value: unknown,
-  fallbackSource: DashboardCandidateTask["source"],
-): DashboardCandidateTask | null {
-  if (!value || typeof value !== "object") {
-    return null;
-  }
-
-  const task = value as Partial<DashboardCandidateTask> & { sourceNote?: unknown };
-  const normalizedTask = normalizeDashboardCandidateTask(task);
-  if (!normalizedTask) {
-    return null;
-  }
-
-  const legacySourceLabel =
-    typeof task.sourceLabel === "string" && task.sourceLabel.trim().length > 0
-      ? task.sourceLabel
-      : typeof task.sourceNote === "string" && task.sourceNote.trim().length > 0
-        ? task.sourceNote
-        : fallbackSource === "notes"
-          ? "Notes"
-          : "Moments";
-
-  return {
-    ...normalizedTask,
-    source: fallbackSource,
-    sourceLabel: legacySourceLabel,
   };
 }
 

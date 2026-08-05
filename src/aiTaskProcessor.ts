@@ -169,49 +169,6 @@ ${text}`;
   }
 }
 
-export async function aggregateNoteContents(
-  mcpClient: McpClient,
-  fromDate: string,
-  toDate: string,
-  token: vscode.CancellationToken,
-): Promise<NoteContent[]> {
-  const result = await mcpClient.callTool("get_notes_by_date", {
-    from: fromDate,
-    to: toDate,
-    limit: 100,
-  });
-
-  const notes = JSON.parse(result.content[0].text) as Array<{
-    filename: string;
-    title: string;
-    tags: string[];
-    createdAt: string | null;
-  }>;
-
-  const contents: NoteContent[] = [];
-  for (const note of notes) {
-    if (token.isCancellationRequested) {
-      break;
-    }
-
-    try {
-      const contentResult = await mcpClient.callTool("get_note_content", {
-        filename: note.filename,
-      });
-      contents.push({
-        filename: note.filename,
-        title: note.title,
-        content: JSON.parse(contentResult.content[0].text) as string,
-        createdAt: note.createdAt,
-      });
-    } catch (e) {
-      console.warn(`Failed to fetch content for ${note.filename}:`, e);
-    }
-  }
-
-  return contents;
-}
-
 export interface ExtractedTaskWithSource extends ExtractedTask {
   sourceNote: string;
 }

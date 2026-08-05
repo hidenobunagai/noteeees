@@ -1,7 +1,5 @@
 import type {
   DashTask,
-  DashboardCandidateTask,
-  DashboardCandidateView,
   DashboardTaskSection,
   DashboardTaskView,
   WeekDay,
@@ -125,13 +123,4 @@ export function buildDashboardTaskViews(tasks: DashTask[], today: string): Dashb
       };
     })
     .sort(compareDashboardTasks);
-}
-
-export function buildDashboardCandidateViews(
-  tasks: DashboardCandidateTask[],
-): DashboardCandidateView[] {
-  return tasks.map((task, extractionIndex) => ({
-    ...task,
-    extractionIndex,
-  }));
 }

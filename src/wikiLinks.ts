@@ -87,10 +87,6 @@ async function getAllNoteFiles(notesDir: string): Promise<string[]> {
   return results;
 }
 
-export function invalidateNoteFileCache(): void {
-  noteFileCache = undefined;
-}
-
 function stripDatePrefix(stem: string): string {
   const match = stem.match(
     /^(\d{4}[-_]\d{2}[-_]\d{2}(?:[-_]\d{2}[-_]\d{2}(?:[-_]\d{2})?)?)[-_ ](.*)/,

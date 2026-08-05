@@ -1,5 +1,5 @@
 /** Dashboard webview CSS — injected inline via a <style nonce> block. */
-export function buildDashboardWebviewCss(_nonce: string): string {
+export function buildDashboardWebviewCss(): string {
   return `
   :root {
     --bg: var(--vscode-editor-background, #111827);

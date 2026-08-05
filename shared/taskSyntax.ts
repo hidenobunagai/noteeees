@@ -10,11 +10,6 @@ export function extractDueDate(text: string): string | null {
   return match ? match[1] : null;
 }
 
-export function extractDueDateToken(text: string): string | null {
-  const match = DUE_DATE_TOKEN_RE.exec(String(text ?? "").trim());
-  return match ? match[1] : null;
-}
-
 export function stripDueDateTokens(text: string): string {
   return String(text ?? "")
     .replace(DUE_DATE_STRIP_RE, "")
