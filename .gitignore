@@ -12,3 +12,5 @@ excalidraw.log
 .vscode/settings.json
 docs/
 .playwright-mcp/
+# Added by code-review-graph
+.code-review-graph/
