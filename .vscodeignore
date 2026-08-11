@@ -29,6 +29,23 @@ bunfig.toml
 .superpowers/
 .opencode/**
 
+# AI agent configs (not part of the extension runtime)
+.code-review-graph/
+.mcp.json
+CLAUDE.md
+CODEBUDDY.md
+GEMINI.md
+QODER.md
+.cursorrules
+.windsurfrules
+opencode.jsonc
+.claude/
+.codebuddy/
+.cursor/
+.gemini/
+.kiro/
+.qoder/
+
 # Docs / misc
 docs/
 CHANGELOG.md

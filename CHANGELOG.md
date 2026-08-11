@@ -4,6 +4,12 @@ All notable changes to the "notes" extension will be documented in this file.
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## [0.14.1] - 2026-08-11
+
+### Changed
+
+- **Packaging**: The published VSIX no longer bundles non-runtime files — the `.code-review-graph/` database (~6.4 MB) and AI agent configs (`CLAUDE.md`, `.cursorrules`, `.mcp.json`, `.claude/`, `.gemini/`, etc.). The extension package shrank from ~7.4 MB to ~1 MB.
+
 ## [0.14.0] - 2026-08-11
 
 ### Removed
