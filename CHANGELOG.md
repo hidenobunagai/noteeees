@@ -4,7 +4,7 @@ All notable changes to the "notes" extension will be documented in this file.
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
-## [Unreleased]
+## [0.14.0] - 2026-08-11
 
 ### Removed
 
