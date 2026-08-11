@@ -13,5 +13,5 @@
 		"noFallthroughCasesInSwitch": true,
 		"noUnusedParameters": true,
 	},
-	"exclude": ["dist", "node_modules", "notes-mcp", "out"]
+	"exclude": ["dist", "node_modules", "out"]
 }

@@ -1,4 +1,4 @@
-/** Core task fields shared between extension dashboard and MCP server. */
+/** Core task fields used by the extension dashboard and task views. */
 export interface BaseTask {
   id: string;
   filePath: string;

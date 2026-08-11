@@ -79,6 +79,12 @@ Moments are excluded from the regular Notes sidebar but are **fully searchable v
 
 The notes directory selected by `Run Setup` is stored in extension-local machine storage, so you only need to choose it once per machine and it does not bounce across your devices through synced settings. If you need a workspace-specific override, set `notes.workspaceNotesDirectory` in workspace settings. `notes.notesDirectory` remains only as a legacy fallback for older setups.
 
+### Tags
+
+Notes support tags in two ways:
+- **YAML front matter**: `tags: [todo, meeting]`
+- **Inline**: `#todo` anywhere in the note body
+
 ## Templates
 
 Templates use **VS Code snippets**. When you create a new note, the configured snippet is automatically inserted.
@@ -154,77 +160,3 @@ When `notes.templates` is set, a picker will appear on note creation to choose b
 | `notes.ai.autoEnrich` | Auto-run AI task enrichment on file save (requires GitHub Copilot) |
 | `notes.statusBarTasks` | Show the `Tasks` status bar item that opens the Task Dashboard (`true` by default) |
 | `notes.locale` | UI language for webviews and notifications: `auto` (follows VS Code), `en`, or `ja` |
-
-## Supercharge with MCP
-
-Turn Noteeees into an external memory for your AI agents (like GitHub Copilot, Claude Desktop, Cursor, etc.) by using the **Model Context Protocol (MCP)**.
-
-This repository includes `notes-mcp/`, an MCP server that exposes your notes to AI agents.
-
-### Setup
-
-1. Build the MCP server:
-   ```bash
-   cd notes-mcp && bun install && bun run build
-   ```
-
-For repository-level validation from the root, you can also run:
-
-```bash
-bun run compile:mcp
-bun run test:mcp
-```
-
-2. Add to your MCP configuration:
-
-**Example (GitHub Copilot `mcp.json`)**:
-
-```json
-{
-  "servers": {
-    "notes-mcp": {
-      "type": "stdio",
-      "command": "bun",
-      "args": ["/path/to/noteeees/notes-mcp/dist/notes-mcp/src/index.js"],
-      "env": {
-        "NOTES_DIRECTORY": "/path/to/your/notes/directory",
-        "MOMENTS_SUBFOLDER": "moments"
-      }
-    }
-  }
-}
-```
-
-`MOMENTS_SUBFOLDER` is optional and defaults to `moments`. Set it only if you customized `notes.momentsSubfolder` in the extension so the MCP server stays in sync.
-
-### Available Tools
-
-| Tool | Description |
-| --- | --- |
-| `search_notes` | Search across all notes by keyword, tag, or filename. Returns snippet around each match. |
-| `get_recent_notes` | Get most recently modified notes (metadata only) |
-| `get_notes_by_tag` | Get all notes with a specific tag |
-| `get_notes_by_date` | Filter notes by date range (`from`/`to` YYYY-MM-DD) using filename date or mtime |
-| `list_notes` | Lightweight metadata-only listing of all notes (filename, title, tags, createdAt, mtime) |
-| `list_tags` | List all unique tags with usage counts sorted by frequency |
-| `structure_search_notes` | Score-ranked search with `auto` / `classic` / `hybrid_bm25` strategies, tunable weights, BM25 body ranking, recency bonus, synonym expansion, and optional explanations |
-| `get_note_content` | Get the full content of a specific note by filename |
-| `create_note` | **Write** — Create a new note with title, content, tags, and optional subfolder |
-| `append_to_note` | **Write** — Append markdown content to the end of an existing note |
-| `add_moment` | **Write** — Add an entry to today's (or a specified date's) Moments timeline |
-
-### What You Can Do
-
-- **Context Awareness**: "Search my notes for anything about last week's deployment."
-- **Tag-based Retrieval**: "Show me all notes tagged #todo."
-- **Date-based Lookup**: "Show me notes from January."
-- **Smart Search**: Use `structure_search_notes` to get scored results with reasons, synonym expansion (e.g. 経費→精算), tunable weights, and `search_strategy` set to `auto`, `classic`, or `hybrid_bm25`.
-- **Full Content Access**: Use `get_note_content` to read a specific note in full.
-
-`structure_search_notes` defaults to `search_strategy: "auto"`. In `auto`, smaller or tag-heavy searches stay on the legacy classic ranking, while broader free-text searches on larger corpora switch to `hybrid_bm25` for stronger body relevance. Set `explain: false` to keep the same response shape while omitting verbose ranking reasons.
-
-### Tags
-
-Notes support tags in two ways:
-- **YAML front matter**: `tags: [todo, meeting]`
-- **Inline**: `#todo` anywhere in the note body

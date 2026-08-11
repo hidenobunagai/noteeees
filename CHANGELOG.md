@@ -4,6 +4,12 @@ All notable changes to the "notes" extension will be documented in this file.
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## [Unreleased]
+
+### Removed
+
+- **notes-mcp**: Removed the bundled MCP server and all related build/test tooling (`compile:mcp`, `test:mcp`, the CI `mcp-tests` job, and the README "Supercharge with MCP" section). The server was designed for workplace AI-agent access to notes, but the workplace environment cannot run `bun` (required to build and launch it), so it was removed. The extension never depended on it at runtime — its features (Dashboard, Moments, search, Copilot task enrichment) are unaffected, and the `shared/` modules (`taskSyntax`, `taskTypes`, `collectNoteFiles`, `pathSafety`) remain in use by the extension.
+
 ## [0.13.0] - 2026-08-05
 
 ### Added

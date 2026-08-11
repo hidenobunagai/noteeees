@@ -14,7 +14,6 @@ AGENTS.md
 node_modules/
 src/
 out/
-notes-mcp/**
 *.ts
 **/*.map
 .eslintrc*

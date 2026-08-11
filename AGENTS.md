@@ -3,7 +3,7 @@
 ## Release Process
 
 ### Pre-release Checklist
-- [ ] All tests passing (`bun test`)
+- [ ] All tests passing (`bun run test`)
 - [ ] TypeScript compiles without errors (`bun run check-types`)
 - [ ] CHANGELOG.md updated with new version
 - [ ] Version bumped in package.json
@@ -19,7 +19,6 @@
 2. **Build and test**
    ```bash
    bun run compile
-   bun run test:mcp
    ```
 
 3. **Commit version bump**
@@ -56,17 +55,14 @@
 
 ### Project Structure
 - `src/` - VS Code extension source
-- `notes-mcp/` - MCP server for AI integration
+- `shared/` - Modules shared by extension features (task syntax, note collection, path safety)
 - `dist/` - Compiled extension (generated)
 - `docs/superpowers/` - Implementation plans and specs
 
 ### Testing
 ```bash
 # Extension tests
-bun test
-
-# MCP tests
-cd notes-mcp && bun test
+bun run test
 ```
 
 ### Build Commands
