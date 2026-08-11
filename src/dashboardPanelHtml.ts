@@ -116,7 +116,7 @@ export function buildDashboardPanelHtml(data: DashboardData): string {
     </section>
   </div>
 
-${i18nScript}
+<script nonce="${nonce}">${i18nScript}</script>
 ${script}
 </body>
 </html>`;

@@ -824,13 +824,30 @@ suite("Dashboard Webview Test Suite", () => {
     );
   });
 
+  test("dashboard webview emits the i18n dictionary inside a script tag, not as body text", async () => {
+    const html = await renderSettledDashboardWebviewHtml();
+
+    assert.ok(
+      /<script nonce="[^"]+">\s*const I18N = \{/.test(html),
+      "expected the i18n dictionary to be emitted inside a script tag so it executes",
+    );
+  });
+
   test("dashboard webview script keeps interactive controls wired after initial render", async () => {
     const html = await renderSettledDashboardWebviewHtml();
 
-    const scriptMatch = html.match(/<script nonce="[^"]+">([\s\S]*)<\/script>/);
-    assert.ok(scriptMatch, "expected dashboard webview to include an inline script block");
+    const scriptBlocks: string[] = [];
+    const scriptRe = /<script nonce="[^"]+">([\s\S]*?)<\/script>/g;
+    let scriptMatch: RegExpExecArray | null;
+    while ((scriptMatch = scriptRe.exec(html)) !== null) {
+      scriptBlocks.push(scriptMatch[1]);
+    }
+    assert.ok(
+      scriptBlocks.length >= 2,
+      "expected dashboard webview to include i18n and app inline script blocks",
+    );
 
-    const script = scriptMatch?.[1] || "";
+    const script = scriptBlocks.join("\n");
     assert.doesNotThrow(
       () => new Function("acquireVsCodeApi", "document", "window", script),
       "expected dashboard webview script to stay parseable for runtime initialization",

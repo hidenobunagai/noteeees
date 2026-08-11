@@ -4,6 +4,12 @@ All notable changes to the "notes" extension will be documented in this file.
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## [Unreleased]
+
+### Fixed
+
+- **Task Dashboard webview**: The i18n dictionary (`I18N`) was injected into the panel HTML as raw body text instead of inside a `<script>` tag, so the dashboard rendered the dictionary source in the page and its initialization failed with a `ReferenceError` on `currentLocale`. It is now wrapped in a nonce'd script block. (Introduced in 0.13.0 by the localization work.)
+
 ## [0.14.1] - 2026-08-11
 
 ### Changed
