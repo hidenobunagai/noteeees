@@ -1,4 +1,4 @@
-import { Dirent } from "fs";
+import type { Dirent } from "fs";
 import * as fs from "fs/promises";
 import * as path from "path";
 import * as vscode from "vscode";
