@@ -1,5 +1,4 @@
 import * as fs from "fs/promises";
-import * as path from "path";
 import * as vscode from "vscode";
 import { enrichTasksInFile } from "./dashboardAiEnrichment.js";
 import { DashboardPanel } from "./dashboardPanel";
@@ -15,7 +14,7 @@ import {
   pickIndexedNote,
 } from "./noteCommands";
 import { getIndexedNotesCached } from "./notesIndexCache.js";
-import { resolveLocale, t } from "./i18n.js";
+import { t } from "./i18n.js";
 import {
   affectsNotesConfiguration,
   getAiAutoEnrichSetting,
@@ -240,7 +239,7 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(notesTreeView, treeSelectionDisposable);
 
   // Register Moments webview view
-  const momentsProvider = new MomentsViewProvider(getNotesDir, context.extensionUri, context);
+  const momentsProvider = new MomentsViewProvider(getNotesDir, context);
   context.subscriptions.push(
     vscode.window.registerWebviewViewProvider(MomentsViewProvider.viewType, momentsProvider),
   );
@@ -625,7 +624,7 @@ export function activate(context: vscode.ExtensionContext) {
       if (!notesDir) {
         return;
       }
-      DashboardPanel.createOrShow(getNotesDir, context.extensionUri, context.globalState);
+      await DashboardPanel.createOrShow(getNotesDir, context.globalState);
     },
   );
 
@@ -636,8 +635,8 @@ export function activate(context: vscode.ExtensionContext) {
       if (!notesDir) {
         return;
       }
-      DashboardPanel.createOrShow(getNotesDir, context.extensionUri, context.globalState);
-      setTimeout(() => DashboardPanel.runAiExtract(), 300);
+      await DashboardPanel.createOrShow(getNotesDir, context.globalState);
+      DashboardPanel.runAiExtract();
     },
   );
 
