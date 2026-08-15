@@ -5,13 +5,8 @@ import {
   canAddDashboardCandidate,
   filterExtractedTasksForDisplay,
   normalizeExtractedTaskIdentity,
-  resolveDashboardTaskFile,
   upsertDashboardDueDate,
 } from "../dashboardTaskUtils.js";
-import {
-  buildExtractedTaskFailureMessage,
-  buildExtractedTaskStatusMessage,
-} from "../dashboardTaskUtils";
 import { createMementoStub } from "./dashboardTestHelpers";
 
 suite("Dashboard Core Test Suite", () => {

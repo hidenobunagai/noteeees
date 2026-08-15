@@ -35,7 +35,6 @@ function renderMomentsWebviewHtml(): string {
 
   const provider = new MomentsViewProvider(
     () => undefined,
-    vscode.Uri.file("/tmp/noteeees-tests"),
     createExtensionContextStub(),
   );
 

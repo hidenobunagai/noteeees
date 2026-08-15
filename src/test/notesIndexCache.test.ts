@@ -17,7 +17,7 @@ function writeNote(dir: string, name: string, content: string): string {
 suite("Notes Index Cache Test Suite", () => {
   test("reuses parsed notes when mtimes are unchanged", async () => {
     const dir = makeNoteDir();
-    const filePath = writeNote(dir, "alpha.md", "# Alpha\n\nsome content");
+    writeNote(dir, "alpha.md", "# Alpha\n\nsome content");
     writeNote(dir, "beta.md", "# Beta\n\nother content");
 
     const first = await getIndexedNotesCached(dir);

@@ -95,7 +95,30 @@ const en = {
   pin: "Pin",
   unpin: "Unpin",
   momentTextEmpty: "Moment text must not be empty.",
+  momentEditInvalid: "Invalid Moment edit parameters.",
+  momentSaveFailed: "Could not save that Moment entry.",
+  momentDeleteFailed: "Could not delete that Moment entry.",
+  momentDeleteConfirm: "Delete this Moment entry?",
+  momentDeleteBtn: "Delete",
+  momentsExported: "Exported {count} moment(s) to {name}",
+  momentCount: "{count} moment(s)",
+  listSeparator: ", ",
   todayBadge: "Today",
+
+  // --- Sidebar ---
+  sidebarPinned: "Pinned",
+  sidebarRecent: "Recent",
+  sidebarTags: "Tags",
+  tagNoteCount: "{count} note(s)",
+  tagLatest: "Latest: {title}",
+  tagUpdated: "Updated {date}",
+  openNoteBtn: "Open Note",
+
+  // --- Wiki links / backlinks ---
+  openTooltip: "Open: {name}",
+  backlinkCount: "{count} link(s)",
+  backlinkLine: "Line {line}: {text}",
+  openBtn: "Open",
 
   // --- Dashboard webview ---
   dashboardTitle: "Task Dashboard",
@@ -250,7 +273,30 @@ const ja: Record<keyof typeof en, string> = {
   pin: "固定",
   unpin: "固定解除",
   momentTextEmpty: "モーメントのテキストを入力してください。",
+  momentEditInvalid: "モーメントの編集パラメータが不正です。",
+  momentSaveFailed: "そのモーメントを保存できませんでした。",
+  momentDeleteFailed: "そのモーメントを削除できませんでした。",
+  momentDeleteConfirm: "このモーメントを削除しますか？",
+  momentDeleteBtn: "削除",
+  momentsExported: "{count} 件のモーメントを {name} にエクスポートしました。",
+  momentCount: "{count} 件のモーメント",
+  listSeparator: "、",
   todayBadge: "今日",
+
+  // --- Sidebar ---
+  sidebarPinned: "固定",
+  sidebarRecent: "最近",
+  sidebarTags: "タグ",
+  tagNoteCount: "{count} 件のノート",
+  tagLatest: "最新: {title}",
+  tagUpdated: "更新: {date}",
+  openNoteBtn: "ノートを開く",
+
+  // --- Wiki links / backlinks ---
+  openTooltip: "開く: {name}",
+  backlinkCount: "{count} 件のリンク",
+  backlinkLine: "{line} 行目: {text}",
+  openBtn: "開く",
 
   dashboardTitle: "タスクダッシュボード",
   kpiOpen: "未完了",
@@ -309,7 +355,9 @@ const ja: Record<keyof typeof en, string> = {
     '以下のタスク一覧の各項目について、カテゴリ、優先度、および所要時間（見積もり）を判定してください。\nタスクの元の文字列は「絶対に」変更しないでください。JSON配列の "text" フィールドには、入力されたタスクのテキストをそのまま正確に出力してください。\n\n各タスクについて以下のフィールドを持つオブジェクトのJSON配列として返してください:\n- "text": 入力されたタスクのテキスト（変更せずそのまま）\n- "category": "work" | "personal" | "health" | "learning" | "admin" のいずれか\n- "priority": "high" | "medium" | "low" のいずれか\n- "timeEstimateMin": 所要時間の見積もり（分、整数）\n\nJSON 配列のみ返してください。その他の説明文や markdown 記法（```json など）は不要です。\n\nタスク一覧:\n',
 };
 
-export const STRINGS: Record<Locale, Record<string, string>> = { en, ja };
+export const STRINGS: Record<Locale, Record<keyof typeof en, string>> = { en, ja };
+
+export type I18nKey = keyof typeof en;
 
 export function getLocaleSetting(): LocaleSetting {
   return vscode.workspace.getConfiguration("notes").get<LocaleSetting>("locale") ?? "auto";
@@ -325,7 +373,7 @@ export function resolveLocale(): Locale {
   return vscodeLang.startsWith("ja") ? "ja" : "en";
 }
 
-export function t(key: string, params?: Record<string, string | number>): string {
+export function t(key: I18nKey, params?: Record<string, string | number>): string {
   const table = STRINGS[resolveLocale()] ?? STRINGS.en;
   let str = table[key] ?? STRINGS.en[key] ?? key;
   if (params) {

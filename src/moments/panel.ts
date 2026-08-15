@@ -14,7 +14,7 @@ import {
   searchMomentsFeed,
 } from "./fileIo.js";
 import { formatDateString } from "../dashboardTaskUtils.js";
-import { buildWebviewI18nScript, resolveLocale } from "../i18n.js";
+import { buildWebviewI18nScript, resolveLocale, t } from "../i18n.js";
 
 import type { PinnedEntryData } from "./types.js";
 
@@ -27,18 +27,15 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
 
   private _view?: vscode.WebviewView;
   private readonly _getNotesDir: () => string | undefined;
-  private readonly _extensionUri: vscode.Uri;
   private readonly _context: vscode.ExtensionContext;
   private _feedSectionCount = getMomentsFeedDayCount();
   private _anchorDate = formatDateString(new Date());
 
   constructor(
     getNotesDir: () => string | undefined,
-    extensionUri: vscode.Uri,
     context: vscode.ExtensionContext,
   ) {
     this._getNotesDir = getNotesDir;
-    this._extensionUri = extensionUri;
     this._context = context;
   }
 
@@ -115,11 +112,11 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
 
         case "addMoment": {
           if (!notesDir) {
-            this._showError("Notes directory is not configured.");
+            this._showError(t("notesDirNotConfigured"));
             return;
           }
           if (typeof message.text !== "string" || !message.text.trim()) {
-            this._showError("Moment text must not be empty.");
+            this._showError(t("momentTextEmpty"));
             return;
           }
           await appendMoment(notesDir, formatDateString(new Date()), message.text);
@@ -132,12 +129,12 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
 
         case "saveEdit": {
           if (!notesDir) {
-            this._showError("Notes directory is not configured.");
+            this._showError(t("notesDirNotConfigured"));
             return;
           }
 
           if (typeof message.text !== "string" || typeof message.index !== "number") {
-            this._showError("Invalid Moment edit parameters.");
+            this._showError(t("momentEditInvalid"));
             return;
           }
 
@@ -149,7 +146,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
               message.text,
             ))
           ) {
-            this._showError("Could not save that Moment entry.");
+            this._showError(t("momentSaveFailed"));
             return;
           }
 
@@ -159,7 +156,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
 
         case "requestDeleteEntry": {
           if (!notesDir) {
-            this._showError("Notes directory is not configured.");
+            this._showError(t("notesDirNotConfigured"));
             return;
           }
           if (typeof message.index !== "number") {
@@ -167,9 +164,9 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
           }
 
           void vscode.window
-            .showWarningMessage("Delete this Moment entry?", { modal: true }, "Delete")
+            .showWarningMessage(t("momentDeleteConfirm"), { modal: true }, t("momentDeleteBtn"))
             .then(async (selection) => {
-              if (selection !== "Delete") {
+              if (selection !== t("momentDeleteBtn")) {
                 return;
               }
 
@@ -180,7 +177,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
                   message.index,
                 ))
               ) {
-                this._showError("Could not delete that Moment entry.");
+                this._showError(t("momentDeleteFailed"));
                 return;
               }
 
@@ -191,7 +188,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
 
         case "openInbox": {
           if (!notesDir) {
-            this._showError("Notes directory is not configured.");
+            this._showError(t("notesDirNotConfigured"));
             return;
           }
           void vscode.commands.executeCommand("notes.showOpenTasksOverview");
@@ -217,7 +214,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
 
         case "exportToNote": {
           if (!notesDir) {
-            this._showError("Notes directory is not configured.");
+            this._showError(t("notesDirNotConfigured"));
             return;
           }
 
@@ -269,7 +266,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
           void vscode.workspace.openTextDocument(filePath).then((doc) => {
             void vscode.window.showTextDocument(doc);
             void vscode.window.showInformationMessage(
-              `Exported ${entries.length} moment(s) to ${fileName}`,
+              t("momentsExported", { count: entries.length, name: fileName }),
             );
           });
           break;
@@ -1341,7 +1338,8 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     if (anchor) {
       const d = new Date(anchor + 'T00:00:00');
       const opts = { month: 'short', day: 'numeric', year: 'numeric' };
-      const label = d.toLocaleDateString('en-US', opts);
+      const dateLocale = currentLocale === 'ja' ? 'ja-JP' : 'en-US';
+      const label = d.toLocaleDateString(dateLocale, opts);
       topbarDate.textContent = anchor === dateStr ? label + ' ' + UI('todaySuffix') : label;
     } else {
       topbarDate.textContent = '';
@@ -1351,7 +1349,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     const todaySection = sections.find(s => s.isToday);
     const todayCount = todaySection ? todaySection.entries.length : 0;
     if (todayCount > 0) {
-      topbarCount.textContent = todayCount + ' moment' + (todayCount !== 1 ? 's' : '');
+      topbarCount.textContent = UI('momentCount', { count: todayCount });
       topbarCount.style.display = '';
     } else {
       topbarCount.style.display = 'none';
@@ -1537,8 +1535,8 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
         const unpinButton = document.createElement('button');
         unpinButton.className = 'pin-btn pinned';
         unpinButton.type = 'button';
-        unpinButton.title = 'Unpin';
-        unpinButton.setAttribute('aria-label', 'Unpin');
+        unpinButton.title = UI('unpin');
+        unpinButton.setAttribute('aria-label', UI('unpin'));
         unpinButton.textContent = '📌';
         unpinButton.addEventListener('click', () => {
           vscode.postMessage({ command: 'unpinEntry', pinnedId: pinned.date + ':' + pinned.index });

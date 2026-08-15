@@ -4,10 +4,6 @@ import * as path from "path";
 import type {
   DashTask,
   DashboardCandidateTask,
-  DashboardCandidateView,
-  DashboardListFilter,
-  DashboardListSectionView,
-  DashboardListViewModel,
   DashboardTaskSection,
   DismissedExtractedTask,
   ExtractedTaskFilterResult,
@@ -36,7 +32,6 @@ export const SECTION_ORDER: Record<DashboardTaskSection, number> = {
   done: 6,
 };
 export const ATTENTION_SECTIONS = new Set<DashboardTaskSection>(["overdue", "today", "upcoming"]);
-const DASHBOARD_EMPTY_MESSAGE_SEPARATOR = "||";
 
 function pad2(n: number): string {
   return String(n).padStart(2, "0");
@@ -340,14 +335,14 @@ export function buildExtractedTaskStatusMessage(result: ExtractedTaskFilterResul
 
   if (result.visibleTasks.length === 0) {
     return hiddenParts.length > 0
-      ? t("noNewCandidates", { hidden: hiddenParts.join("、") })
+      ? t("noNewCandidates", { hidden: hiddenParts.join(t("listSeparator")) })
       : t("noActionableTasks");
   }
 
   return hiddenParts.length > 0
     ? t("candidatesShown", {
         count: result.visibleTasks.length,
-        hidden: hiddenParts.join("、"),
+        hidden: hiddenParts.join(t("listSeparator")),
       })
     : t("candidatesShownSimple", { count: result.visibleTasks.length });
 }
@@ -362,21 +357,6 @@ export function buildExtractedTaskFailureMessage(reason: ExtractTasksFailureReas
   }
 
   return t("noActionableTasks");
-}
-
-export function buildDashboardEmptyMessage(filter: DashboardListFilter): string {
-  switch (filter) {
-    case "all":
-      return `No tasks yet${DASHBOARD_EMPTY_MESSAGE_SEPARATOR}Use Add Task or AI Extract to create your first task.`;
-    case "today":
-      return "Nothing scheduled for today";
-    case "planned":
-      return "No planned tasks";
-    case "done":
-      return "No completed tasks";
-    default:
-      return "No items in this filter";
-  }
 }
 
 export function escHtml(s: string): string {
