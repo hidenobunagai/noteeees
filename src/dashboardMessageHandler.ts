@@ -11,9 +11,10 @@ import {
   toggleDashboardTask,
   updateDashboardTask,
 } from "./dashboardTaskPersistence.js";
-import { normalizeOptionalDate } from "./dashboardTaskUtils.js";
+import { isPathInside, normalizeOptionalDate } from "./dashboardTaskUtils.js";
 import { t } from "./i18n.js";
 import type { DashboardCandidateAddAck } from "./dashboardTypes.js";
+import type { loadDismissedExtractedTasks } from "./dashboardDismissedTasks.js";
 import { getMomentsSubfolderSetting } from "./notesConfig.js";
 
 export interface DashboardMessageHandlerDeps {
@@ -32,9 +33,7 @@ export interface DashboardMessageHandlerDeps {
   /** Dismisses an extracted task from the store. */
   dismissExtractedTaskInStore: (notesDir: string, text: string) => void;
   /** Loads dismissed extracted tasks from the store. */
-  loadDismissed: () => ReturnType<
-    typeof import("./dashboardDismissedTasks.js").loadDismissedExtractedTasks
-  >;
+  loadDismissed: () => ReturnType<typeof loadDismissedExtractedTasks>;
   /** Optional test hook for task creation persistence. */
   createTask?: typeof createDashboardTask;
   /** Optional test hook for duplicate detection. */
@@ -170,6 +169,11 @@ export function createDashboardMessageHandler(deps: DashboardMessageHandlerDeps)
   }
 
   async function _openFile(filePath: string, lineIndex: number): Promise<void> {
+    const notesDir = deps.getNotesDir();
+    if (!notesDir || !isPathInside(notesDir, filePath)) {
+      return;
+    }
+
     try {
       await fs.access(filePath);
     } catch {
