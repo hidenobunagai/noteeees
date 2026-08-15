@@ -1,16 +1,12 @@
-import * as fs from "fs/promises";
 import * as vscode from "vscode";
+import { registerNotesCommands } from "./commands.js";
 import { enrichTasksInFile } from "./dashboardAiEnrichment.js";
 import { DashboardPanel } from "./dashboardPanel";
 import { isPathInside } from "./dashboardTaskUtils.js";
-import { archiveMoments } from "./moments/fileIo.js";
 import { MomentsViewProvider } from "./moments/panel.js";
-import { showOpenTasksOverview } from "./moments/taskOverview.js";
 import {
   createNewNote,
   type IndexedNote,
-  listNotes,
-  openDailyNote,
   pickIndexedNote,
 } from "./noteCommands";
 import { getIndexedNotesCached } from "./notesIndexCache.js";
@@ -18,20 +14,16 @@ import { t } from "./i18n.js";
 import {
   affectsNotesConfiguration,
   getAiAutoEnrichSetting,
-  getDailyNoteTemplateSetting,
   getLegacyNotesDirectorySetting,
-  getMomentsArchiveAfterDaysSetting,
   getMomentsSubfolderSetting,
   getSidebarTagSortSetting,
   getStatusBarTasksSetting,
   getWorkspaceNotesDirectorySetting,
   updateLegacyNotesDirectorySetting,
-  updateSidebarTagSortSetting,
   updateWorkspaceNotesDirectorySetting,
 } from "./notesConfig.js";
 import {
   buildSidebarTagGroups,
-  movePinnedItem,
   NotesTreeProvider,
   type SidebarTagSortMode,
 } from "./sidebarProvider";
@@ -421,273 +413,20 @@ export function activate(context: vscode.ExtensionContext) {
     }
   });
 
-  // Run Setup command
-  const runSetupDisposable = vscode.commands.registerCommand("notes.runSetup", async () => {
-    const hasWorkspace =
-      vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0;
-    let scope: "global" | "workspace" = "global";
-
-    if (hasWorkspace) {
-      const choice = await vscode.window.showQuickPick(
-        [
-          {
-            label: t("globalScope"),
-            description: t("globalScopeDesc"),
-            value: "global" as const,
-          },
-          {
-            label: t("workspaceScope"),
-            description: t("workspaceScopeDesc"),
-            value: "workspace" as const,
-          },
-        ],
-        { placeHolder: t("setNotesDirFor") },
-      );
-      if (!choice) {
-        return;
-      }
-      scope = choice.value;
-    }
-
-    const notesDir = await selectNotesDirectory(scope);
-    if (notesDir) {
-      refreshMarkdownWatcher();
-      refreshNotesViews();
-      const scopeLabel = scope === "workspace" ? t("workspaceScope") : t("globalScope");
-      vscode.window.showInformationMessage(t("notesDirSet", { scope: scopeLabel, dir: notesDir }));
-    }
-  });
-
-  // Refresh sidebar command
-  const refreshDisposable = vscode.commands.registerCommand("notes.refreshSidebar", () => {
-    notesTreeProvider.refresh();
-  });
-
-  const toggleTagSortDisposable = vscode.commands.registerCommand(
-    "notes.toggleTagSort",
-    async () => {
-      const nextMode: SidebarTagSortMode =
-        getSidebarTagSortSetting() === "frequency" ? "alphabetical" : "frequency";
-
-      await updateSidebarTagSortSetting(nextMode, vscode.ConfigurationTarget.Global);
-
-      notesTreeProvider.refresh();
-      vscode.window.showInformationMessage(t("tagSortSet", { mode: nextMode }));
-    },
-  );
-
-  const searchTagsDisposable = vscode.commands.registerCommand("notes.searchTags", async () => {
-    const notesDir = await ensureNotesDirectory();
-    if (!notesDir) {
-      return;
-    }
-
-    await searchTags(notesDir);
-  });
-
-  // New Note command
-  const newNoteDisposable = vscode.commands.registerCommand("notes.newNote", async () => {
-    const notesDir = await ensureNotesDirectory();
-    if (!notesDir) {
-      return;
-    }
-    await createNewNote(notesDir);
-    notesTreeProvider.refresh();
-  });
-
-  // List Notes command
-  const listNotesDisposable = vscode.commands.registerCommand("notes.listNotes", async () => {
-    const notesDir = await ensureNotesDirectory();
-    if (!notesDir) {
-      return;
-    }
-    await listNotes(notesDir);
-  });
-
-  // Focus Moments panel command
-  const focusMomentsDisposable = vscode.commands.registerCommand("notes.focusMoments", async () => {
-    await ensureNotesDirectory();
-    await vscode.commands.executeCommand("notesMomentsView.focus");
-  });
-
-  const showOpenTasksOverviewDisposable = vscode.commands.registerCommand(
-    "notes.showOpenTasksOverview",
-    async () => {
-      const notesDir = await ensureNotesDirectory();
-      if (!notesDir) {
-        return;
-      }
-
-      await showOpenTasksOverview(notesDir);
-    },
-  );
-
-  // Open Note File command (used by sidebar)
-  const openNoteFileDisposable = vscode.commands.registerCommand(
-    "notes.openNoteFile",
-    async (filePath: string) => {
-      if (typeof filePath !== "string" || !filePath) {
-        return;
-      }
-      const notesDir = getNotesDir();
-      if (notesDir && !isPathInside(notesDir, filePath)) {
-        return;
-      }
-      try {
-        await fs.access(filePath);
-      } catch {
-        return;
-      }
-      const doc = await vscode.workspace.openTextDocument(filePath);
-      await vscode.window.showTextDocument(doc);
-    },
-  );
-
-  const pinNoteDisposable = vscode.commands.registerCommand(
-    "notes.pinNote",
-    async (item?: { relativePath?: string }) => {
-      const relativePath = item?.relativePath;
-      if (!relativePath) {
-        return;
-      }
-
-      await setPinnedRelativePaths([...getPinnedRelativePaths(), relativePath]);
-      notesTreeProvider.refresh();
-    },
-  );
-
-  const unpinNoteDisposable = vscode.commands.registerCommand(
-    "notes.unpinNote",
-    async (item?: { relativePath?: string }) => {
-      const relativePath = item?.relativePath;
-      if (!relativePath) {
-        return;
-      }
-
-      await setPinnedRelativePaths(
-        getPinnedRelativePaths().filter((path) => path !== relativePath),
-      );
-      notesTreeProvider.refresh();
-    },
-  );
-
-  const movePinnedNoteUpDisposable = vscode.commands.registerCommand(
-    "notes.movePinnedNoteUp",
-    async (item?: { relativePath?: string }) => {
-      const relativePath = item?.relativePath ?? selectedSidebarItem?.relativePath;
-      if (!relativePath) {
-        return;
-      }
-
-      const current = getPinnedRelativePaths();
-      const index = current.indexOf(relativePath);
-      await setPinnedRelativePaths(movePinnedItem(current, index, "up"));
-      notesTreeProvider.refresh();
-    },
-  );
-
-  const movePinnedNoteDownDisposable = vscode.commands.registerCommand(
-    "notes.movePinnedNoteDown",
-    async (item?: { relativePath?: string }) => {
-      const relativePath = item?.relativePath ?? selectedSidebarItem?.relativePath;
-      if (!relativePath) {
-        return;
-      }
-
-      const current = getPinnedRelativePaths();
-      const index = current.indexOf(relativePath);
-      await setPinnedRelativePaths(movePinnedItem(current, index, "down"));
-      notesTreeProvider.refresh();
-    },
-  );
-
-  // Open Daily Note command
-  const openDailyNoteDisposable = vscode.commands.registerCommand(
-    "notes.openDailyNote",
-    async () => {
-      const notesDir = await ensureNotesDirectory();
-      if (!notesDir) {
-        return;
-      }
-
-      const templatePath = getDailyNoteTemplateSetting();
-
-      await openDailyNote(notesDir, templatePath);
-      notesTreeProvider.refresh();
-    },
-  );
-
-  const openDashboardDisposable = vscode.commands.registerCommand(
-    "notes.openDashboard",
-    async () => {
-      const notesDir = await ensureNotesDirectory();
-      if (!notesDir) {
-        return;
-      }
-      await DashboardPanel.createOrShow(getNotesDir, context.globalState);
-    },
-  );
-
-  const aiExtractTasksDisposable = vscode.commands.registerCommand(
-    "notes.aiExtractTasks",
-    async () => {
-      const notesDir = await ensureNotesDirectory();
-      if (!notesDir) {
-        return;
-      }
-      await DashboardPanel.createOrShow(getNotesDir, context.globalState);
-      DashboardPanel.runAiExtract();
-    },
-  );
-
-  const archiveMomentsDisposable = vscode.commands.registerCommand(
-    "notes.archiveMoments",
-    async () => {
-      const notesDir = await ensureNotesDirectory();
-      if (!notesDir) {
-        return;
-      }
-
-      const afterDays = getMomentsArchiveAfterDaysSetting();
-
-      const confirm = await vscode.window.showWarningMessage(
-        t("archiveConfirm", { days: afterDays }),
-        t("archiveBtn"),
-        t("cancelBtn"),
-      );
-      if (confirm !== t("archiveBtn")) {
-        return;
-      }
-
-      const { archived, skipped } = await archiveMoments(notesDir);
-      if (archived === 0) {
-        vscode.window.showInformationMessage(t("noMomentsToArchive", { skipped }));
-      } else {
-        vscode.window.showInformationMessage(t("archivedMoments", { count: archived, skipped }));
-        momentsProvider.refresh();
-      }
-    },
-  );
-
   context.subscriptions.push(
     configChangeDisposable,
-    runSetupDisposable,
-    refreshDisposable,
-    toggleTagSortDisposable,
-    searchTagsDisposable,
-    newNoteDisposable,
-    listNotesDisposable,
-    focusMomentsDisposable,
-    showOpenTasksOverviewDisposable,
-    openNoteFileDisposable,
-    pinNoteDisposable,
-    unpinNoteDisposable,
-    movePinnedNoteUpDisposable,
-    movePinnedNoteDownDisposable,
-    openDailyNoteDisposable,
-    archiveMomentsDisposable,
-    openDashboardDisposable,
-    aiExtractTasksDisposable,
+    ...registerNotesCommands(context, {
+      getNotesDir,
+      ensureNotesDirectory,
+      selectNotesDirectory,
+      getPinnedRelativePaths,
+      setPinnedRelativePaths,
+      getSelectedSidebarItem: () => selectedSidebarItem,
+      refreshNotesTree: () => notesTreeProvider.refresh(),
+      refreshMoments: () => momentsProvider.refresh(),
+      refreshMarkdownWatcher,
+      searchTags,
+    }),
   );
 }
 

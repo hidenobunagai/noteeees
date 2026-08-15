@@ -1,7 +1,8 @@
-import type { Dirent } from "fs";
 import * as fs from "fs/promises";
 import * as path from "path";
 import * as vscode from "vscode";
+import { collectNoteFiles } from "../shared/collectNoteFiles.js";
+import { stripDatePrefixTitle } from "../shared/noteFilename.js";
 
 // Regex to find [[...]] links (supports [[Target|Alias]])
 const WIKI_LINK_RE = /\[\[([^\]|]+)(?:\|([^\]]*))?\]\]/g;
@@ -13,85 +14,31 @@ export function parseWikiLinks(text: string): string[] {
 }
 
 type NoteFileCache = {
-  files: string[];
+  files: Array<{ filePath: string; mtime: number }>;
   signature: string;
 };
 
 let noteFileCache: NoteFileCache | undefined;
 
-async function computeNoteFileSignature(notesDir: string): Promise<string> {
-  const results: { filePath: string; mtime: number }[] = [];
-
-  async function walk(dir: string): Promise<void> {
-    let entries: Dirent[];
-    try {
-      entries = await fs.readdir(dir, { withFileTypes: true });
-    } catch {
-      return;
-    }
-    for (const entry of entries) {
-      if (entry.name.startsWith(".")) {
-        continue;
-      }
-      const full = path.join(dir, entry.name);
-      if (entry.isDirectory()) {
-        await walk(full);
-      } else if (entry.isFile() && entry.name.endsWith(".md")) {
-        try {
-          const stat = await fs.stat(full);
-          results.push({ filePath: full, mtime: stat.mtimeMs });
-        } catch {
-          // skip unreadable files
-        }
-      }
-    }
-  }
-
-  await walk(notesDir);
-  results.sort((left, right) => left.filePath.localeCompare(right.filePath));
-  return results
-    .map(({ filePath, mtime }) => `${path.relative(notesDir, filePath)}:${mtime}`)
-    .join("|");
-}
-
-async function getAllNoteFiles(notesDir: string): Promise<string[]> {
-  const signature = await computeNoteFileSignature(notesDir);
+/** Returns note files with mtimes, cached by a path+mtime signature. */
+async function getAllNoteFilesWithMtime(
+  notesDir: string,
+): Promise<Array<{ filePath: string; mtime: number }>> {
+  const collected = await collectNoteFiles(notesDir);
+  const signature = collected.map((f) => `${f.relativePath}:${f.mtime}`).join("|");
   if (noteFileCache?.signature === signature) {
     return noteFileCache.files;
   }
 
-  const results: string[] = [];
-
-  async function walk(dir: string): Promise<void> {
-    let entries: Dirent[];
-    try {
-      entries = await fs.readdir(dir, { withFileTypes: true });
-    } catch {
-      return;
-    }
-    for (const entry of entries) {
-      if (entry.name.startsWith(".")) {
-        continue;
-      }
-      const full = path.join(dir, entry.name);
-      if (entry.isDirectory()) {
-        await walk(full);
-      } else if (entry.isFile() && entry.name.endsWith(".md")) {
-        results.push(full);
-      }
-    }
-  }
-
-  await walk(notesDir);
-  noteFileCache = { files: results, signature };
-  return results;
+  noteFileCache = {
+    files: collected.map((f) => ({ filePath: f.filePath, mtime: f.mtime })),
+    signature,
+  };
+  return noteFileCache.files;
 }
 
-function stripDatePrefix(stem: string): string {
-  const match = stem.match(
-    /^(\d{4}[-_]\d{2}[-_]\d{2}(?:[-_]\d{2}[-_]\d{2}(?:[-_]\d{2})?)?)[-_ ](.*)/,
-  );
-  return match?.[2] ?? stem;
+async function getAllNoteFiles(notesDir: string): Promise<string[]> {
+  return (await getAllNoteFilesWithMtime(notesDir)).map((f) => f.filePath);
 }
 
 function resolveWikiLinkFromFiles(title: string, files: string[]): string | undefined {
@@ -188,7 +135,7 @@ export class WikiLinkCompletionProvider implements vscode.CompletionItemProvider
       .filter((f) => f !== currentFile)
       .map((f) => {
         const stem = path.basename(f, ".md");
-        const title = stripDatePrefix(stem);
+        const title = stripDatePrefixTitle(stem);
         const relativePath = path.relative(notesDir, f);
 
         const item = new vscode.CompletionItem(title, vscode.CompletionItemKind.Reference);
@@ -241,11 +188,19 @@ export interface BacklinkItem {
   lineNumber: number;
 }
 
+/**
+ * mtime-keyed cache of file contents so backlink scans don't re-read every
+ * note when only a few files changed (or nothing changed).
+ */
+const backlinkContentCache = new Map<string, { mtime: number; content: string }>();
+
 export async function collectBacklinks(
   targetFile: string,
   notesDir: string,
 ): Promise<Map<string, BacklinkItem[]>> {
-  const files = await getAllNoteFiles(notesDir);
+  const collected = await getAllNoteFilesWithMtime(notesDir);
+  const files = collected.map((f) => f.filePath);
+  const mtimes = new Map(collected.map((f) => [f.filePath, f.mtime]));
   const result = new Map<string, BacklinkItem[]>();
 
   for (const file of files) {
@@ -253,11 +208,18 @@ export async function collectBacklinks(
       continue;
     }
 
+    const mtime = mtimes.get(file)!;
+    const cached = backlinkContentCache.get(file);
     let content: string;
-    try {
-      content = await fs.readFile(file, "utf8");
-    } catch {
-      continue;
+    if (cached && cached.mtime === mtime) {
+      content = cached.content;
+    } else {
+      try {
+        content = await fs.readFile(file, "utf8");
+      } catch {
+        continue;
+      }
+      backlinkContentCache.set(file, { mtime, content });
     }
 
     const lines = content.split("\n");
@@ -273,6 +235,13 @@ export async function collectBacklinks(
 
     if (items.length > 0) {
       result.set(file, items);
+    }
+  }
+
+  // Drop cache entries for deleted files.
+  for (const cachedFile of backlinkContentCache.keys()) {
+    if (!mtimes.has(cachedFile)) {
+      backlinkContentCache.delete(cachedFile);
     }
   }
 
@@ -362,7 +331,7 @@ export class BacklinksProvider implements vscode.TreeDataProvider<BacklinkTreeIt
       const backlinks = await collectBacklinks(currentFile, notesDir);
 
       return [...backlinks.entries()].map(([file, items]) => {
-        const title = stripDatePrefix(path.basename(file, ".md"));
+        const title = stripDatePrefixTitle(path.basename(file, ".md"));
         return new BacklinkTreeItem({
           label: title,
           kind: "file",

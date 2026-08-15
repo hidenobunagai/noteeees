@@ -33,10 +33,7 @@ function renderMomentsWebviewHtml(): string {
     },
   } satisfies Pick<vscode.WebviewView, "webview" | "show">;
 
-  const provider = new MomentsViewProvider(
-    () => undefined,
-    createExtensionContextStub(),
-  );
+  const provider = new MomentsViewProvider(() => undefined, createExtensionContextStub());
 
   provider.resolveWebviewView(
     webviewView as vscode.WebviewView,
