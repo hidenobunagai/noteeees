@@ -26,7 +26,6 @@ export class DashboardPanel {
   public static readonly viewType = "noteeeesDashboard";
   private static _instance: DashboardPanel | undefined;
   private static _statusListener: ((processing: boolean) => void) | undefined;
-  private static _readyPromise: Promise<void> | undefined;
 
   private readonly _panel: vscode.WebviewPanel;
   private readonly _getNotesDir: () => string | undefined;
@@ -35,6 +34,7 @@ export class DashboardPanel {
   private _disposables: vscode.Disposable[] = [];
   private _cancelToken: vscode.CancellationTokenSource | undefined;
   private _initialized = false;
+  private _readyPromise: Promise<void> | undefined;
 
   static createOrShow(
     getNotesDir: () => string | undefined,
@@ -44,7 +44,7 @@ export class DashboardPanel {
 
     if (DashboardPanel._instance) {
       DashboardPanel._instance._panel.reveal(column);
-      return DashboardPanel._readyPromise ?? Promise.resolve();
+      return DashboardPanel._instance._readyPromise ?? Promise.resolve();
     }
 
     const panel = vscode.window.createWebviewPanel(
@@ -55,8 +55,7 @@ export class DashboardPanel {
     );
 
     DashboardPanel._instance = new DashboardPanel(panel, getNotesDir, stateStore);
-    DashboardPanel._readyPromise = DashboardPanel._instance._ready();
-    return DashboardPanel._readyPromise;
+    return DashboardPanel._instance._readyPromise!;
   }
 
   static refresh(): void {
@@ -116,16 +115,13 @@ export class DashboardPanel {
       null,
       this._disposables,
     );
-  }
 
-  /** Runs the initial render so callers can await the panel being usable. */
-  private async _ready(): Promise<void> {
-    await this._update();
+    // Kick off the first render immediately so `createOrShow` can await it.
+    this._readyPromise = this._update();
   }
 
   private dispose(): void {
     DashboardPanel._instance = undefined;
-    DashboardPanel._readyPromise = undefined;
     this._cancelToken?.cancel();
     this._panel.dispose();
     for (const disposable of this._disposables) {
