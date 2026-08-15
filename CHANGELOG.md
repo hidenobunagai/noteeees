@@ -4,6 +4,30 @@ All notable changes to the "notes" extension will be documented in this file.
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## [Unreleased]
+
+### Security
+
+- **Dashboard**: `openFile` messages from the webview are now restricted to files inside the notes directory (previously only an existence check was performed), matching the guard already used by `notes.openNoteFile`.
+- **Moments webview**: The Content-Security-Policy now uses a per-render nonce for `script-src` instead of `'unsafe-inline'`, aligning with the Task Dashboard.
+
+### Fixed
+
+- **Time zones**: Moments/notes extraction and dashboard default dates now use local calendar dates instead of UTC (`toISOString()`), so users in UTC+ regions no longer see off-by-one date ranges around midnight. `shiftDate` and the webview `getDefaultDate` were aligned with `formatDateString`.
+- **Localization**: Hard-coded English strings in the Moments panel (empty text, edit/delete failures, delete confirmation, export notification) now use the `notes.locale` dictionary. The dashboard candidate summary no longer joins items with a Japanese ideographic comma (`、`) in English locale.
+
+### Changed
+
+- **Webview maintainability**: Dashboard and Moments webview scripts/styles moved out of giant template literals into real files under `webview/` (`dashboard-script.js`, `dashboard-style.css`, `moments-script.js`, `moments-style.css`), so they get syntax checking, linting, and formatting at authoring time. `scripts/embed-webview.mjs` inlines them into `src/webview/generated.ts` during `check-types`/`compile`/`watch`.
+- **Command registration**: All `notes.*` command registrations moved from `extension.ts` into `src/commands.ts` (`registerNotesCommands`), keeping `activate()` focused on wiring services and views.
+- **Deduplication**: `stripDatePrefix` is now shared via `shared/noteFilename.ts`; wiki-link file discovery reuses `shared/collectNoteFiles.ts` instead of a third private walker; backlink scans cache file contents by mtime so unchanged notes are not re-read on every editor change.
+- **Dashboard startup**: `DashboardPanel.createOrShow` now returns a promise that resolves after the first render, so `notes.aiExtractTasks` no longer relies on a `setTimeout` race.
+
+### Internal
+
+- CI now runs the extension test suite (`xvfb-run bun run test`) in addition to type-checking and linting.
+- Enabled `noUnusedLocals` and stricter ESLint rules (`no-unused-vars`, `no-explicit-any`, `consistent-type-imports`), which also removed some dead exports (e.g. `buildDashboardEmptyMessage`).
+
 ## [0.14.2] - 2026-08-12
 
 ### Fixed
