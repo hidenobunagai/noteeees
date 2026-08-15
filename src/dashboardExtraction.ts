@@ -13,6 +13,7 @@ import {
   buildExtractedTaskFailureMessage,
   buildExtractedTaskStatusMessage,
   filterExtractedTasksForDisplay,
+  formatDateString,
 } from "./dashboardTaskUtils.js";
 import { t } from "./i18n.js";
 import type { DashTask, DashboardCandidateTask, DismissedExtractedTask } from "./dashboardTypes.js";
@@ -45,6 +46,12 @@ type ExtractTasksFromNotesFn = (
 
 type CollectExistingTasksFn = (notesDir: string, momentsSubfolder?: string) => Promise<DashTask[]>;
 
+/** Parses a YYYY-MM-DD string as a *local* midnight date (not UTC). */
+function parseLocalDate(dateStr: string): Date {
+  const [year, month, day] = dateStr.split("-").map(Number);
+  return new Date(year, month - 1, day);
+}
+
 export async function collectDashboardMomentsText(
   notesDir: string,
   momentsSubfolder: string,
@@ -53,11 +60,11 @@ export async function collectDashboardMomentsText(
 ): Promise<{ combinedText: string; datesWithContent: string[] }> {
   const allCleanTexts: string[] = [];
   const datesWithContent: string[] = [];
-  const startDate = new Date(fromDate);
-  const endDate = new Date(toDate);
+  const startDate = parseLocalDate(fromDate);
+  const endDate = parseLocalDate(toDate);
 
   for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
-    const dateStr = d.toISOString().split("T")[0];
+    const dateStr = formatDateString(d);
     const momentsFile = path.join(notesDir, momentsSubfolder, `${dateStr}.md`);
 
     let content: string;

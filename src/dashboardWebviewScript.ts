@@ -244,10 +244,18 @@ export function buildDashboardWebviewScript(
       advancedPanelOpen: savedState.advancedPanelOpen || false,
     };
 
+    function pad2(n) {
+      return String(n).padStart(2, "0");
+    }
+
+    function localDateString(d) {
+      return d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate());
+    }
+
     function getDefaultDate(daysAgo) {
       const d = new Date();
       d.setDate(d.getDate() - daysAgo);
-      return d.toISOString().split("T")[0];
+      return localDateString(d);
     }
 
     const simplifiedSectionOrder = ["today", "planned", "unsorted", "done"];
