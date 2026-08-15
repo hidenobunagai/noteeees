@@ -4,11 +4,7 @@ import { enrichTasksInFile } from "./dashboardAiEnrichment.js";
 import { DashboardPanel } from "./dashboardPanel";
 import { isPathInside } from "./dashboardTaskUtils.js";
 import { MomentsViewProvider } from "./moments/panel.js";
-import {
-  createNewNote,
-  type IndexedNote,
-  pickIndexedNote,
-} from "./noteCommands";
+import { createNewNote, type IndexedNote, pickIndexedNote } from "./noteCommands";
 import { getIndexedNotesCached } from "./notesIndexCache.js";
 import { t } from "./i18n.js";
 import {

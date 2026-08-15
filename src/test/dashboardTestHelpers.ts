@@ -151,11 +151,12 @@ export async function renderSettledDashboardWebviewHtml(
     seed?.(notesDir);
     new DashboardPanelCtor(panel as vscode.WebviewPanel, () => notesDir, stateStore);
 
-    for (let attempt = 0; attempt < 10; attempt += 1) {
-      if (webview.html.length > 0) {
-        return webview.html;
-      }
-      await new Promise((resolve) => setTimeout(resolve, 0));
+    // The panel's first render awaits file I/O and (in extension host tests) a
+    // Copilot model lookup, so poll on wall-clock time rather than a fixed
+    // number of microtask turns — CI boxes can be slow on the first call.
+    const deadline = Date.now() + 5000;
+    while (webview.html.length === 0 && Date.now() < deadline) {
+      await new Promise((resolve) => setTimeout(resolve, 25));
     }
 
     return webview.html;

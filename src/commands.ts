@@ -4,11 +4,7 @@ import { DashboardPanel } from "./dashboardPanel.js";
 import { isPathInside } from "./dashboardTaskUtils.js";
 import { archiveMoments } from "./moments/fileIo.js";
 import { showOpenTasksOverview } from "./moments/taskOverview.js";
-import {
-  createNewNote,
-  listNotes,
-  openDailyNote,
-} from "./noteCommands";
+import { createNewNote, listNotes, openDailyNote } from "./noteCommands";
 import {
   getDailyNoteTemplateSetting,
   getMomentsArchiveAfterDaysSetting,
