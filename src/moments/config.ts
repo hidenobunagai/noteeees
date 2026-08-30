@@ -4,10 +4,7 @@ import {
   updateMomentsInboxFilterSetting,
 } from "../notesConfig.js";
 import { extractDueDate } from "../../shared/taskSyntax.js";
-import {
-  MOMENTS_FEED_DEFAULT_DAY_COUNT,
-  MOMENTS_FEED_MAX_DAY_COUNT,
-} from "../constants.js";
+import { MOMENTS_FEED_DEFAULT_DAY_COUNT, MOMENTS_FEED_MAX_DAY_COUNT } from "../constants.js";
 import { todayDateString } from "../dashboardTaskUtils.js";
 import type {
   InboxTaskFilter,

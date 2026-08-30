@@ -15,10 +15,7 @@ import type {
 } from "./aiTaskProcessor.js";
 import { isPathInside } from "../shared/pathSafety.js";
 import { stripDueDateTokens } from "../shared/taskSyntax.js";
-import {
-  EXTRACTED_TASK_DISMISS_WINDOW_DAYS,
-  MAX_DISMISSED_EXTRACTED_TASKS,
-} from "./constants.js";
+import { EXTRACTED_TASK_DISMISS_WINDOW_DAYS, MAX_DISMISSED_EXTRACTED_TASKS } from "./constants.js";
 import { t } from "./i18n.js";
 export { DUE_DATE_RE, TAG_RE, TASK_RE } from "../shared/taskSyntax.js";
 export { isPathInside } from "../shared/pathSafety.js";

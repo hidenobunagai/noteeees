@@ -194,7 +194,8 @@ const ja: Record<keyof typeof en, string> = {
   tagSortSet: "サイドバーのタグ並び替え: {mode}",
   archiveConfirm: "{days} 日より古い Moments ファイルをアーカイブに移動しますか？",
   archiveBtn: "アーカイブ",
-  invalidNotePath: "無効なノートパスです。サブフォルダはノートディレクトリ内に収める必要があります。",
+  invalidNotePath:
+    "無効なノートパスです。サブフォルダはノートディレクトリ内に収める必要があります。",
   cancelBtn: "キャンセル",
   noMomentsToArchive:
     "アーカイブ対象の Moments ファイルはありません（{skipped} 件の新しいファイルを保持）。",

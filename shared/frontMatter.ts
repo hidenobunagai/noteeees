@@ -1,4 +1,4 @@
-const FRONT_MATTER_RE = /^---\s*\n[\s\S]*?\n---\s*\n?/;
+const FRONT_MATTER_RE = /^---\n[\s\S]*?\n---\n/;
 
 export function stripFrontMatter(content: string): string {
   return content.replace(FRONT_MATTER_RE, "");
