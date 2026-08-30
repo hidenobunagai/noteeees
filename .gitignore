@@ -9,6 +9,7 @@ node_modules
 excalidraw.log
 .opencode/
 .cline/
+.commandcode/
 .vscode/settings.json
 .playwright-mcp/
 package-lock.json
