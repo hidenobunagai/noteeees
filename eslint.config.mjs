@@ -45,6 +45,7 @@ export default [
       curly: "warn",
       eqeqeq: "warn",
       "no-throw-literal": "warn",
+      "no-console": ["warn", { allow: ["warn", "error"] }],
       semi: "warn",
     },
   },

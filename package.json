@@ -4,6 +4,14 @@
   "description": "Simple markdown notes extension",
   "version": "0.15.0",
   "publisher": "HidenobuNagai",
+  "license": "MIT",
+  "keywords": [
+    "notes",
+    "markdown",
+    "journal",
+    "tasks",
+    "productivity"
+  ],
   "icon": "assets/icon.png",
   "repository": {
     "type": "git",
@@ -400,7 +408,7 @@
     "vscode:prepublish": "bun run package",
     "embed:webview": "node scripts/embed-webview.mjs",
     "compile": "bun run check-types && bun run lint && node esbuild.js",
-    "watch": "bunx npm-run-all -p watch:*",
+    "watch": "bun run --parallel watch:*",
     "watch:embed": "node scripts/embed-webview.mjs --watch",
     "watch:esbuild": "node esbuild.js --watch",
     "watch:tsc": "tsc --noEmit --watch --project tsconfig.json",
@@ -409,7 +417,7 @@
     "watch-tests": "tsc -p . -w --outDir out",
     "pretest": "bun run compile-tests && bun run compile && bun run lint",
     "check-types": "bun run embed:webview && tsc --noEmit",
-    "lint": "eslint src",
+    "lint": "eslint src --max-warnings=0",
     "format": "prettier --write 'src/**/*.ts'",
     "format:check": "prettier --check 'src/**/*.ts'",
     "test": "vscode-test"
@@ -423,7 +431,6 @@
     "esbuild": "^0.27.2",
     "eslint": "^9.39.2",
     "eslint-config-prettier": "^10.1.8",
-    "npm-run-all": "^4.1.5",
     "prettier": "^3.8.1",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.52.0"
