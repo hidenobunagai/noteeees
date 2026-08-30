@@ -4,6 +4,37 @@ All notable changes to the "notes" extension will be documented in this file.
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## [Unreleased]
+
+## [0.16.0] - 2026-08-30
+
+### Security
+
+- **Note creation**: Validates subfolder paths in `createNewNote` with `isPathInside` to prevent directory traversal via `../` in title input.
+- **Daily note template**: Guards relative `dailyNoteTemplate` paths against vault escape.
+- **Moments subfolder**: Sanitizes `notes.momentsSubfolder` setting to reject traversal and absolute paths.
+- **Watcher**: Uses `isPathInside` for cross-platform moments directory detection instead of fragile string matching.
+- **Moments webview**: Replaces `innerHTML` URL string concatenation with `createElement('a')` DOM construction to prevent XSS attribute breakout.
+
+### Changed
+
+- **Shared modules**: Extracted `shared/frontMatter.ts` to deduplicate front-matter stripping regexes across 3 files.
+- **File collection**: Unified directory walks to use `shared/collectNoteFiles` (removed duplicate walkers in dashboard collectors).
+- **Sidebar**: Deduplicated `buildTagSummary` → `buildSidebarTagGroups` delegation.
+- **Constants**: Centralized magic numbers into `src/constants.ts`.
+
+### Fixed
+
+- **AI extraction**: Validates `category`/`priority`/`dueDate` against allowed unions; malformed LLM JSON is now filtered instead of silently passed through.
+- **Large vaults**: Throttles concurrent note reads in `notesIndexCache` to avoid `EMFILE`.
+
+### Internal
+
+- Added `license` and `keywords` to `package.json` for marketplace discoverability.
+- Enforces `eslint --max-warnings=0` and adds `no-console` guard.
+- Replaces `npm-run-all` with `bun --parallel`.
+- CI workflow pins `bun-version`.
+
 ## [0.15.0] - 2026-08-15
 
 ### Security
