@@ -71,6 +71,17 @@ Moments are excluded from the regular Notes sidebar but are **fully searchable v
 - **Recent**: Browse your latest notes with a configurable item limit
 - **Tags**: Open notes grouped by tag, with usage counts and latest-note context in the sidebar, scan tag-aware excerpts inside each tag group, toggle sort order, search tags directly, and preview likely matches before opening a note
 
+## Architecture
+
+Noteeees is designed as an offline-first, high-performance VS Code extension with dedicated webview panels and integrated GitHub Copilot AI intelligence:
+
+<p align="center">
+  <img src="docs/architecture.visual-check.1440x900.light.png#gh-light-mode-only" alt="Noteeees Extension Architecture (Light)" width="100%" />
+  <img src="docs/architecture.visual-check.1440x900.dark.png#gh-dark-mode-only" alt="Noteeees Extension Architecture (Dark)" width="100%" />
+</p>
+
+👉 **[Explore the Interactive Architecture Diagram (HTML)](docs/architecture.html)** *(Supports theme toggle, interactive guided views, pan/zoom, and export)*
+
 ## Usage
 
 1. Run `Noteeees: Run Setup` to configure the storage directory

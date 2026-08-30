@@ -1,0 +1,240 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "Noteeees Extension Architecture",
+    "output": "architecture.html",
+    "quality_profile": "showcase",
+    "viewBox": [1240, 620],
+    "views": [
+      {
+        "id": "overview",
+        "label": "Full Architecture",
+        "focus": ["ui_explorer", "ui_moments", "ui_dashboard", "ext_core", "fs_watcher", "idx_engine", "task_collector", "file_storage", "ai_engine"],
+        "note": "Complete overview of the Noteeees VS Code extension architecture."
+      },
+      {
+        "id": "task-and-ai",
+        "label": "Task Dashboard & Copilot AI",
+        "focus": ["ui_dashboard", "ext_core", "task_collector", "ai_engine", "file_storage"],
+        "note": "Task triage cockpit and GitHub Copilot AI extraction flow."
+      },
+      {
+        "id": "moments-stream",
+        "label": "Moments Quick-Capture",
+        "focus": ["ui_moments", "fs_watcher", "ext_core", "file_storage"],
+        "note": "Lightning-fast fleeting thoughts capture and file sync."
+      },
+      {
+        "id": "indexer-backlinks",
+        "label": "Indexing & WikiLinks",
+        "focus": ["ui_explorer", "ext_core", "idx_engine", "file_storage"],
+        "note": "In-memory caching of note metadata, tags, and bidirectional wikilinks."
+      }
+    ]
+  },
+  "components": [
+    {
+      "id": "ui_explorer",
+      "type": "frontend",
+      "label": "Notes Explorer",
+      "sublabel": "Sidebar & Backlinks",
+      "tag": "TreeDataProvider",
+      "pos": [60, 120],
+      "size": [160, 64]
+    },
+    {
+      "id": "ui_moments",
+      "type": "frontend",
+      "label": "Moments Webview",
+      "sublabel": "Quick Timeline Feed",
+      "tag": "Activity Bar",
+      "pos": [60, 280],
+      "size": [160, 64]
+    },
+    {
+      "id": "ui_dashboard",
+      "type": "frontend",
+      "label": "Task Dashboard",
+      "sublabel": "Kanban & Cockpit",
+      "tag": "WebviewPanel",
+      "pos": [60, 440],
+      "size": [160, 64]
+    },
+    {
+      "id": "ext_core",
+      "type": "backend",
+      "label": "Extension Host",
+      "sublabel": "Commands & Lifecycle",
+      "tag": "VS Code API",
+      "pos": [360, 120],
+      "size": [170, 64]
+    },
+    {
+      "id": "fs_watcher",
+      "type": "messagebus",
+      "label": "FS Watcher",
+      "sublabel": "vscode.RelativePattern",
+      "tag": "Live Sync",
+      "pos": [360, 280],
+      "size": [170, 64]
+    },
+    {
+      "id": "idx_engine",
+      "type": "backend",
+      "label": "Index & Cache Engine",
+      "sublabel": "Front Matter & WikiLinks",
+      "tag": "In-Memory Index",
+      "pos": [670, 120],
+      "size": [170, 64]
+    },
+    {
+      "id": "task_collector",
+      "type": "backend",
+      "label": "Task Collector",
+      "sublabel": "Markdown Task Parser",
+      "tag": "- [ ] / - [x]",
+      "pos": [670, 280],
+      "size": [170, 64]
+    },
+    {
+      "id": "file_storage",
+      "type": "database",
+      "label": "Markdown Store",
+      "sublabel": "Notes, Moments & Tasks",
+      "tag": "Plain .md Files",
+      "pos": [980, 120],
+      "size": [170, 64]
+    },
+    {
+      "id": "ai_engine",
+      "type": "cloud",
+      "label": "GitHub Copilot LM",
+      "sublabel": "Extract & Auto-Enrich",
+      "tag": "vscode.lm API",
+      "brand": "github",
+      "pos": [980, 280],
+      "size": [170, 64]
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "VS Code UI Layer",
+      "wraps": ["ui_explorer", "ui_moments", "ui_dashboard"]
+    },
+    {
+      "kind": "region",
+      "label": "Extension Host Core",
+      "wraps": ["ext_core", "fs_watcher", "idx_engine", "task_collector"]
+    },
+    {
+      "kind": "region",
+      "label": "Local Workspace Storage",
+      "wraps": ["file_storage"]
+    },
+    {
+      "kind": "security-group",
+      "label": "AI Services",
+      "wraps": ["ai_engine"]
+    }
+  ],
+  "connections": [
+    {
+      "id": "explorer-to-core",
+      "from": "ui_explorer",
+      "to": "ext_core",
+      "label": "tree events"
+    },
+    {
+      "id": "moments-to-core",
+      "from": "ui_moments",
+      "to": "ext_core",
+      "label": "post moment",
+      "fromSide": "right",
+      "toSide": "left"
+    },
+    {
+      "id": "dashboard-to-core",
+      "from": "ui_dashboard",
+      "to": "ext_core",
+      "label": "task triage",
+      "variant": "emphasis",
+      "fromSide": "right",
+      "toSide": "bottom",
+      "labelDy": 30
+    },
+    {
+      "id": "watcher-to-core",
+      "from": "fs_watcher",
+      "to": "ext_core",
+      "label": "file change",
+      "fromSide": "top",
+      "toSide": "bottom"
+    },
+    {
+      "id": "core-to-index",
+      "from": "ext_core",
+      "to": "idx_engine",
+      "label": "query index"
+    },
+    {
+      "id": "core-to-tasks",
+      "from": "ext_core",
+      "to": "task_collector",
+      "label": "sync tasks",
+      "fromSide": "bottom",
+      "toSide": "left"
+    },
+    {
+      "id": "index-to-files",
+      "from": "idx_engine",
+      "to": "file_storage",
+      "label": "index .md"
+    },
+    {
+      "id": "tasks-to-files",
+      "from": "task_collector",
+      "to": "file_storage",
+      "label": "read/write tasks",
+      "fromSide": "top",
+      "toSide": "bottom"
+    },
+    {
+      "id": "tasks-to-ai",
+      "from": "task_collector",
+      "to": "ai_engine",
+      "label": "extract tasks",
+      "variant": "dashed"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "VS Code Integration",
+      "items": [
+        "Custom TreeDataProvider for notes, tags, and backlinks",
+        "WebviewPanel for interactive Task Dashboard cockpit",
+        "Activity Bar Webview for lightning-fast Moments quick-capture"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "Core & Data Engine",
+      "items": [
+        "In-memory index cache with front-matter & wikilink resolution",
+        "Task parser supporting standard - [ ] and - [x] Markdown syntax",
+        "Live file system watcher for zero-friction bidirectional sync"
+      ]
+    },
+    {
+      "dot": "violet",
+      "title": "Copilot AI Pipeline",
+      "items": [
+        "GitHub Copilot Language Model API (vscode.lm) integration",
+        "Extracts actionable tasks from fleeting Moments notes",
+        "Zero external API keys required; runs directly inside VS Code"
+      ]
+    }
+  ]
+}
