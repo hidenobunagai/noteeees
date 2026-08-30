@@ -92,7 +92,21 @@ export function updateSidebarTagSortSetting(
 }
 
 export function getMomentsSubfolderSetting(): string {
-  return getNotesConfiguration().get<string>("momentsSubfolder") || "moments";
+  const raw = getNotesConfiguration().get<string>("momentsSubfolder") || "moments";
+  const trimmed = raw.trim();
+  if (!trimmed) {
+    return "moments";
+  }
+  // Reject absolute paths and traversal — fall back to default
+  if (trimmed.includes("..") || trimmed.startsWith("/") || trimmed.startsWith("\\")) {
+    return "moments";
+  }
+  // Also reject if normalized form would escape
+  const normalized = trimmed.replace(/\\/g, "/");
+  if (normalized.split("/").some((seg) => seg === ".." || seg === "")) {
+    return "moments";
+  }
+  return trimmed;
 }
 
 export function getMomentsSendOnEnterSetting(): boolean {

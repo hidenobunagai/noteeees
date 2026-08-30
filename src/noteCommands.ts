@@ -1,7 +1,7 @@
 import * as fs from "fs/promises";
 import * as path from "path";
 import * as vscode from "vscode";
-import { resolveUniqueFilePath } from "../shared/pathSafety.js";
+import { isPathInside, resolveUniqueFilePath } from "../shared/pathSafety.js";
 import { formatDateString, formatTimeHM } from "./dashboardTaskUtils.js";
 import { t } from "./i18n.js";
 import { getIndexedNotesCached } from "./notesIndexCache.js";
@@ -414,8 +414,12 @@ export async function createNewNote(notesDir: string, initialTitle?: string): Pr
   const now = new Date();
   const filename = resolveFilename(title, now);
 
-  // Step 4: Create directories as needed
-  const targetDir = subDir ? path.join(notesDir, subDir) : notesDir;
+  // Step 4: Create directories as needed (with path traversal guard)
+  const targetDir = subDir ? path.resolve(notesDir, subDir) : path.resolve(notesDir);
+  if (!isPathInside(notesDir, targetDir)) {
+    vscode.window.showErrorMessage(t("invalidNotePath"));
+    return;
+  }
   try {
     await fs.access(targetDir);
   } catch {
@@ -510,15 +514,19 @@ export async function buildDailyNoteContent(
 
   if (templatePath) {
     const resolvedPath = path.isAbsolute(templatePath)
-      ? templatePath
-      : path.join(notesDir, templatePath);
+      ? path.resolve(templatePath)
+      : path.resolve(notesDir, templatePath);
 
-    try {
-      await fs.access(resolvedPath);
-      const raw = await fs.readFile(resolvedPath, "utf8");
-      return applyDailyNoteTokens(raw, now);
-    } catch {
-      // Template file doesn't exist, use default
+    if (!isPathInside(notesDir, resolvedPath) && !path.isAbsolute(templatePath)) {
+      // Relative template path escapes notesDir — fall back to default
+    } else {
+      try {
+        await fs.access(resolvedPath);
+        const raw = await fs.readFile(resolvedPath, "utf8");
+        return applyDailyNoteTokens(raw, now);
+      } catch {
+        // Template file doesn't exist, use default
+      }
     }
   }
 

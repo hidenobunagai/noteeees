@@ -1,8 +1,9 @@
+import * as path from "path";
 import * as vscode from "vscode";
 import { registerNotesCommands } from "./commands.js";
 import { enrichTasksInFile } from "./dashboardAiEnrichment.js";
 import { DashboardPanel } from "./dashboardPanel";
-import { isPathInside } from "./dashboardTaskUtils.js";
+import { isPathInside } from "../shared/pathSafety.js";
 import { MomentsViewProvider } from "./moments/panel.js";
 import { createNewNote, type IndexedNote, pickIndexedNote } from "./noteCommands";
 import { getIndexedNotesCached } from "./notesIndexCache.js";
@@ -269,12 +270,20 @@ export function activate(context: vscode.ExtensionContext) {
   };
 
   const scheduleDashboardRefresh = (uri: vscode.Uri) => {
-    const momentsSubfolder = getMomentsSubfolderSetting();
-    if (
-      uri.fsPath.includes(`/${momentsSubfolder}/`) ||
-      uri.fsPath.includes(`\\${momentsSubfolder}\\`)
-    ) {
-      return;
+    const notesDir = getNotesDir();
+    if (notesDir) {
+      const momentsDir = path.join(notesDir, getMomentsSubfolderSetting());
+      if (isPathInside(momentsDir, uri.fsPath)) {
+        return;
+      }
+    } else {
+      const momentsSubfolder = getMomentsSubfolderSetting();
+      if (
+        uri.fsPath.includes(`/${momentsSubfolder}/`) ||
+        uri.fsPath.includes(`\\${momentsSubfolder}\\`)
+      ) {
+        return;
+      }
     }
     if (dashboardRefreshTimer) {
       clearTimeout(dashboardRefreshTimer);

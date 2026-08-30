@@ -10,6 +10,31 @@ export function isPathInside(parentDir: string, candidatePath: string): boolean 
   );
 }
 
+export function isValidSubfolderName(value: string): boolean {
+  if (!value || value.trim().length === 0) {
+    return false;
+  }
+  if (path.isAbsolute(value)) {
+    return false;
+  }
+  const normalized = path.normalize(value);
+  if (normalized === "." || normalized.startsWith(`..${path.sep}`) || normalized === "..") {
+    return false;
+  }
+  const segments = normalized.split(path.sep);
+  if (segments.some((seg) => seg === ".." || seg === "." || seg.length === 0)) {
+    return false;
+  }
+  return true;
+}
+
+export function sanitizeSubfolderName(value: string, fallback: string): string {
+  if (isValidSubfolderName(value)) {
+    return path.normalize(value);
+  }
+  return fallback;
+}
+
 export async function resolveUniqueFilePath(
   targetDir: string,
   filename: string,

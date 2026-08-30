@@ -153,14 +153,83 @@
       .replace(/"/g, '&quot;');
   }
 
+  function renderTextToFragment(text, container) {
+    container.textContent = '';
+    // Build DOM safely without innerHTML string concatenation for URLs.
+    // We parse the escaped text and inject structured elements.
+    const tagRe = new RegExp(momentTagPattern, 'gu');
+    const dueRe = /@(\d{4}-\d{2}-\d{2})/g;
+    const urlRe = /(https?:\/\/[^\s]+)/g;
+
+    // Collect all match positions for tags, due dates, and URLs
+    const markers = [];
+    let m;
+    tagRe.lastIndex = 0;
+    while ((m = tagRe.exec(text)) !== null) {
+      markers.push({ index: m.index, end: m.index + m[0].length, type: 'tag', value: m[0] });
+    }
+    dueRe.lastIndex = 0;
+    while ((m = dueRe.exec(text)) !== null) {
+      markers.push({ index: m.index, end: m.index + m[0].length, type: 'due', value: m[0] });
+    }
+    urlRe.lastIndex = 0;
+    while ((m = urlRe.exec(text)) !== null) {
+      markers.push({ index: m.index, end: m.index + m[0].length, type: 'url', value: m[0] });
+    }
+    // Sort by position, and filter overlapping (earlier wins)
+    markers.sort((a, b) => a.index - b.index);
+    const filtered = [];
+    let lastEnd = 0;
+    for (const marker of markers) {
+      if (marker.index >= lastEnd) {
+        filtered.push(marker);
+        lastEnd = marker.end;
+      }
+    }
+
+    let cursor = 0;
+    for (const marker of filtered) {
+      if (marker.index > cursor) {
+        container.appendChild(document.createTextNode(text.slice(cursor, marker.index)));
+      }
+      if (marker.type === 'tag') {
+        const btn = document.createElement('button');
+        btn.className = 'tag';
+        btn.type = 'button';
+        btn.dataset.tag = marker.value;
+        btn.textContent = marker.value;
+        container.appendChild(btn);
+      } else if (marker.type === 'due') {
+        const span = document.createElement('span');
+        span.className = 'due-date-inline';
+        span.textContent = marker.value;
+        container.appendChild(span);
+      } else if (marker.type === 'url') {
+        const anchor = document.createElement('a');
+        anchor.href = marker.value;
+        anchor.style.color = 'var(--moments-accent)';
+        anchor.textContent = marker.value;
+        anchor.target = '_blank';
+        anchor.rel = 'noopener noreferrer';
+        container.appendChild(anchor);
+      }
+      cursor = marker.end;
+    }
+    if (cursor < text.length) {
+      container.appendChild(document.createTextNode(text.slice(cursor)));
+    }
+  }
+
   function renderText(text) {
-    // Highlight #tags
+    // Legacy string-based renderer kept for pinned entries that use innerHTML.
+    // URL hrefs are now safely encoded via encodeURI to prevent attribute breakout.
     let html = escapeHtml(text);
     html = html.replace(new RegExp(momentTagPattern, 'gu'), (tag) => '<button class="tag" type="button" data-tag="' + tag + '">' + tag + '</button>');
-    // Highlight @YYYY-MM-DD due dates
     html = html.replace(/@(\d{4}-\d{2}-\d{2})/g, '<span class="due-date-inline">@$1</span>');
-    // Auto-link URLs
-    html = html.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" style="color:var(--moments-accent)">$1</a>');
+    html = html.replace(/(https?:\/\/[^\s<]+)/g, (url) => {
+      const safe = escapeHtml(url);
+      return '<a href="' + safe + '" style="color:var(--moments-accent)" target="_blank" rel="noopener noreferrer">' + safe + '</a>';
+    });
     return html;
   }
 
@@ -295,7 +364,7 @@
 
         const textSpan = document.createElement('div');
         textSpan.className = 'entry-text';
-        textSpan.innerHTML = renderText(pinned.text);
+        renderTextToFragment(pinned.text, textSpan);
         textSpan.querySelectorAll('.tag').forEach((tagButton) => {
           tagButton.addEventListener('click', (event) => {
             event.preventDefault();
@@ -484,7 +553,7 @@
 
       const textSpan = document.createElement('div');
       textSpan.className = 'entry-text';
-      textSpan.innerHTML = renderText(entry.text);
+      renderTextToFragment(entry.text, textSpan);
       textSpan.querySelectorAll('.tag').forEach((tagButton) => {
         tagButton.addEventListener('click', (event) => {
           event.preventDefault();

@@ -17,6 +17,7 @@ const en = {
   tagSortSet: "Sidebar tag sort: {mode}",
   archiveConfirm: "Move Moments files older than {days} days to archive?",
   archiveBtn: "Archive",
+  invalidNotePath: "Invalid note path: subfolder must stay inside the notes directory.",
   cancelBtn: "Cancel",
   noMomentsToArchive: "No Moments files to archive ({skipped} recent files kept).",
   archivedMoments: "Archived {count} Moments files ({skipped} recent files kept).",
@@ -193,6 +194,7 @@ const ja: Record<keyof typeof en, string> = {
   tagSortSet: "サイドバーのタグ並び替え: {mode}",
   archiveConfirm: "{days} 日より古い Moments ファイルをアーカイブに移動しますか？",
   archiveBtn: "アーカイブ",
+  invalidNotePath: "無効なノートパスです。サブフォルダはノートディレクトリ内に収める必要があります。",
   cancelBtn: "キャンセル",
   noMomentsToArchive:
     "アーカイブ対象の Moments ファイルはありません（{skipped} 件の新しいファイルを保持）。",
