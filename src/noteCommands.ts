@@ -1,6 +1,7 @@
 import * as fs from "fs/promises";
 import * as path from "path";
 import * as vscode from "vscode";
+import { stripFrontMatterTrimmed } from "../shared/frontMatter.js";
 import { isPathInside, resolveUniqueFilePath } from "../shared/pathSafety.js";
 import { formatDateString, formatTimeHM } from "./dashboardTaskUtils.js";
 import { t } from "./i18n.js";
@@ -35,12 +36,8 @@ export interface NoteFile {
   mtime: number;
 }
 
-function stripFrontMatter(rawContent: string): string {
-  return rawContent.replace(/^---\s*\n[\s\S]*?\n---\s*\n?/, "").trim();
-}
-
 export function extractPreviewText(rawContent: string, maxLength: number = 140): string {
-  const preview = stripFrontMatter(rawContent).replace(/\n+/g, " ").trim();
+  const preview = stripFrontMatterTrimmed(rawContent).replace(/\n+/g, " ").trim();
   if (preview.length <= maxLength) {
     return preview;
   }
@@ -376,7 +373,7 @@ export async function buildIndexedNotes(noteFiles: NoteFile[]): Promise<IndexedN
     const fallbackTitle = path.basename(file.relativePath, ".md");
     const metadata = extractNoteMetadata(rawContent, fallbackTitle);
     const preview = extractPreviewText(rawContent);
-    const searchText = normalizeSearchText(stripFrontMatter(rawContent));
+    const searchText = normalizeSearchText(stripFrontMatterTrimmed(rawContent));
 
     return {
       ...file,

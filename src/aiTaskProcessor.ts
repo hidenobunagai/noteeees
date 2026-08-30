@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import { MODELS_CACHE_TTL_MS } from "./constants.js";
 import { t } from "./i18n.js";
 
 export type TaskCategory = "work" | "personal" | "health" | "learning" | "admin" | "other";
@@ -66,18 +67,52 @@ export function extractJsonPayload(text: string): string {
   return trimmed.slice(Math.min(...startCandidates)).trim();
 }
 
-function parseExtractedTasks(raw: string): ExtractedTask[] | null {
-  const parsed = JSON.parse(extractJsonPayload(raw)) as unknown;
+const VALID_CATEGORIES = new Set(["work", "personal", "health", "learning", "admin", "other"]);
+const VALID_PRIORITIES = new Set(["high", "medium", "low"]);
+const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
-  if (Array.isArray(parsed)) {
-    return parsed as ExtractedTask[];
+function isValidExtractedTask(value: unknown): value is ExtractedTask {
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+  const v = value as Record<string, unknown>;
+  if (typeof v.text !== "string" || v.text.trim().length === 0) {
+    return false;
+  }
+  if (typeof v.category !== "string" || !VALID_CATEGORIES.has(v.category)) {
+    return false;
+  }
+  if (typeof v.priority !== "string" || !VALID_PRIORITIES.has(v.priority)) {
+    return false;
+  }
+  if (typeof v.timeEstimateMin !== "number" || !Number.isFinite(v.timeEstimateMin)) {
+    return false;
+  }
+  if (v.dueDate !== undefined && v.dueDate !== null) {
+    if (typeof v.dueDate !== "string" || !ISO_DATE_RE.test(v.dueDate)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+function parseExtractedTasks(raw: string): ExtractedTask[] | null {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(extractJsonPayload(raw)) as unknown;
+  } catch {
+    return null;
   }
 
-  return null;
+  if (!Array.isArray(parsed)) {
+    return null;
+  }
+
+  const valid = parsed.filter(isValidExtractedTask);
+  return valid.length > 0 ? valid : parsed.length === 0 ? [] : null;
 }
 
 let cachedModels: { models: CopilotModel[]; at: number } | undefined;
-const MODELS_CACHE_TTL_MS = 60_000;
 
 export async function listCopilotModels(): Promise<CopilotModel[]> {
   const now = Date.now();

@@ -1,12 +1,11 @@
 import { collectNoteFiles } from "../shared/collectNoteFiles.js";
+import { MAX_CACHE_ENTRIES } from "./constants.js";
 import { buildIndexedNotes, type IndexedNote } from "./noteCommands.js";
 
 interface CachedEntry {
   mtime: number;
   note: IndexedNote;
 }
-
-const MAX_CACHE_ENTRIES = 10000;
 const cacheByKey = new Map<string, Map<string, CachedEntry>>();
 
 function buildCacheKey(notesDir: string, excludeDirs: string[]): string {
@@ -33,6 +32,8 @@ export async function getIndexedNotesCached(
   const stalePaths = new Set(cache.keys());
   const notes: IndexedNote[] = [];
   const readTasks: Promise<IndexedNote>[] = [];
+
+  const CONCURRENCY = 20;
 
   for (const file of collected) {
     stalePaths.delete(file.relativePath);
@@ -61,5 +62,12 @@ export async function getIndexedNotesCached(
     cache.delete(stalePath);
   }
 
-  return notes.concat(await Promise.all(readTasks));
+  // Throttle concurrent reads to avoid EMFILE on large vaults
+  const results: IndexedNote[] = [];
+  for (let i = 0; i < readTasks.length; i += CONCURRENCY) {
+    const batch = readTasks.slice(i, i + CONCURRENCY);
+    results.push(...(await Promise.all(batch)));
+  }
+
+  return notes.concat(results);
 }

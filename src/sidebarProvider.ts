@@ -61,21 +61,7 @@ export function buildTagSummary(
   notes: Array<{ tags: string[] }>,
   sortMode: SidebarTagSortMode = "frequency",
 ): Array<{ tag: string; count: number }> {
-  const counts = new Map<string, number>();
-
-  for (const note of notes) {
-    for (const tag of note.tags) {
-      counts.set(tag, (counts.get(tag) ?? 0) + 1);
-    }
-  }
-
-  const summary = [...counts.entries()].map(([tag, count]) => ({ tag, count }));
-
-  if (sortMode === "alphabetical") {
-    return summary.sort((a, b) => a.tag.localeCompare(b.tag));
-  }
-
-  return summary.sort((a, b) => b.count - a.count || a.tag.localeCompare(b.tag));
+  return buildSidebarTagGroups(notes, sortMode).map(({ tag, count }) => ({ tag, count }));
 }
 
 export function buildSidebarTagGroups(

@@ -1,5 +1,6 @@
 import * as fs from "fs/promises";
 import * as path from "path";
+import { stripFrontMatter } from "../../shared/frontMatter.js";
 import { formatDateString, formatTimeHM, todayDateString } from "../dashboardTaskUtils.js";
 import { getMomentsArchiveAfterDaysSetting, getMomentsSubfolderSetting } from "../notesConfig.js";
 import {
@@ -162,7 +163,7 @@ export async function readMoments(notesDir: string, date: string): Promise<Momen
 
   const raw = await fs.readFile(filePath, "utf8");
   // Strip front matter only — do NOT trim, so line indices stay consistent with toggleTask
-  const body = raw.replace(/^---\n[\s\S]*?\n---\n/, "");
+  const body = stripFrontMatter(raw);
   const lines = body.split("\n");
   const entries: MomentEntry[] = [];
 

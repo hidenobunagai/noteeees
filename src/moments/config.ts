@@ -4,6 +4,10 @@ import {
   updateMomentsInboxFilterSetting,
 } from "../notesConfig.js";
 import { extractDueDate } from "../../shared/taskSyntax.js";
+import {
+  MOMENTS_FEED_DEFAULT_DAY_COUNT,
+  MOMENTS_FEED_MAX_DAY_COUNT,
+} from "../constants.js";
 import { todayDateString } from "../dashboardTaskUtils.js";
 import type {
   InboxTaskFilter,
@@ -14,7 +18,7 @@ import type {
   TaskOverviewItem,
 } from "./types.js";
 
-const MOMENTS_FEED_DAY_COUNT = 7;
+const MOMENTS_FEED_DAY_COUNT = MOMENTS_FEED_DEFAULT_DAY_COUNT;
 export const MOMENT_TAG_PATTERN = String.raw`#[\p{L}\p{M}\p{N}_\p{Pd}]+`;
 
 function matchMomentTags(text: string): string[] {
@@ -90,7 +94,7 @@ export function normalizeMomentsFeedDayCount(value: number | undefined): number 
     return MOMENTS_FEED_DAY_COUNT;
   }
 
-  return Math.min(Math.max(Math.floor(value), 1), 30);
+  return Math.min(Math.max(Math.floor(value), 1), MOMENTS_FEED_MAX_DAY_COUNT);
 }
 
 export function getMomentsFeedDayCount(): number {

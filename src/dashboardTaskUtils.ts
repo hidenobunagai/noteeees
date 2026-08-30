@@ -15,13 +15,15 @@ import type {
 } from "./aiTaskProcessor.js";
 import { isPathInside } from "../shared/pathSafety.js";
 import { stripDueDateTokens } from "../shared/taskSyntax.js";
+import {
+  EXTRACTED_TASK_DISMISS_WINDOW_DAYS,
+  MAX_DISMISSED_EXTRACTED_TASKS,
+} from "./constants.js";
 import { t } from "./i18n.js";
 export { DUE_DATE_RE, TAG_RE, TASK_RE } from "../shared/taskSyntax.js";
 export { isPathInside } from "../shared/pathSafety.js";
 
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
-const EXTRACTED_TASK_DISMISS_WINDOW_DAYS = 30;
-const MAX_DISMISSED_EXTRACTED_TASKS = 200;
 export const SECTION_ORDER: Record<DashboardTaskSection, number> = {
   overdue: 0,
   today: 1,

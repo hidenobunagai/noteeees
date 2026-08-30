@@ -16,12 +16,15 @@ export interface DismissedExtractedTask {
   dismissedAt: string;
 }
 
+export type TaskCategory = "work" | "personal" | "health" | "learning" | "admin" | "other";
+export type TaskPriority = "high" | "medium" | "low";
+
 export interface DashboardCandidateTask {
   kind: "candidate";
   text: string;
   dueDate: string | null;
-  category: string;
-  priority: string;
+  category: TaskCategory;
+  priority: TaskPriority;
   timeEstimateMin: number;
   source: "moments" | "notes";
   sourceLabel: string;

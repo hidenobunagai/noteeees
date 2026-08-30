@@ -1,5 +1,6 @@
 import * as fs from "fs/promises";
 import * as path from "path";
+import { collectNoteFiles } from "../shared/collectNoteFiles.js";
 import type { CancellationToken } from "vscode";
 import {
   extractTasksFromNotes,
@@ -15,6 +16,7 @@ import {
   filterExtractedTasksForDisplay,
   formatDateString,
 } from "./dashboardTaskUtils.js";
+import { stripFrontMatterTrimmed } from "../shared/frontMatter.js";
 import { t } from "./i18n.js";
 import type { DashTask, DashboardCandidateTask, DismissedExtractedTask } from "./dashboardTypes.js";
 
@@ -74,7 +76,7 @@ export async function collectDashboardMomentsText(
       continue;
     }
 
-    const body = content.replace(/^---[\s\S]*?---\s*/m, "").trim();
+    const body = stripFrontMatterTrimmed(content);
     const cleanText = body
       .split("\n")
       .filter((line) => line.startsWith("- "))
@@ -103,50 +105,32 @@ export async function collectDashboardNotesByDate(
   momentsSubfolder = "moments",
 ): Promise<NoteContent[]> {
   const results: NoteContent[] = [];
-  const momentsAbsPath = path.resolve(notesDir, momentsSubfolder);
+  const collected = await collectNoteFiles(notesDir, [momentsSubfolder]);
 
-  const collectFiles = async (dir: string) => {
-    const entries = await fs.readdir(dir, { withFileTypes: true });
-    for (const entry of entries) {
-      const fullPath = path.join(dir, entry.name);
-      if (entry.isDirectory()) {
-        if (path.resolve(fullPath) === momentsAbsPath) {
-          continue;
-        }
-
-        await collectFiles(fullPath);
-        continue;
-      }
-
-      if (!entry.name.endsWith(".md")) {
-        continue;
-      }
-
-      const dateMatch = entry.name.match(/(\d{4}-\d{2}-\d{2})/);
-      if (!dateMatch) {
-        continue;
-      }
-
-      const fileDate = dateMatch[1];
-      if (fileDate < fromDate || fileDate > toDate) {
-        continue;
-      }
-
-      try {
-        const content = await fs.readFile(fullPath, "utf8");
-        results.push({
-          filename: path.relative(notesDir, fullPath),
-          title: entry.name.replace(/\.md$/, ""),
-          content,
-          createdAt: fileDate,
-        });
-      } catch {
-        // Skip files that can't be read.
-      }
+  for (const file of collected) {
+    const dateMatch = path.basename(file.filePath).match(/(\d{4}-\d{2}-\d{2})/);
+    if (!dateMatch) {
+      continue;
     }
-  };
 
-  await collectFiles(notesDir);
+    const fileDate = dateMatch[1];
+    if (fileDate < fromDate || fileDate > toDate) {
+      continue;
+    }
+
+    try {
+      const content = await fs.readFile(file.filePath, "utf8");
+      results.push({
+        filename: file.relativePath,
+        title: path.basename(file.filePath, ".md"),
+        content,
+        createdAt: fileDate,
+      });
+    } catch {
+      // Skip files that can't be read.
+    }
+  }
+
   return results.sort((a, b) => (b.createdAt || "").localeCompare(a.createdAt || ""));
 }
 
