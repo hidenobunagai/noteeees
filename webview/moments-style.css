@@ -121,7 +121,7 @@
     opacity: 1;
     color: var(--vscode-foreground);
     background: var(--vscode-button-secondaryBackground, color-mix(in srgb, var(--vscode-foreground) 10%, transparent));
-    border-radius: 4px;
+    border-radius: 999px; /* 枠(topbar-right)と同じ丸角にし、両端で四角がはみ出さないようにする */
   }
 
   .open-btn {
@@ -661,7 +661,7 @@
     opacity: 1;
     color: var(--moments-accent);
     background: color-mix(in srgb, var(--moments-accent) 12%, transparent);
-    border-radius: 4px;
+    border-radius: 999px; /* 枠(topbar-right)と同じ丸角にし、両端で四角がはみ出さないようにする */
   }
 
   .select-entry-cb {

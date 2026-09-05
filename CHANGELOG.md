@@ -6,6 +6,10 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+### Fixed
+
+- **Moments webview**: Active tab highlight (e.g. "All moments") now uses the same pill radius as the surrounding tab frame, so the square highlight no longer sticks out of the rounded frame ends.
+
 ## [0.16.0] - 2026-08-30
 
 ### Security
