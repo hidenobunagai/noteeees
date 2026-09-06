@@ -4,6 +4,12 @@ All notable changes to the "notes" extension will be documented in this file.
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## [Unreleased]
+
+### Fixed
+
+- **Moments webview**: Button hover backgrounds inside the top tab frame now use the same pill radius as the frame, so the square hover highlight no longer sticks out at the rounded frame ends.
+
 ## [0.16.1] - 2026-09-05
 
 ### Fixed

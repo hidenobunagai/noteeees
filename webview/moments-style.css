@@ -102,7 +102,7 @@
     color: var(--vscode-foreground);
     cursor: pointer;
     padding: 4px 6px;
-    border-radius: 4px;
+    border-radius: 999px; /* 枠(topbar-right)と同じ丸角: ホバー/アクティブの背景が両端で枠からはみ出さない */
     font-size: 11px;
     font-weight: 500;
     opacity: 0.65;
@@ -121,7 +121,6 @@
     opacity: 1;
     color: var(--vscode-foreground);
     background: var(--vscode-button-secondaryBackground, color-mix(in srgb, var(--vscode-foreground) 10%, transparent));
-    border-radius: 999px; /* 枠(topbar-right)と同じ丸角にし、両端で四角がはみ出さないようにする */
   }
 
   .open-btn {
@@ -133,7 +132,7 @@
     color: var(--vscode-foreground);
     cursor: pointer;
     padding: 4px 6px;
-    border-radius: 4px;
+    border-radius: 999px; /* 枠(topbar-right)と同じ丸角: ホバー/アクティブの背景が両端で枠からはみ出さない */
     opacity: 0.5;
     min-width: 28px;
     min-height: 28px;
@@ -661,7 +660,6 @@
     opacity: 1;
     color: var(--moments-accent);
     background: color-mix(in srgb, var(--moments-accent) 12%, transparent);
-    border-radius: 999px; /* 枠(topbar-right)と同じ丸角にし、両端で四角がはみ出さないようにする */
   }
 
   .select-entry-cb {
