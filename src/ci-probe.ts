@@ -1,2 +1,1 @@
-export const ciProbe: number = "not a number"
-const unusedProbe = 1
+export const ciProbe: string = "not a number";
