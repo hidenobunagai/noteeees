@@ -1,9 +1,7 @@
 import * as fs from "fs/promises";
 import * as vscode from "vscode";
-import { DashboardPanel } from "./dashboardPanel.js";
-import { isPathInside } from "./dashboardTaskUtils.js";
+import { isPathInside } from "../shared/pathSafety.js";
 import { archiveMoments } from "./moments/fileIo.js";
-import { showOpenTasksOverview } from "./moments/taskOverview.js";
 import { createNewNote, listNotes, openDailyNote } from "./noteCommands";
 import {
   getDailyNoteTemplateSetting,
@@ -28,10 +26,7 @@ export interface NotesCommandDeps {
 }
 
 /** Registers all `notes.*` commands and returns the disposables to push. */
-export function registerNotesCommands(
-  context: vscode.ExtensionContext,
-  deps: NotesCommandDeps,
-): vscode.Disposable[] {
+export function registerNotesCommands(deps: NotesCommandDeps): vscode.Disposable[] {
   const {
     getNotesDir,
     ensureNotesDirectory,
@@ -134,18 +129,6 @@ export function registerNotesCommands(
     await vscode.commands.executeCommand("notesMomentsView.focus");
   });
 
-  const showOpenTasksOverviewDisposable = vscode.commands.registerCommand(
-    "notes.showOpenTasksOverview",
-    async () => {
-      const notesDir = await ensureNotesDirectory();
-      if (!notesDir) {
-        return;
-      }
-
-      await showOpenTasksOverview(notesDir);
-    },
-  );
-
   // Open Note File command (used by sidebar)
   const openNoteFileDisposable = vscode.commands.registerCommand(
     "notes.openNoteFile",
@@ -241,29 +224,6 @@ export function registerNotesCommands(
     },
   );
 
-  const openDashboardDisposable = vscode.commands.registerCommand(
-    "notes.openDashboard",
-    async () => {
-      const notesDir = await ensureNotesDirectory();
-      if (!notesDir) {
-        return;
-      }
-      await DashboardPanel.createOrShow(getNotesDir, context.globalState);
-    },
-  );
-
-  const aiExtractTasksDisposable = vscode.commands.registerCommand(
-    "notes.aiExtractTasks",
-    async () => {
-      const notesDir = await ensureNotesDirectory();
-      if (!notesDir) {
-        return;
-      }
-      await DashboardPanel.createOrShow(getNotesDir, context.globalState);
-      DashboardPanel.runAiExtract();
-    },
-  );
-
   const archiveMomentsDisposable = vscode.commands.registerCommand(
     "notes.archiveMoments",
     async () => {
@@ -301,15 +261,12 @@ export function registerNotesCommands(
     newNoteDisposable,
     listNotesDisposable,
     focusMomentsDisposable,
-    showOpenTasksOverviewDisposable,
     openNoteFileDisposable,
     pinNoteDisposable,
     unpinNoteDisposable,
     movePinnedNoteUpDisposable,
     movePinnedNoteDownDisposable,
     openDailyNoteDisposable,
-    openDashboardDisposable,
-    aiExtractTasksDisposable,
     archiveMomentsDisposable,
   ];
 }

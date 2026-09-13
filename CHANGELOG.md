@@ -4,6 +4,16 @@ All notable changes to the "notes" extension will be documented in this file.
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## [Unreleased]
+
+### Removed
+
+- **Task feature**: The extension is now two pillars — Notes and Moments. Removed the Task Dashboard webview, the Moments task Inbox (`Noteeees Moments: Show Moments Inbox`), AI task extraction and enrichment (`notes.aiExtractTasks`, `notes.ai.autoEnrich`), the `Tasks` status bar item (`notes.statusBarTasks`), the `notes.momentsInboxFilter` setting, the `Cmd+Shift+T` dashboard shortcut, the dashboard walkthrough step, and the `notes.openDashboard` / `notes.aiExtractTasks` / `notes.showOpenTasksOverview` commands.
+
+### Changed
+
+- **Moments entries**: A Moment is now a plain `- HH:MM text` line. The `- [ ]` / `- [x]` done checkbox and the `@YYYY-MM-DD` due-date badge and highlighting are gone; existing checked or dated lines still render (the checkbox prefix is ignored).
+
 ## [0.16.2] - 2026-09-06
 
 ### Fixed

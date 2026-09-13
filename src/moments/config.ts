@@ -1,18 +1,10 @@
-import {
-  getMomentsFeedDaysSetting,
-  getMomentsInboxFilterSetting,
-  updateMomentsInboxFilterSetting,
-} from "../notesConfig.js";
-import { extractDueDate } from "../../shared/taskSyntax.js";
+import { getMomentsFeedDaysSetting } from "../notesConfig.js";
 import { MOMENTS_FEED_DEFAULT_DAY_COUNT, MOMENTS_FEED_MAX_DAY_COUNT } from "../constants.js";
-import { todayDateString } from "../dashboardTaskUtils.js";
 import type {
-  InboxTaskFilter,
   MomentDaySection,
   MomentEntry,
   PinnedEntryData,
   ResolvedPinnedEntryData,
-  TaskOverviewItem,
 } from "./types.js";
 
 const MOMENTS_FEED_DAY_COUNT = MOMENTS_FEED_DEFAULT_DAY_COUNT;
@@ -26,39 +18,8 @@ function normalizeMomentTag(tag: string): string {
   return tag.normalize("NFKC").toLowerCase();
 }
 
-export function normalizeInboxTaskFilter(filter: string | undefined): InboxTaskFilter {
-  if (filter === "open" || filter === "done" || filter === "all" || filter === "overdue") {
-    return filter;
-  }
-
-  return "all";
-}
-
 export function extractMomentTags(text: string): string[] {
   return [...new Set(matchMomentTags(text).map((tag) => normalizeMomentTag(tag)))];
-}
-
-export function filterTaskOverviewItems(
-  items: TaskOverviewItem[],
-  filter: InboxTaskFilter,
-): TaskOverviewItem[] {
-  if (filter === "open") {
-    return items.filter((item) => !item.done);
-  }
-
-  if (filter === "done") {
-    return items.filter((item) => item.done);
-  }
-
-  if (filter === "overdue") {
-    const today = todayDateString();
-    return items.filter((item) => {
-      const dueDate = extractDueDate(item.text);
-      return dueDate !== null && dueDate < today && !item.done;
-    });
-  }
-
-  return items;
 }
 
 export function resolvePinnedEntries(
@@ -80,7 +41,6 @@ export function resolvePinnedEntries(
       ...pinned,
       text: liveEntry?.text ?? pinned.text,
       time: liveEntry?.time ?? pinned.time,
-      done: liveEntry?.done ?? false,
       isAvailable: liveEntry !== undefined,
     };
   });
@@ -96,28 +56,4 @@ export function normalizeMomentsFeedDayCount(value: number | undefined): number 
 
 export function getMomentsFeedDayCount(): number {
   return normalizeMomentsFeedDayCount(getMomentsFeedDaysSetting());
-}
-
-export function getConfiguredInboxTaskFilter(): InboxTaskFilter {
-  return normalizeInboxTaskFilter(getMomentsInboxFilterSetting());
-}
-
-export function persistInboxTaskFilter(filter: InboxTaskFilter): Thenable<void> {
-  return updateMomentsInboxFilterSetting(filter);
-}
-
-export function getNextInboxFilter(filter: InboxTaskFilter): InboxTaskFilter {
-  if (filter === "all") {
-    return "open";
-  }
-
-  if (filter === "open") {
-    return "done";
-  }
-
-  if (filter === "done") {
-    return "overdue";
-  }
-
-  return "all";
 }

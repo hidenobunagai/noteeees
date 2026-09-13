@@ -1,7 +1,7 @@
 import * as fs from "fs/promises";
 import * as path from "path";
 import { stripFrontMatter } from "../../shared/frontMatter.js";
-import { formatDateString, formatTimeHM, todayDateString } from "../dashboardTaskUtils.js";
+import { formatDateString, formatTimeHM, todayDateString } from "../dateUtils.js";
 import { getMomentsArchiveAfterDaysSetting, getMomentsSubfolderSetting } from "../notesConfig.js";
 import {
   extractMomentTags,
@@ -40,35 +40,15 @@ async function listMomentFileDates(notesDir: string): Promise<string[]> {
     .sort((a, b) => b.localeCompare(a));
 }
 
-function parseMomentEntryStart(line: string): { time: string; text: string; done: boolean } | null {
-  const taskDone = line.match(/^-\s+\[x\]\s+(\d{2}:\d{2})\s+(.*)/i);
-  if (taskDone) {
-    return {
-      time: taskDone[1],
-      text: taskDone[2],
-      done: true,
-    };
+// Legacy `- [ ]` / `- [x]` prefixes are still parsed so Moments files written by
+// older versions stay readable; the checkbox state itself is dropped.
+function parseMomentEntryStart(line: string): { time: string; text: string } | null {
+  const match = line.match(/^-\s+(?:\[[ x]\]\s+)?(\d{2}:\d{2})\s+(.*)/i);
+  if (!match) {
+    return null;
   }
 
-  const taskTodo = line.match(/^-\s+\[ \]\s+(\d{2}:\d{2})\s+(.*)/i);
-  if (taskTodo) {
-    return {
-      time: taskTodo[1],
-      text: taskTodo[2],
-      done: false,
-    };
-  }
-
-  const regular = line.match(/^-\s+(\d{2}:\d{2})\s+(.*)/);
-  if (regular) {
-    return {
-      time: regular[1],
-      text: regular[2],
-      done: false,
-    };
-  }
-
-  return null;
+  return { time: match[1], text: match[2] };
 }
 
 function findMomentEntryRange(
@@ -100,31 +80,15 @@ function buildMomentEntryLines(
     return { lines: [startLine], changed: false };
   }
 
-  const textLines = normalizedText.split("\n");
-
-  // All patterns (task done, task todo, regular) are rewritten as plain `- HH:MM text`
-  const taskDone = startLine.match(/^-\s+\[x\]\s+(\d{2}:\d{2})\s+(.*)$/i);
-  if (taskDone) {
-    const lines = [`- ${taskDone[1]} ${textLines[0]}`, ...textLines.slice(1)];
-    return { lines, changed: true };
+  // Rewrites legacy `- [ ]` / `- [x]` prefixes to plain `- HH:MM text`
+  const regular = startLine.match(/^-\s+(?:\[[ x]\]\s+)?(\d{2}:\d{2})\s+(.*)$/i);
+  if (!regular) {
+    return { lines: [startLine], changed: false };
   }
 
-  const taskTodo = startLine.match(/^-\s+\[ \]\s+(\d{2}:\d{2})\s+(.*)$/);
-  if (taskTodo) {
-    const lines = [`- ${taskTodo[1]} ${textLines[0]}`, ...textLines.slice(1)];
-    return { lines, changed: true };
-  }
-
-  const regular = startLine.match(/^(-\s+)(\d{2}:\d{2})\s+(.*)$/);
-  if (regular) {
-    const lines = [`${regular[1]}${regular[2]} ${textLines[0]}`, ...textLines.slice(1)];
-    return {
-      lines,
-      changed: lines.join("\n") !== startLine,
-    };
-  }
-
-  return { lines: [startLine], changed: false };
+  const [firstLine, ...restLines] = normalizedText.split("\n");
+  const lines = [`- ${regular[1]} ${firstLine}`, ...restLines];
+  return { lines, changed: true };
 }
 
 function replaceMomentEntryBlock(
@@ -162,7 +126,7 @@ export async function readMoments(notesDir: string, date: string): Promise<Momen
   }
 
   const raw = await fs.readFile(filePath, "utf8");
-  // Strip front matter only — do NOT trim, so line indices stay consistent with toggleTask
+  // Strip front matter only — do NOT trim, so line indices stay consistent with edits
   const body = stripFrontMatter(raw);
   const lines = body.split("\n");
   const entries: MomentEntry[] = [];
@@ -189,7 +153,6 @@ export async function readMoments(notesDir: string, date: string): Promise<Momen
       index: range.startIndex,
       time: start.time,
       text,
-      done: start.done,
       tags: extractMomentTags(text),
     });
     i = range.endIndex;
@@ -208,32 +171,6 @@ export function mapMomentBodyIndexToFileLine(raw: string, bodyIndex: number): nu
   }
 
   return bodyStart + bodyIndex;
-}
-
-export function toggleMomentTaskLine(line: string): { line: string; changed: boolean } {
-  if (line.match(/^(-\s+)\[x\]/i)) {
-    return {
-      line: line.replace(/^(-\s+)\[x\]/i, "$1[ ]"),
-      changed: true,
-    };
-  }
-
-  if (line.match(/^(-\s+)\[ \]/)) {
-    return {
-      line: line.replace(/^(-\s+)\[ \]/, "$1[x]"),
-      changed: true,
-    };
-  }
-
-  const regular = line.match(/^(-\s+)(\d{2}:\d{2}\s+.*)$/);
-  if (regular) {
-    return {
-      line: `${regular[1]}[x] ${regular[2]}`,
-      changed: true,
-    };
-  }
-
-  return { line, changed: false };
 }
 
 export function buildMomentsDateLabel(date: string, today: string): string {

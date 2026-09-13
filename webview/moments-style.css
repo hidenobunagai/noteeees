@@ -420,50 +420,6 @@
     background: color-mix(in srgb, var(--moments-accent) 25%, transparent);
   }
 
-  .due-date-inline {
-    display: inline-block;
-    padding: 0 6px;
-    border-radius: 4px;
-    background: color-mix(in srgb, var(--vscode-charts-orange, #e8a838) 15%, transparent);
-    color: var(--vscode-charts-orange, #e8a838);
-    font-size: 11px;
-    font-weight: 500;
-    margin: 0 1px;
-    line-height: 1.4;
-    white-space: nowrap;
-  }
-
-  /* ---- Due date badges ---- */
-  .due-badge {
-    display: inline-flex;
-    align-items: center;
-    min-height: 20px;
-    padding: 0 8px;
-    border-radius: 999px;
-    font-size: 11px;
-    font-weight: 500;
-    line-height: 1.4;
-    white-space: nowrap;
-    background: color-mix(in srgb, var(--vscode-foreground) 10%, transparent);
-    color: var(--moments-muted);
-  }
-
-  .due-overdue .due-badge {
-    background: color-mix(in srgb, var(--vscode-errorForeground, #f44) 18%, transparent);
-    color: var(--vscode-errorForeground, #f44);
-  }
-
-  .due-today .due-badge {
-    background: color-mix(in srgb, var(--vscode-charts-orange, #e8a838) 18%, transparent);
-    color: var(--vscode-charts-orange, #e8a838);
-  }
-
-  .due-upcoming .due-badge {
-    background: color-mix(in srgb, var(--vscode-foreground) 8%, transparent);
-    color: var(--moments-muted);
-    opacity: 0.75;
-  }
-
   /* ---- Input area ---- */
   .input-area {
     flex-shrink: 0;

@@ -2,7 +2,6 @@ import * as assert from "assert";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
-import { extractTasksFromTextWithStatus } from "../aiTaskProcessor";
 import {
   buildTagSearchItems,
   createNotesWatcherPattern,
@@ -20,7 +19,7 @@ import {
   resolveUniqueFilePath,
   shouldPromptForTemplateSelection,
 } from "../noteCommands";
-import { formatDateString as formatDateYMD } from "../dashboardTaskUtils";
+import { formatDateString as formatDateYMD } from "../dateUtils";
 import {
   buildSidebarTagGroups,
   buildTagNoteDescription,
@@ -214,81 +213,6 @@ suite("Extension Test Suite", () => {
     assert.strictEqual(pattern.baseUri.fsPath, notesDir);
     assert.strictEqual(pattern.pattern, "**/*.md");
     assert.strictEqual(createNotesWatcherPattern(undefined), undefined);
-  });
-
-  test("extractTasksFromTextWithStatus reports when no Copilot chat model is available", async () => {
-    const lmApi = vscode.lm as typeof vscode.lm & {
-      selectChatModels: typeof vscode.lm.selectChatModels;
-    };
-    const originalSelectChatModels = lmApi.selectChatModels;
-
-    lmApi.selectChatModels = async () => [];
-
-    try {
-      const result = await extractTasksFromTextWithStatus(
-        "- 09:00 明日の請求書を送る",
-        new vscode.CancellationTokenSource().token,
-      );
-
-      assert.deepStrictEqual(result, {
-        tasks: [],
-        failureReason: "modelUnavailable",
-      });
-    } finally {
-      lmApi.selectChatModels = originalSelectChatModels;
-    }
-  });
-
-  test("extractTasksFromTextWithStatus accepts JSON wrapped in explanatory text", async () => {
-    const lmApi = vscode.lm as typeof vscode.lm & {
-      selectChatModels: typeof vscode.lm.selectChatModels;
-    };
-    const originalSelectChatModels = lmApi.selectChatModels;
-    const chunks = [
-      "以下が抽出結果です。\n\n```json\n",
-      '[{"text":"請求書を送る","category":"work","priority":"high","timeEstimateMin":15,"dueDate":null}]',
-      "\n```",
-    ];
-
-    lmApi.selectChatModels = async () => [
-      {
-        id: "copilot-test",
-        name: "Copilot Test",
-        vendor: "copilot",
-        family: "gpt-test",
-        async sendRequest() {
-          return {
-            text: (async function* () {
-              for (const chunk of chunks) {
-                yield chunk;
-              }
-            })(),
-          };
-        },
-      } as unknown as vscode.LanguageModelChat,
-    ];
-
-    try {
-      const result = await extractTasksFromTextWithStatus(
-        "- 09:00 明日の請求書を送る",
-        new vscode.CancellationTokenSource().token,
-      );
-
-      assert.deepStrictEqual(result, {
-        tasks: [
-          {
-            text: "請求書を送る",
-            category: "work",
-            priority: "high",
-            timeEstimateMin: 15,
-            dueDate: null,
-          },
-        ],
-        failureReason: null,
-      });
-    } finally {
-      lmApi.selectChatModels = originalSelectChatModels;
-    }
   });
 
   test("formatDateYMD zero-pads month and day", () => {

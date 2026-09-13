@@ -1,20 +1,14 @@
-import * as path from "path";
 import * as vscode from "vscode";
 import { registerNotesCommands } from "./commands.js";
-import { enrichTasksInFile } from "./dashboardAiEnrichment.js";
-import { DashboardPanel } from "./dashboardPanel";
-import { isPathInside } from "../shared/pathSafety.js";
 import { MomentsViewProvider } from "./moments/panel.js";
 import { createNewNote, type IndexedNote, pickIndexedNote } from "./noteCommands";
 import { getIndexedNotesCached } from "./notesIndexCache.js";
 import { t } from "./i18n.js";
 import {
   affectsNotesConfiguration,
-  getAiAutoEnrichSetting,
   getLegacyNotesDirectorySetting,
   getMomentsSubfolderSetting,
   getSidebarTagSortSetting,
-  getStatusBarTasksSetting,
   getWorkspaceNotesDirectorySetting,
   updateLegacyNotesDirectorySetting,
   updateWorkspaceNotesDirectorySetting,
@@ -263,35 +257,9 @@ export function activate(context: vscode.ExtensionContext) {
   });
 
   let mdWatcher: vscode.FileSystemWatcher | undefined;
-  let dashboardRefreshTimer: NodeJS.Timeout | undefined;
   const refreshNotesViews = () => {
     notesTreeProvider.refresh();
     momentsProvider.refresh();
-  };
-
-  const scheduleDashboardRefresh = (uri: vscode.Uri) => {
-    const notesDir = getNotesDir();
-    if (notesDir) {
-      const momentsDir = path.join(notesDir, getMomentsSubfolderSetting());
-      if (isPathInside(momentsDir, uri.fsPath)) {
-        return;
-      }
-    } else {
-      const momentsSubfolder = getMomentsSubfolderSetting();
-      if (
-        uri.fsPath.includes(`/${momentsSubfolder}/`) ||
-        uri.fsPath.includes(`\\${momentsSubfolder}\\`)
-      ) {
-        return;
-      }
-    }
-    if (dashboardRefreshTimer) {
-      clearTimeout(dashboardRefreshTimer);
-    }
-    dashboardRefreshTimer = setTimeout(() => {
-      dashboardRefreshTimer = undefined;
-      DashboardPanel.refresh();
-    }, 500);
   };
 
   const refreshMarkdownWatcher = () => {
@@ -304,94 +272,21 @@ export function activate(context: vscode.ExtensionContext) {
     }
 
     mdWatcher = vscode.workspace.createFileSystemWatcher(pattern);
-    mdWatcher.onDidCreate((uri) => {
-      refreshNotesViews();
-      scheduleDashboardRefresh(uri);
-    });
-    mdWatcher.onDidDelete((uri) => {
-      refreshNotesViews();
-      scheduleDashboardRefresh(uri);
-    });
-    mdWatcher.onDidChange((uri) => {
-      refreshNotesViews();
-      scheduleDashboardRefresh(uri);
-    });
+    mdWatcher.onDidCreate(() => refreshNotesViews());
+    mdWatcher.onDidDelete(() => refreshNotesViews());
+    mdWatcher.onDidChange(() => refreshNotesViews());
   };
 
   refreshMarkdownWatcher();
   context.subscriptions.push({
     dispose: () => {
       mdWatcher?.dispose();
-      if (dashboardRefreshTimer) {
-        clearTimeout(dashboardRefreshTimer);
-      }
     },
   });
 
-  // Task dashboard status bar item
-  const aiStatusBar = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 100);
-  aiStatusBar.text = `$(checklist) ${t("tasksStatusBar")}`;
-  aiStatusBar.tooltip = t("dashboardTitle");
-  aiStatusBar.command = "notes.openDashboard";
-  const syncStatusBarVisibility = () => {
-    if (getStatusBarTasksSetting()) {
-      aiStatusBar.show();
-    } else {
-      aiStatusBar.hide();
-    }
-  };
-  syncStatusBarVisibility();
-  context.subscriptions.push(aiStatusBar);
-
-  const analyzingText = `$(loading~spin) ${t("tasksAnalyzing")}`;
-  const idleText = `$(checklist) ${t("tasksStatusBar")}`;
-  DashboardPanel.setStatusListener((processing) => {
-    aiStatusBar.text = processing ? analyzingText : idleText;
-  });
-
-  // Hook file save events for AI task auto-enrichment
-  const onSaveDisposable = vscode.workspace.onDidSaveTextDocument(async (document) => {
-    if (!getAiAutoEnrichSetting()) {
-      return;
-    }
-
-    const notesDir = getNotesDir();
-    if (!notesDir) {
-      return;
-    }
-
-    const filePath = document.uri.fsPath;
-    if (!filePath.endsWith(".md")) {
-      return;
-    }
-
-    if (!isPathInside(notesDir, filePath)) {
-      return;
-    }
-
-    aiStatusBar.text = analyzingText;
-    const cts = new vscode.CancellationTokenSource();
-
-    try {
-      await enrichTasksInFile(filePath, notesDir, context.globalState, cts.token);
-    } catch (e) {
-      console.error("Error during auto-enrichment on save:", e);
-    } finally {
-      aiStatusBar.text = idleText;
-      DashboardPanel.refresh();
-    }
-  });
-
-  context.subscriptions.push(onSaveDisposable);
-
   const configChangeDisposable = vscode.workspace.onDidChangeConfiguration((event) => {
-    if (affectsNotesConfiguration(event, "statusBarTasks")) {
-      syncStatusBarVisibility();
-    }
-
     if (affectsNotesConfiguration(event, "locale")) {
       refreshNotesViews();
-      DashboardPanel.refresh();
     }
 
     if (
@@ -420,7 +315,7 @@ export function activate(context: vscode.ExtensionContext) {
 
   context.subscriptions.push(
     configChangeDisposable,
-    ...registerNotesCommands(context, {
+    ...registerNotesCommands({
       getNotesDir,
       ensureNotesDirectory,
       selectNotesDirectory,

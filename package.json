@@ -57,14 +57,6 @@
             "media": {
               "markdown": "assets/walkthrough-moments.md"
             }
-          },
-          {
-            "id": "dashboard",
-            "title": "%walkthroughs.noteeees.welcome.steps[3].title%",
-            "description": "%walkthroughs.noteeees.welcome.steps[3].description%",
-            "media": {
-              "markdown": "assets/walkthrough-dashboard.md"
-            }
           }
         ]
       }
@@ -96,10 +88,6 @@
       {
         "command": "notes.focusMoments",
         "title": "%notes.focusMoments.title%"
-      },
-      {
-        "command": "notes.showOpenTasksOverview",
-        "title": "%notes.showOpenTasksOverview.title%"
       },
       {
         "command": "notes.searchTags",
@@ -141,15 +129,6 @@
         "command": "notes.archiveMoments",
         "title": "%notes.archiveMoments.title%",
         "icon": "$(archive)"
-      },
-      {
-        "command": "notes.openDashboard",
-        "title": "%notes.openDashboard.title%",
-        "icon": "$(checklist)"
-      },
-      {
-        "command": "notes.aiExtractTasks",
-        "title": "%notes.aiExtractTasks.title%"
       }
     ],
     "keybindings": [
@@ -180,11 +159,6 @@
         "key": "ctrl+shift+d",
         "mac": "cmd+shift+d",
         "when": "true"
-      },
-      {
-        "command": "notes.openDashboard",
-        "key": "ctrl+shift+t",
-        "mac": "cmd+shift+t"
       }
     ],
     "viewsContainers": {
@@ -354,16 +328,6 @@
           "maximum": 30,
           "description": "%notes.momentsFeedDays.description%"
         },
-        "notes.momentsInboxFilter": {
-          "type": "string",
-          "default": "all",
-          "enum": [
-            "all",
-            "open",
-            "done"
-          ],
-          "description": "%notes.momentsInboxFilter.description%"
-        },
         "notes.momentsArchiveAfterDays": {
           "type": "number",
           "default": 90,
@@ -380,16 +344,6 @@
           "default": "",
           "scope": "resource",
           "description": "%notes.workspaceNotesDirectory.description%"
-        },
-        "notes.ai.autoEnrich": {
-          "type": "boolean",
-          "default": false,
-          "description": "%notes.ai.autoEnrich.description%"
-        },
-        "notes.statusBarTasks": {
-          "type": "boolean",
-          "default": true,
-          "description": "%notes.statusBarTasks.description%"
         },
         "notes.locale": {
           "type": "string",

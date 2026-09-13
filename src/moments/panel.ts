@@ -2,7 +2,6 @@ import * as crypto from "crypto";
 import * as fs from "fs/promises";
 import * as path from "path";
 import * as vscode from "vscode";
-import { DUE_DATE_RE } from "../../shared/taskSyntax.js";
 import { MOMENT_TAG_PATTERN, getMomentsFeedDayCount, resolvePinnedEntries } from "./config.js";
 import { getMomentsSendOnEnterSetting } from "../notesConfig.js";
 import {
@@ -14,7 +13,7 @@ import {
   saveMomentEdit,
   searchMomentsFeed,
 } from "./fileIo.js";
-import { formatDateString } from "../dashboardTaskUtils.js";
+import { formatDateString } from "../dateUtils.js";
 import { buildWebviewI18nScript, resolveLocale, t } from "../i18n.js";
 import { momentsScript, momentsStyle } from "../webview/generated.js";
 
@@ -185,15 +184,6 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
           break;
         }
 
-        case "openInbox": {
-          if (!notesDir) {
-            this._showError(t("notesDirNotConfigured"));
-            return;
-          }
-          void vscode.commands.executeCommand("notes.showOpenTasksOverview");
-          break;
-        }
-
         case "openFile": {
           if (!notesDir) {
             return;
@@ -352,12 +342,9 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
 
   private _getHtml(): string {
     const nonce = crypto.randomBytes(16).toString("hex");
-    const dueDatePatternSource = JSON.stringify(DUE_DATE_RE.source);
     const momentTagPatternSource = JSON.stringify(MOMENT_TAG_PATTERN);
     const i18nScript = buildWebviewI18nScript();
-    const script = momentsScript
-      .replace("__DUE_DATE_PATTERN_SOURCE__", dueDatePatternSource)
-      .replace("__MOMENT_TAG_PATTERN__", momentTagPatternSource);
+    const script = momentsScript.replace("__MOMENT_TAG_PATTERN__", momentTagPatternSource);
 
     return /* html */ `<!DOCTYPE html>
 <html lang="en">
@@ -380,9 +367,6 @@ ${momentsStyle}
     <div class="topbar-right">
       <button class="nav-btn" id="allBtn" title="All moments" aria-label="All moments">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
-      </button>
-      <button class="nav-btn" id="inboxBtn" title="Task inbox" aria-label="Task inbox">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"></polyline><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"></path></svg>
       </button>
       <button class="open-btn" id="openFileBtn" title="Open today's file" aria-label="Open today's file">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>

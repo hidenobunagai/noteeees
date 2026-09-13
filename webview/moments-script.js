@@ -8,7 +8,6 @@
   const emptyState = document.getElementById('emptyState');
   const topbarDate = document.getElementById('topbarDate');
   const topbarCount = document.getElementById('topbarCount');
-  const inboxBtn = document.getElementById('inboxBtn');
   const allBtn = document.getElementById('allBtn');
   const activeTagBtn = document.getElementById('activeTagBtn');
   const openFileBtn = document.getElementById('openFileBtn');
@@ -88,8 +87,6 @@
   function applyStaticStrings() {
     allBtn.title = UI('allMoments');
     allBtn.setAttribute('aria-label', UI('allMoments'));
-    inboxBtn.title = UI('taskInbox');
-    inboxBtn.setAttribute('aria-label', UI('taskInbox'));
     openFileBtn.title = UI('openTodayFile');
     openFileBtn.setAttribute('aria-label', UI('openTodayFile'));
     jumpDateBtn.title = UI('jumpToDate');
@@ -158,19 +155,14 @@
     // Build DOM safely without innerHTML string concatenation for URLs.
     // We parse the escaped text and inject structured elements.
     const tagRe = new RegExp(momentTagPattern, 'gu');
-    const dueRe = /@(\d{4}-\d{2}-\d{2})/g;
     const urlRe = /(https?:\/\/[^\s]+)/g;
 
-    // Collect all match positions for tags, due dates, and URLs
+    // Collect all match positions for tags and URLs
     const markers = [];
     let m;
     tagRe.lastIndex = 0;
     while ((m = tagRe.exec(text)) !== null) {
       markers.push({ index: m.index, end: m.index + m[0].length, type: 'tag', value: m[0] });
-    }
-    dueRe.lastIndex = 0;
-    while ((m = dueRe.exec(text)) !== null) {
-      markers.push({ index: m.index, end: m.index + m[0].length, type: 'due', value: m[0] });
     }
     urlRe.lastIndex = 0;
     while ((m = urlRe.exec(text)) !== null) {
@@ -199,11 +191,6 @@
         btn.dataset.tag = marker.value;
         btn.textContent = marker.value;
         container.appendChild(btn);
-      } else if (marker.type === 'due') {
-        const span = document.createElement('span');
-        span.className = 'due-date-inline';
-        span.textContent = marker.value;
-        container.appendChild(span);
       } else if (marker.type === 'url') {
         const anchor = document.createElement('a');
         anchor.href = marker.value;
@@ -225,7 +212,6 @@
     // URL hrefs are now safely encoded via encodeURI to prevent attribute breakout.
     let html = escapeHtml(text);
     html = html.replace(new RegExp(momentTagPattern, 'gu'), (tag) => '<button class="tag" type="button" data-tag="' + tag + '">' + tag + '</button>');
-    html = html.replace(/@(\d{4}-\d{2}-\d{2})/g, '<span class="due-date-inline">@$1</span>');
     html = html.replace(/(https?:\/\/[^\s<]+)/g, (url) => {
       const safe = escapeHtml(url);
       return '<a href="' + safe + '" style="color:var(--moments-accent)" target="_blank" rel="noopener noreferrer">' + safe + '</a>';
@@ -439,28 +425,6 @@
 
       const header = document.createElement('div');
       header.className = 'entry-header';
-
-      const dueDateMatch = entry.text.match(new RegExp(__DUE_DATE_PATTERN_SOURCE__, "i"));
-      const dueDate = dueDateMatch ? dueDateMatch[1] : null;
-      if (dueDate) {
-        let dueDateStatus = null;
-        if (!entry.done && todayDate) {
-          if (dueDate < todayDate) {
-            dueDateStatus = 'overdue';
-          } else if (dueDate === todayDate) {
-            dueDateStatus = 'today';
-          } else {
-            dueDateStatus = 'upcoming';
-          }
-        }
-        if (dueDateStatus) {
-          div.classList.add('due-' + dueDateStatus);
-        }
-        const dueBadge = document.createElement('span');
-        dueBadge.className = 'due-badge';
-        dueBadge.textContent = dueDateStatus === 'today' ? UI('todayBadge') : dueDate;
-        meta.appendChild(dueBadge);
-      }
 
       if (entryKey === editingEntryKey) {
         const editWrap = document.createElement('div');
@@ -681,7 +645,6 @@
   }
 
   openFileBtn.addEventListener('click', () => vscode.postMessage({ command: 'openFile' }));
-  inboxBtn.addEventListener('click', () => vscode.postMessage({ command: 'openInbox' }));
 
   jumpDateBtn.addEventListener('click', () => {
     if (typeof jumpDateInput.showPicker === 'function') {

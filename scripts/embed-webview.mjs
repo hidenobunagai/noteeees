@@ -16,8 +16,6 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const outFile = join(root, "src", "webview", "generated.ts");
 
 const ASSETS = {
-  dashboardScript: "webview/dashboard-script.js",
-  dashboardStyle: "webview/dashboard-style.css",
   momentsScript: "webview/moments-script.js",
   momentsStyle: "webview/moments-style.css",
 };

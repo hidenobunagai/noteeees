@@ -19,12 +19,9 @@ export type NotesConfigKey =
   | "momentsSubfolder"
   | "momentsSendOnEnter"
   | "momentsFeedDays"
-  | "momentsInboxFilter"
   | "momentsArchiveAfterDays"
   | "dailyNoteTemplate"
   | "workspaceNotesDirectory"
-  | "ai.autoEnrich"
-  | "statusBarTasks"
   | "locale";
 
 function getNotesConfiguration(): vscode.WorkspaceConfiguration {
@@ -117,29 +114,10 @@ export function getMomentsFeedDaysSetting(): number | undefined {
   return getNotesConfiguration().get<number>("momentsFeedDays");
 }
 
-export function getMomentsInboxFilterSetting(): string | undefined {
-  return getNotesConfiguration().get<string>("momentsInboxFilter");
-}
-
-export function updateMomentsInboxFilterSetting(
-  value: string,
-  target: vscode.ConfigurationTarget = vscode.ConfigurationTarget.Global,
-): Thenable<void> {
-  return getNotesConfiguration().update("momentsInboxFilter", value, target);
-}
-
 export function getMomentsArchiveAfterDaysSetting(): number {
   return Math.max(1, getNotesConfiguration().get<number>("momentsArchiveAfterDays") ?? 90);
 }
 
 export function getDailyNoteTemplateSetting(): string | undefined {
   return getNotesConfiguration().get<string>("dailyNoteTemplate") || undefined;
-}
-
-export function getAiAutoEnrichSetting(): boolean {
-  return getNotesConfiguration().get<boolean>("ai.autoEnrich") ?? false;
-}
-
-export function getStatusBarTasksSetting(): boolean {
-  return getNotesConfiguration().get<boolean>("statusBarTasks") ?? true;
 }

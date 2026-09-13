@@ -3,7 +3,7 @@ import * as path from "path";
 import * as vscode from "vscode";
 import { stripFrontMatterTrimmed } from "../shared/frontMatter.js";
 import { isPathInside, resolveUniqueFilePath } from "../shared/pathSafety.js";
-import { formatDateString, formatTimeHM } from "./dashboardTaskUtils.js";
+import { formatDateString, formatTimeHM } from "./dateUtils.js";
 import { t } from "./i18n.js";
 import { getIndexedNotesCached } from "./notesIndexCache.js";
 import {

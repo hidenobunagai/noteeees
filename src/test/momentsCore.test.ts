@@ -13,24 +13,52 @@ import {
   readMoments,
   saveMomentEdit,
   searchMomentsFeed,
-  toggleMomentTaskLine,
 } from "../moments/fileIo";
 import {
   extractMomentTags,
-  filterTaskOverviewItems,
-  getNextInboxFilter,
-  normalizeInboxTaskFilter,
   normalizeMomentsFeedDayCount,
   resolvePinnedEntries,
 } from "../moments/config";
-import { buildTaskSearchDetail, sortOpenTaskOverview } from "../moments/taskOverview";
 import { MomentsViewProvider } from "../moments/panel";
-import { shiftDate, todayDateString } from "../dashboardTaskUtils";
+import { shiftDate, todayDateString } from "../dateUtils";
 
 function feedDates(anchor: string, dayCount: number): string[] {
   return Array.from({ length: dayCount }, (_, index) => shiftDate(anchor, -index));
 }
-import { createExtensionContextStub } from "./dashboardTestHelpers";
+
+function createMementoStub(): vscode.Memento & {
+  setKeysForSync(keys: readonly string[]): void;
+} {
+  const store = new Map<string, unknown>();
+
+  return {
+    get<T>(key: string, defaultValue?: T): T {
+      if (!store.has(key)) {
+        return defaultValue as T;
+      }
+
+      return store.get(key) as T;
+    },
+    keys(): readonly string[] {
+      return Array.from(store.keys());
+    },
+    update(key: string, value: unknown): Thenable<void> {
+      store.set(key, value);
+      return Promise.resolve();
+    },
+    setKeysForSync(_keys: readonly string[]): void {
+      return;
+    },
+  };
+}
+
+function createExtensionContextStub(): vscode.ExtensionContext {
+  const context = {
+    globalState: createMementoStub(),
+  } satisfies Pick<vscode.ExtensionContext, "globalState">;
+
+  return context as vscode.ExtensionContext;
+}
 
 function renderMomentsWebviewHtml(): string {
   const webview: Pick<
@@ -70,24 +98,6 @@ function renderMomentsWebviewHtml(): string {
 }
 
 suite("Moments Core Test Suite", () => {
-  test("task search detail includes query-aware excerpt", () => {
-    const detail = buildTaskSearchDetail(
-      {
-        date: "2026-03-07",
-        time: "09:00",
-        text: "Follow up on roadmap milestone alignment",
-        filePath: "/tmp/moments/2026-03-07.md",
-        relativePath: "moments/2026-03-07.md",
-        fileLineIndex: 5,
-        done: false,
-      },
-      "roadmap",
-    );
-
-    assert.ok(detail.includes("moments/2026-03-07.md:6"));
-    assert.ok(detail.includes("roadmap milestone"));
-  });
-
   test("moment tag extraction keeps unique normalized hashtags", () => {
     assert.deepStrictEqual(extractMomentTags("Discuss #AI and #notes with #AI again"), [
       "#ai",
@@ -101,47 +111,6 @@ suite("Moments Core Test Suite", () => {
       "#振り返り-設計",
     ]);
     assert.deepStrictEqual(extractMomentTags("No tags here"), []);
-  });
-
-  test("inbox task filter narrows open and done items", () => {
-    const items = [
-      {
-        date: "2026-03-07",
-        time: "09:00",
-        text: "Open task",
-        filePath: "/tmp/moments/2026-03-07.md",
-        relativePath: "moments/2026-03-07.md",
-        fileLineIndex: 5,
-        done: false,
-      },
-      {
-        date: "2026-03-07",
-        time: "10:00",
-        text: "Done task",
-        filePath: "/tmp/moments/2026-03-07.md",
-        relativePath: "moments/2026-03-07.md",
-        fileLineIndex: 8,
-        done: true,
-      },
-    ];
-
-    assert.deepStrictEqual(filterTaskOverviewItems(items, "open"), [items[0]]);
-    assert.deepStrictEqual(filterTaskOverviewItems(items, "done"), [items[1]]);
-    assert.deepStrictEqual(filterTaskOverviewItems(items, "all"), items);
-  });
-
-  test("inbox filter cycles all -> open -> done -> overdue -> all", () => {
-    assert.strictEqual(getNextInboxFilter("all"), "open");
-    assert.strictEqual(getNextInboxFilter("open"), "done");
-    assert.strictEqual(getNextInboxFilter("done"), "overdue");
-    assert.strictEqual(getNextInboxFilter("overdue"), "all");
-  });
-
-  test("invalid inbox filter setting falls back to all", () => {
-    assert.strictEqual(normalizeInboxTaskFilter("invalid"), "all");
-    assert.strictEqual(normalizeInboxTaskFilter("done"), "done");
-    assert.strictEqual(normalizeInboxTaskFilter("overdue"), "overdue");
-    assert.strictEqual(normalizeInboxTaskFilter(undefined), "all");
   });
 
   test("Moments webview renders the composer before the timeline", () => {
@@ -173,15 +142,6 @@ suite("Moments Core Test Suite", () => {
     );
   });
 
-  test("Moments webview preserves the inline due date highlight regex", () => {
-    const html = renderMomentsWebviewHtml();
-
-    assert.ok(
-      html.includes("html = html.replace(/@(\\d{4}-\\d{2}-\\d{2})/g"),
-      "expected the webview script to preserve the due date regex escapes",
-    );
-  });
-
   test("pinned Moments resolve against the latest feed entries", () => {
     const resolved = resolvePinnedEntries(
       [
@@ -193,7 +153,7 @@ suite("Moments Core Test Suite", () => {
           date: "2026-03-09",
           dateLabel: "Today · 2026-03-09",
           isToday: true,
-          entries: [{ index: 1, time: "09:45", text: "current text", done: true }],
+          entries: [{ index: 1, time: "09:45", text: "current text" }],
         },
       ],
     );
@@ -204,7 +164,6 @@ suite("Moments Core Test Suite", () => {
         index: 1,
         text: "current text",
         time: "09:45",
-        done: true,
         isAvailable: true,
       },
       {
@@ -212,30 +171,13 @@ suite("Moments Core Test Suite", () => {
         index: 9,
         text: "orphaned pin",
         time: "12:15",
-        done: false,
         isAvailable: false,
       },
     ]);
   });
 
-  test("open task overview is sorted by date and time desc", () => {
-    const sorted = sortOpenTaskOverview([
-      { date: "2026-03-06", time: "09:00", done: true },
-      { date: "2026-03-07", time: "08:30", done: false },
-      { date: "2026-03-07", time: "10:15", done: false },
-      { date: "2026-03-07", time: "12:00", done: true },
-    ]);
-
-    assert.deepStrictEqual(sorted, [
-      { date: "2026-03-07", time: "10:15", done: false },
-      { date: "2026-03-07", time: "08:30", done: false },
-      { date: "2026-03-07", time: "12:00", done: true },
-      { date: "2026-03-06", time: "09:00", done: true },
-    ]);
-  });
-
   test("moment body index maps to file line after front matter", () => {
-    const raw = "---\ntype: moments\ndate: 2026-03-07\n---\n\n- [ ] 09:00 task";
+    const raw = "---\ntype: moments\ndate: 2026-03-07\n---\n\n- 09:00 task";
     assert.strictEqual(mapMomentBodyIndexToFileLine(raw, 1), 5);
   });
 
@@ -258,21 +200,6 @@ suite("Moments Core Test Suite", () => {
     assert.strictEqual(normalizeMomentsFeedDayCount(0), 1);
     assert.strictEqual(normalizeMomentsFeedDayCount(4.8), 4);
     assert.strictEqual(normalizeMomentsFeedDayCount(80), 30);
-  });
-
-  test("task line toggle flips checkbox state", () => {
-    assert.deepStrictEqual(toggleMomentTaskLine("- [ ] 09:00 task"), {
-      line: "- [x] 09:00 task",
-      changed: true,
-    });
-    assert.deepStrictEqual(toggleMomentTaskLine("- [x] 09:00 task"), {
-      line: "- [ ] 09:00 task",
-      changed: true,
-    });
-    assert.deepStrictEqual(toggleMomentTaskLine("- 09:00 note"), {
-      line: "- [x] 09:00 note",
-      changed: true,
-    });
   });
 
   test("multiline moments round-trip through append and read", async () => {
@@ -298,7 +225,7 @@ suite("Moments Core Test Suite", () => {
       fs.mkdirSync(path.dirname(filePath), { recursive: true });
       fs.writeFileSync(
         filePath,
-        `---\ntype: moments\ndate: ${date}\n---\n\n- [ ] 09:00 First line\nSecond line\n- [ ] 09:30 Next entry\n`,
+        `---\ntype: moments\ndate: ${date}\n---\n\n- 09:00 First line\nSecond line\n- 09:30 Next entry\n`,
         "utf8",
       );
 
@@ -318,7 +245,6 @@ suite("Moments Core Test Suite", () => {
           index: 1,
           time: "09:30",
           text: "Next entry",
-          done: false,
           tags: [],
         },
       ]);
@@ -341,12 +267,12 @@ suite("Moments Core Test Suite", () => {
       );
       fs.writeFileSync(
         getMomentsFilePath(tmpDir, twoDaysAgoDate),
-        `---\ntype: moments\ndate: ${twoDaysAgoDate}\n---\n\n- [ ] 09:00 Two days ago\n`,
+        `---\ntype: moments\ndate: ${twoDaysAgoDate}\n---\n\n- 09:00 Two days ago\n`,
         "utf8",
       );
       fs.writeFileSync(
         getMomentsFilePath(tmpDir, threeDaysAgoDate),
-        `---\ntype: moments\ndate: ${threeDaysAgoDate}\n---\n\n- [ ] 08:00 Three days ago\n`,
+        `---\ntype: moments\ndate: ${threeDaysAgoDate}\n---\n\n- 08:00 Three days ago\n`,
         "utf8",
       );
 
@@ -369,9 +295,38 @@ suite("Moments Core Test Suite", () => {
   });
 
   test("moment body index maps correctly without front matter", () => {
-    const raw = "- [ ] 09:00 first\n- 10:00 second";
+    const raw = "- 09:00 first\n- 10:00 second";
     assert.strictEqual(mapMomentBodyIndexToFileLine(raw, 0), 0);
     assert.strictEqual(mapMomentBodyIndexToFileLine(raw, 1), 1);
+  });
+
+  test("legacy checkbox entries stay readable and are rewritten as plain lines", async () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "noteeees-moments-"));
+    const date = "2026-03-07";
+    const filePath = getMomentsFilePath(tmpDir, date);
+
+    try {
+      fs.mkdirSync(path.dirname(filePath), { recursive: true });
+      fs.writeFileSync(
+        filePath,
+        `---\ntype: moments\ndate: ${date}\n---\n\n- [ ] 09:00 First line\n- [x] 09:30 Done line\n`,
+        "utf8",
+      );
+
+      const entries = await readMoments(tmpDir, date);
+      assert.deepStrictEqual(
+        entries.map((entry) => entry.text),
+        ["First line", "Done line"],
+      );
+
+      assert.strictEqual(await saveMomentEdit(tmpDir, date, 1, "Still first"), true);
+      const saved = fs.readFileSync(filePath, "utf8");
+      assert.strictEqual(saved.includes("- [ ]"), false);
+      assert.ok(saved.includes("- 09:00 Still first"));
+      assert.ok(saved.includes("- [x] 09:30 Done line"));
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
   });
 
   test("normalizeMomentsFeedDayCount clamps edge cases including NaN and Infinity", () => {
@@ -380,11 +335,6 @@ suite("Moments Core Test Suite", () => {
     assert.strictEqual(normalizeMomentsFeedDayCount(-5), 1);
     assert.strictEqual(normalizeMomentsFeedDayCount(1), 1);
     assert.strictEqual(normalizeMomentsFeedDayCount(30), 30);
-  });
-
-  test("normalizeInboxTaskFilter treats empty string as invalid and returns all", () => {
-    assert.strictEqual(normalizeInboxTaskFilter(""), "all");
-    assert.strictEqual(normalizeInboxTaskFilter("open"), "open");
   });
 
   test("searchMomentsFeed matches across all dates newest first", async () => {

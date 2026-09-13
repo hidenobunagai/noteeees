@@ -27,7 +27,7 @@
   "walkthroughs.noteeees.welcome.steps[1].title": "最初のノートを作成",
   "walkthroughs.noteeees.welcome.steps[1].description": "ショートカット（Mac: `Cmd+Shift+N`、Windows/Linux: `Ctrl+Shift+N`）またはボタンで新しいマークダウンノートを作成します。\n[ノートを作成](command:notes.newNote)",
   "walkthroughs.noteeees.welcome.steps[2].title": "モーメントを記録",
-  "walkthroughs.noteeees.welcome.steps[2].description": "アクティビティバーの Moments パネル（⚡アイコン）を開いて、チェック可能な投稿を素早く記録しましょう。\n[Moments を開く](command:notesMomentsView.focus)",
+  "walkthroughs.noteeees.welcome.steps[2].description": "アクティビティバーの Moments パネル（⚡アイコン）を開いて、タイムスタンプ付きの投稿を素早く記録しましょう。\n[Moments を開く](command:notesMomentsView.focus)",
 
   "configuration.title": "Noteeees",
   "notes.notesDirectory.description": "旧バージョンの Notes ディレクトリ値のインポート用のレガシー設定です。現在は Run Setup で選択したフォルダがマシンごとに拡張機能ストレージへ保存されます。",
