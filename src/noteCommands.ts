@@ -242,13 +242,13 @@ function extractFrontMatterTags(rawContent: string): string[] {
     .split(",")
     .map((tag) => tag.trim())
     .filter((tag) => tag.length > 0)
-    .map((tag) => (tag.startsWith("#") ? tag : `#${tag}`));
+    .map((tag) => normalizeInlineTag(tag.startsWith("#") ? tag : `#${tag}`));
 }
 
 const INLINE_TAG_PATTERN = /#[\p{L}\p{M}\p{N}_\p{Pd}]+/gu;
 
 function normalizeInlineTag(tag: string): string {
-  return tag.normalize("NFKC");
+  return tag.normalize("NFKC").toLowerCase();
 }
 
 function extractInlineTags(rawContent: string): string[] {

@@ -124,6 +124,15 @@ suite("Extension Test Suite", () => {
     assert.deepStrictEqual(metadata.tags, ["#振り返り-設計", "#設計"]);
   });
 
+  test("note metadata normalizes tags to lowercase and NFKC", () => {
+    const metadata = extractNoteMetadata(
+      "---\ntags: [Project, #AI]\n---\n\n# 週次レビュー\n日本語タグ #振り返り－設計 と #AI #TODO を確認",
+      "fallback-title",
+    );
+
+    assert.deepStrictEqual(metadata.tags, ["#project", "#ai", "#振り返り-設計", "#todo"]);
+  });
+
   test("tag summary is sorted by frequency", () => {
     const summary = buildTagSummary([
       { tags: ["#project", "#todo"] },
