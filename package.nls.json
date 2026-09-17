@@ -31,7 +31,6 @@
 
   "configuration.title": "Noteeees",
   "notes.notesDirectory.description": "Legacy fallback setting for importing older Notes directory values. Run Setup now stores the selected folder locally per machine in extension storage.",
-  "notes.dateFormat.description": "Date format for new entries.",
   "notes.defaultNoteTitle.description": "Filename format for new notes. Tokens: {dt} = datetime, {title} = input title, {ext} = file extension.",
   "notes.noteTitleConvertSpaces.description": "Character to replace spaces in note titles. Set to empty string to keep spaces.",
   "notes.defaultSnippet.description": "Default VS Code snippet to insert after creating a note.",

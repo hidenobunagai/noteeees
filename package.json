@@ -249,17 +249,6 @@
           "scope": "machine",
           "description": "%notes.notesDirectory.description%"
         },
-        "notes.dateFormat": {
-          "type": "string",
-          "default": "YYYY-MM-DD HH:mm",
-          "enum": [
-            "YYYY-MM-DD HH:mm",
-            "YYYY-MM-DD",
-            "MM/DD/YYYY HH:mm",
-            "DD.MM.YYYY HH:mm"
-          ],
-          "description": "%notes.dateFormat.description%"
-        },
         "notes.defaultNoteTitle": {
           "type": "string",
           "default": "{dt}_{title}.{ext}",

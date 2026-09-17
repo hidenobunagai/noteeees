@@ -31,7 +31,6 @@
 
   "configuration.title": "Noteeees",
   "notes.notesDirectory.description": "旧バージョンの Notes ディレクトリ値のインポート用のレガシー設定です。現在は Run Setup で選択したフォルダがマシンごとに拡張機能ストレージへ保存されます。",
-  "notes.dateFormat.description": "新規エントリの日付形式。",
   "notes.defaultNoteTitle.description": "新規ノートのファイル名形式。トークン: {dt} = 日時、{title} = 入力タイトル、{ext} = ファイル拡張子。",
   "notes.noteTitleConvertSpaces.description": "ノートタイトルのスペースを置き換える文字。スペースを残すには空文字に設定します。",
   "notes.defaultSnippet.description": "ノート作成後に挿入する VS Code スニペット。",
