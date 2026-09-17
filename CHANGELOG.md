@@ -4,6 +4,17 @@ All notable changes to the "notes" extension will be documented in this file.
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## [0.17.1] - 2026-09-18
+
+### Fixed
+
+- **Tags**: Notes now normalize tags to lowercase in addition to NFKC. Inline tags (`#AI`, `#ＴＯＤＯ`) and front-matter `tags:` entries are folded the same way as the Moments webview, so tags that differ only in case or width no longer appear as separate entries in the sidebar tag list.
+
+### Internal
+
+- Removed the unused `notes.dateFormat` setting together with its English and Japanese descriptions.
+- Aligned the Bun version to 1.4.0 across `package.json` (`packageManager`) and the CI / Publish workflows.
+
 ## [0.17.0] - 2026-09-13
 
 ### Removed
