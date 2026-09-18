@@ -138,14 +138,6 @@
   }
 
   // ---- Render ----
-  function escapeHtml(text) {
-    return text
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;');
-  }
-
   function renderTextToFragment(text, container) {
     container.textContent = '';
     // Build DOM safely without innerHTML string concatenation for URLs.
@@ -201,18 +193,6 @@
     if (cursor < text.length) {
       container.appendChild(document.createTextNode(text.slice(cursor)));
     }
-  }
-
-  function renderText(text) {
-    // Legacy string-based renderer kept for pinned entries that use innerHTML.
-    // URL hrefs are now safely encoded via encodeURI to prevent attribute breakout.
-    let html = escapeHtml(text);
-    html = html.replace(new RegExp(momentTagPattern, 'gu'), (tag) => '<button class="tag" type="button" data-tag="' + tag + '">' + tag + '</button>');
-    html = html.replace(/(https?:\/\/[^\s<]+)/g, (url) => {
-      const safe = escapeHtml(url);
-      return '<a href="' + safe + '" style="color:var(--moments-accent)" target="_blank" rel="noopener noreferrer">' + safe + '</a>';
-    });
-    return html;
   }
 
   function matchMomentTags(text) {
