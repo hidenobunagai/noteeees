@@ -10,6 +10,7 @@ import {
   deleteMomentEntry,
   ensureMomentsFile,
   getMomentsFilePath,
+  isValidMomentDate,
   saveMomentEdit,
   searchMomentsFeed,
 } from "./fileIo.js";
@@ -75,7 +76,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
         }
 
         case "jumpToDate": {
-          if (typeof message.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(message.date)) {
+          if (isValidMomentDate(message.date)) {
             this._anchorDate = message.date;
             this._feedSectionCount = Math.max(1, getMomentsFeedDayCount());
           }
@@ -136,14 +137,14 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
             return;
           }
 
-          if (
-            !(await saveMomentEdit(
-              notesDir,
-              message.date ?? formatDateString(new Date()),
-              message.index,
-              message.text,
-            ))
-          ) {
+          const date =
+            typeof message.date === "string" ? message.date : formatDateString(new Date());
+          if (!isValidMomentDate(date)) {
+            this._showError(t("momentEditInvalid"));
+            return;
+          }
+
+          if (!(await saveMomentEdit(notesDir, date, message.index, message.text))) {
             this._showError(t("momentSaveFailed"));
             return;
           }
@@ -161,6 +162,13 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
             return;
           }
 
+          const date =
+            typeof message.date === "string" ? message.date : formatDateString(new Date());
+          if (!isValidMomentDate(date)) {
+            this._showError(t("momentDeleteFailed"));
+            return;
+          }
+
           void vscode.window
             .showWarningMessage(t("momentDeleteConfirm"), { modal: true }, t("momentDeleteBtn"))
             .then(async (selection) => {
@@ -168,13 +176,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
                 return;
               }
 
-              if (
-                !(await deleteMomentEntry(
-                  notesDir,
-                  message.date ?? formatDateString(new Date()),
-                  message.index,
-                ))
-              ) {
+              if (!(await deleteMomentEntry(notesDir, date, message.index))) {
                 this._showError(t("momentDeleteFailed"));
                 return;
               }

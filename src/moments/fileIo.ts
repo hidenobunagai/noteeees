@@ -14,7 +14,18 @@ import type { MomentDaySection, MomentEntry } from "./types.js";
 // File path helpers
 // ---------------------------------------------------------------------------
 
+const MOMENT_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
+/** Guards every date that reaches the filesystem — a webview can send any string. */
+export function isValidMomentDate(date: unknown): date is string {
+  return typeof date === "string" && MOMENT_DATE_PATTERN.test(date);
+}
+
 export function getMomentsFilePath(notesDir: string, date: string): string {
+  if (!isValidMomentDate(date)) {
+    throw new Error(`Invalid Moments date: ${JSON.stringify(date)}`);
+  }
+
   const subfolder = getMomentsSubfolderSetting();
   return path.join(notesDir, subfolder, `${date}.md`);
 }

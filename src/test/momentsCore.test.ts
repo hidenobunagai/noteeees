@@ -253,6 +253,43 @@ suite("Moments Core Test Suite", () => {
     }
   });
 
+  test("invalid Moments dates never resolve a file path", () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "noteeees-moments-"));
+    try {
+      for (const date of ["../../x", "2026-1-1", ""]) {
+        assert.throws(() => getMomentsFilePath(tmpDir, date), /Invalid Moments date/);
+      }
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  test("invalid Moments dates are rejected without writing or deleting files", async () => {
+    const tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), "noteeees-moments-"));
+    const notesDir = path.join(tmpRoot, "notes");
+    const validDate = "2026-03-07";
+    const validFilePath = path.join(notesDir, "moments", `${validDate}.md`);
+
+    try {
+      await appendMoment(notesDir, validDate, "keep me");
+
+      for (const date of ["../../x", "2026-1-1", ""]) {
+        await assert.rejects(() => saveMomentEdit(notesDir, date, 1, "pwned"));
+        await assert.rejects(() => deleteMomentEntry(notesDir, date, 1));
+      }
+
+      // `../../x` would escape to <tmpRoot>/x.md if the date were trusted
+      assert.strictEqual(fs.existsSync(path.join(tmpRoot, "x.md")), false);
+      assert.strictEqual(fs.existsSync(path.join(notesDir, "moments", "2026-1-1.md")), false);
+      assert.strictEqual(fs.existsSync(path.join(notesDir, "moments", ".md")), false);
+
+      const kept = fs.readFileSync(validFilePath, "utf8");
+      assert.ok(kept.includes("keep me"), "expected the existing moment to survive");
+    } finally {
+      fs.rmSync(tmpRoot, { recursive: true, force: true });
+    }
+  });
+
   test("moments feed can load older visible days incrementally", async () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "noteeees-moments-"));
     const today = todayDateString();
