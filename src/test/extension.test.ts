@@ -16,6 +16,8 @@ import {
   buildQueryExcerpt,
   extractNoteMetadata,
   extractPreviewText,
+  formatDateTimeToken,
+  resolveFilename,
   resolveUniqueFilePath,
   shouldPromptForTemplateSelection,
 } from "../noteCommands";
@@ -259,6 +261,21 @@ suite("Extension Test Suite", () => {
     assert.strictEqual(formatDateYMD(new Date(2024, 0, 5)), "2024-01-05");
     assert.strictEqual(formatDateYMD(new Date(2025, 11, 31)), "2025-12-31");
     assert.strictEqual(formatDateYMD(new Date(2000, 0, 1)), "2000-01-01");
+  });
+
+  test("resolveFilename replaces every occurrence of a token", () => {
+    const now = new Date(2026, 8, 18, 5, 4, 3);
+    assert.strictEqual(resolveFilename("Note", now, "{title}-{title}.{ext}", "_"), "Note-Note.md");
+    assert.strictEqual(
+      resolveFilename("Note", now, "{dt}_{title}_{dt}", "_"),
+      "2026-09-18_05-04-03_Note_2026-09-18_05-04-03",
+    );
+  });
+
+  test("formatDateTimeToken replaces every occurrence of a date placeholder", () => {
+    const now = new Date(2026, 8, 18, 5, 4, 3);
+    assert.strictEqual(formatDateTimeToken("YYYY/MM/DD YYYY-MM-DD", now), "2026/09/18 2026-09-18");
+    assert.strictEqual(formatDateTimeToken("YYYY-MM-DD_HH-mm-ss", now), "2026-09-18_05-04-03");
   });
 
   test("resolveUniqueFilePath returns original path when no collision", async () => {

@@ -140,18 +140,20 @@ function formatDateTimeToken(format: string, date: Date): string {
   const seconds = String(date.getSeconds()).padStart(2, "0");
 
   return format
-    .replace("YYYY", String(year))
-    .replace("MM", month)
-    .replace("DD", day)
-    .replace("HH", hours)
-    .replace("mm", minutes)
-    .replace("ss", seconds);
+    .replaceAll("YYYY", String(year))
+    .replaceAll("MM", month)
+    .replaceAll("DD", day)
+    .replaceAll("HH", hours)
+    .replaceAll("mm", minutes)
+    .replaceAll("ss", seconds);
 }
 
-function resolveFilename(titleInput: string, now: Date): string {
-  const titleFormat = getDefaultNoteTitleSetting();
-  const convertSpaces = getNoteTitleConvertSpacesSetting();
-
+function resolveFilename(
+  titleInput: string,
+  now: Date,
+  titleFormat: string = getDefaultNoteTitleSetting(),
+  convertSpaces: string = getNoteTitleConvertSpacesSetting(),
+): string {
   let filename = titleFormat;
 
   for (const token of DEFAULT_TOKENS) {
@@ -172,7 +174,7 @@ function resolveFilename(titleInput: string, now: Date): string {
         break;
     }
 
-    filename = filename.replace(token.token, replacement);
+    filename = filename.replaceAll(token.token, replacement);
   }
 
   if (convertSpaces) {
@@ -190,7 +192,7 @@ function resolveFilename(titleInput: string, now: Date): string {
   return filename;
 }
 
-export { resolveUniqueFilePath };
+export { formatDateTimeToken, resolveFilename, resolveUniqueFilePath };
 
 async function insertSnippetByName(
   editor: vscode.TextEditor,
