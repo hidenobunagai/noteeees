@@ -1,6 +1,7 @@
 import * as fs from "fs/promises";
 import * as path from "path";
 import { parseNoteBody } from "../../shared/frontMatter.js";
+import { MAX_CACHE_ENTRIES } from "../constants.js";
 import { formatDateString, formatTimeHM, todayDateString } from "../dateUtils.js";
 import { t } from "../i18n.js";
 import { getMomentsArchiveAfterDaysSetting, getMomentsSubfolderSetting } from "../notesConfig.js";
@@ -129,15 +130,14 @@ function replaceMomentEntryBlock(
 // Read/write operations
 // ---------------------------------------------------------------------------
 
-export async function readMoments(notesDir: string, date: string): Promise<MomentEntry[]> {
-  const filePath = getMomentsFilePath(notesDir, date);
-  try {
-    await fs.access(filePath);
-  } catch {
-    return [];
-  }
+interface MomentsCacheEntry {
+  mtimeMs: number;
+  entries: MomentEntry[];
+}
 
-  const raw = await fs.readFile(filePath, "utf8");
+const momentsCacheByPath = new Map<string, MomentsCacheEntry>();
+
+function parseMomentEntries(raw: string): MomentEntry[] {
   // Strip front matter only — do NOT trim, so line indices stay consistent with edits
   const { body } = parseNoteBody(raw);
   const lines = body.split("\n");
@@ -169,6 +169,36 @@ export async function readMoments(notesDir: string, date: string): Promise<Momen
     });
     i = range.endIndex;
   }
+
+  return entries;
+}
+
+/**
+ * Reads and parses moments from the file for the given date.
+ * Entries are reused while the file mtime is unchanged, so search does not re-read the whole history.
+ */
+export async function readMoments(notesDir: string, date: string): Promise<MomentEntry[]> {
+  const filePath = getMomentsFilePath(notesDir, date);
+  let mtimeMs: number;
+  try {
+    mtimeMs = (await fs.stat(filePath)).mtimeMs;
+  } catch {
+    momentsCacheByPath.delete(filePath);
+    return [];
+  }
+
+  const cached = momentsCacheByPath.get(filePath);
+  if (cached && cached.mtimeMs === mtimeMs) {
+    return cached.entries;
+  }
+
+  const raw = await fs.readFile(filePath, "utf8");
+  const entries = parseMomentEntries(raw);
+
+  if (momentsCacheByPath.size >= MAX_CACHE_ENTRIES) {
+    momentsCacheByPath.clear();
+  }
+  momentsCacheByPath.set(filePath, { mtimeMs, entries });
 
   return entries;
 }
@@ -299,6 +329,7 @@ export async function appendMoment(notesDir: string, date: string, text: string)
   let content = await fs.readFile(filePath, "utf8");
   const prefix = content.endsWith("\n") ? "" : "\n";
   await fs.appendFile(filePath, `${prefix}${entry}`, "utf8");
+  momentsCacheByPath.delete(filePath);
 }
 
 export async function saveMomentEdit(
@@ -334,6 +365,7 @@ export async function saveMomentEdit(
   }
 
   await fs.writeFile(filePath, result.lines.join(eol), "utf8");
+  momentsCacheByPath.delete(filePath);
   return true;
 }
 
@@ -361,6 +393,7 @@ export async function deleteMomentEntry(
 
   const nextLines = [...lines.slice(0, range.startIndex), ...lines.slice(range.endIndex)];
   await fs.writeFile(filePath, nextLines.join(eol), "utf8");
+  momentsCacheByPath.delete(filePath);
   return true;
 }
 

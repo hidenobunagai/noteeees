@@ -1,5 +1,6 @@
 import * as assert from "assert";
 import * as fs from "fs";
+import fsp = require("fs/promises");
 import * as os from "os";
 import * as path from "path";
 import * as vscode from "vscode";
@@ -299,6 +300,115 @@ suite("Moments Core Test Suite", () => {
       } finally {
         fs.rmSync(tmpDir, { recursive: true, force: true });
       }
+    }
+  });
+
+  test("readMoments reuses entries for an unchanged file (fs spy)", async () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "noteeees-moments-"));
+    const date = "2026-03-07";
+    const filePath = getMomentsFilePath(tmpDir, date);
+
+    const originalReadFile = fsp.readFile;
+    let readCount = 0;
+    const mutableFsp = fsp as Record<string, unknown>;
+    mutableFsp.readFile = (async (...args: unknown[]) => {
+      readCount++;
+      return Reflect.apply(originalReadFile, fsp, args);
+    }) as unknown as typeof fsp.readFile;
+
+    try {
+      fs.mkdirSync(path.dirname(filePath), { recursive: true });
+      fs.writeFileSync(
+        filePath,
+        `---\ntype: moments\ndate: ${date}\n---\n\n- 09:00 First\n- 09:30 Second\n`,
+        "utf8",
+      );
+
+      const first = await readMoments(tmpDir, date);
+      const second = await readMoments(tmpDir, date);
+
+      assert.strictEqual(readCount, 1);
+      assert.deepStrictEqual(first, second);
+    } finally {
+      mutableFsp.readFile = originalReadFile;
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  test("readMoments reflects a rewritten file", async () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "noteeees-moments-"));
+    const date = "2026-03-07";
+    const filePath = getMomentsFilePath(tmpDir, date);
+
+    try {
+      fs.mkdirSync(path.dirname(filePath), { recursive: true });
+      fs.writeFileSync(
+        filePath,
+        `---\ntype: moments\ndate: ${date}\n---\n\n- 09:00 First\n`,
+        "utf8",
+      );
+
+      // Pin the mtime so the test does not depend on filesystem timestamp resolution
+      const pinned = new Date(1700000000000);
+      fs.utimesSync(filePath, pinned, pinned);
+
+      const initial = await readMoments(tmpDir, date);
+      assert.deepStrictEqual(
+        initial.map((entry) => entry.text),
+        ["First"],
+      );
+
+      fs.writeFileSync(
+        filePath,
+        `---\ntype: moments\ndate: ${date}\n---\n\n- 10:00 Rewritten\n`,
+        "utf8",
+      );
+      const rewritten = new Date(pinned.getTime() + 5000);
+      fs.utimesSync(filePath, rewritten, rewritten);
+
+      const updated = await readMoments(tmpDir, date);
+      assert.deepStrictEqual(
+        updated.map((entry) => entry.text),
+        ["Rewritten"],
+      );
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  test("readMoments reflects a write made through appendMoment even when mtime is unchanged", async () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "noteeees-moments-"));
+    const date = "2026-03-07";
+    const filePath = getMomentsFilePath(tmpDir, date);
+    // Pinning the mtime to a fixed value makes a write invisible to an mtime
+    // check, so this only passes if the write path drops the cached entry itself.
+    const pinned = new Date(1700000000000);
+
+    try {
+      fs.mkdirSync(path.dirname(filePath), { recursive: true });
+      fs.writeFileSync(
+        filePath,
+        `---\ntype: moments\ndate: ${date}\n---\n\n- 09:00 Initial\n`,
+        "utf8",
+      );
+      fs.utimesSync(filePath, pinned, pinned);
+
+      const initial = await readMoments(tmpDir, date);
+      assert.deepStrictEqual(
+        initial.map((entry) => entry.text),
+        ["Initial"],
+      );
+
+      await appendMoment(tmpDir, date, "Appended entry");
+      fs.utimesSync(filePath, pinned, pinned);
+
+      const updated = await readMoments(tmpDir, date);
+      assert.deepStrictEqual(
+        updated.map((entry) => entry.text),
+        ["Initial", "Appended entry"],
+      );
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
     }
   });
 
