@@ -167,6 +167,7 @@ export function buildTagNoteDescription(
 export class NotesTreeProvider implements vscode.TreeDataProvider<NoteTreeItem> {
   private _onDidChangeTreeData = new vscode.EventEmitter<NoteTreeItem | undefined>();
   readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
+  private notesCache?: { notesDir: string; notes: Promise<SidebarNoteItem[]> };
 
   constructor(
     private getNotesDir: () => string | undefined,
@@ -175,6 +176,7 @@ export class NotesTreeProvider implements vscode.TreeDataProvider<NoteTreeItem> 
   ) {}
 
   refresh(): void {
+    this.notesCache = undefined;
     this._onDidChangeTreeData.fire(undefined);
   }
 
@@ -189,7 +191,7 @@ export class NotesTreeProvider implements vscode.TreeDataProvider<NoteTreeItem> 
       return [];
     }
 
-    const notes = await this._getSidebarNotes(notesDir);
+    const notes = await this._getCachedSidebarNotes(notesDir);
     const pinnedRelativePaths = this.getPinnedRelativePaths();
     const pinnedNotes = orderPinnedNotes(notes, pinnedRelativePaths);
     const pinnedPathSet = new Set(pinnedRelativePaths);
@@ -251,6 +253,20 @@ export class NotesTreeProvider implements vscode.TreeDataProvider<NoteTreeItem> 
     }
 
     return [];
+  }
+
+  private _getCachedSidebarNotes(notesDir: string): Promise<SidebarNoteItem[]> {
+    if (!this.notesCache || this.notesCache.notesDir !== notesDir) {
+      const notes = this._getSidebarNotes(notesDir);
+      this.notesCache = { notesDir, notes };
+      // Do not cache a failure: the next getChildren() should retry the walk.
+      void notes.catch(() => {
+        if (this.notesCache?.notes === notes) {
+          this.notesCache = undefined;
+        }
+      });
+    }
+    return this.notesCache.notes;
   }
 
   private async _getSidebarNotes(notesDir: string): Promise<SidebarNoteItem[]> {

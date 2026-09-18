@@ -2,6 +2,7 @@ import * as assert from "assert";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
+import * as collectNoteFilesModule from "../../shared/collectNoteFiles.js";
 import {
   buildTagSearchItems,
   createNotesWatcherPattern,
@@ -243,6 +244,65 @@ suite("Extension Test Suite", () => {
         ["b.md", "a.md"],
       );
     } finally {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  test("sidebar reuses one vault walk per refresh cycle", async () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "noteeees-walk-cache-"));
+    const originalCollectNoteFiles = collectNoteFilesModule.collectNoteFiles;
+    const mutableModule = collectNoteFilesModule as {
+      collectNoteFiles: typeof collectNoteFilesModule.collectNoteFiles;
+    };
+    let callCount = 0;
+    let failNextWalk = false;
+    mutableModule.collectNoteFiles = async (...args) => {
+      callCount += 1;
+      if (failNextWalk) {
+        failNextWalk = false;
+        throw new Error("transient walk failure");
+      }
+      return originalCollectNoteFiles(...args);
+    };
+
+    try {
+      const subDir = path.join(tmpDir, "sub");
+      fs.mkdirSync(subDir, { recursive: true });
+      fs.writeFileSync(path.join(tmpDir, "root1.md"), "---\ntags: [topic]\n---\n# Root 1\n");
+      fs.writeFileSync(path.join(tmpDir, "root2.md"), "---\ntags: [topic]\n---\n# Root 2\n");
+      fs.writeFileSync(path.join(subDir, "nested.md"), "---\ntags: [topic]\n---\n# Nested\n");
+
+      const provider = new NotesTreeProvider(
+        () => tmpDir,
+        () => [],
+        () => "frequency",
+      );
+
+      const rootItems = await provider.getChildren();
+      const recentRoot = rootItems.find((item) => item.kind === "recentRoot");
+      const tagsRoot = rootItems.find((item) => item.kind === "tagsRoot");
+      assert.ok(recentRoot);
+      assert.ok(tagsRoot);
+
+      await provider.getChildren(recentRoot);
+      const tagGroups = await provider.getChildren(tagsRoot);
+      assert.strictEqual(tagGroups.length, 1);
+      await provider.getChildren(tagGroups[0]);
+
+      assert.strictEqual(callCount, 1);
+
+      provider.refresh();
+      await provider.getChildren();
+      assert.strictEqual(callCount, 2);
+
+      // A failed walk must not stay cached, so the next call retries it.
+      provider.refresh();
+      failNextWalk = true;
+      await assert.rejects(() => provider.getChildren());
+      await provider.getChildren();
+      assert.strictEqual(callCount, 4);
+    } finally {
+      mutableModule.collectNoteFiles = originalCollectNoteFiles;
       fs.rmSync(tmpDir, { recursive: true, force: true });
     }
   });
