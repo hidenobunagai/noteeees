@@ -18,6 +18,7 @@ import {
 } from "../../shared/pathSafety.js";
 import { formatDateString, shiftDate, todayDateString } from "../dateUtils";
 import { archiveMoments, ensureMomentsFile } from "../moments/fileIo";
+import { getMomentsSubfolderSetting } from "../notesConfig";
 
 async function withArchiveAfterDays<T>(days: number, run: () => T | Promise<T>): Promise<T> {
   const config = vscode.workspace.getConfiguration("notes");
@@ -27,6 +28,17 @@ async function withArchiveAfterDays<T>(days: number, run: () => T | Promise<T>):
     return await run();
   } finally {
     await config.update("momentsArchiveAfterDays", original, vscode.ConfigurationTarget.Global);
+  }
+}
+
+async function withMomentsSubfolder<T>(value: string, run: () => T | Promise<T>): Promise<T> {
+  const config = vscode.workspace.getConfiguration("notes");
+  const original = config.get<string>("momentsSubfolder");
+  await config.update("momentsSubfolder", value, vscode.ConfigurationTarget.Global);
+  try {
+    return await run();
+  } finally {
+    await config.update("momentsSubfolder", original, vscode.ConfigurationTarget.Global);
   }
 }
 
@@ -159,8 +171,11 @@ suite("Shared Path Safety Test Suite", () => {
     assert.strictEqual(isValidSubfolderName("a/../b"), true);
     assert.strictEqual(path.normalize("a/../b"), "b");
 
-    // a\b is valid (single segment on POSIX, two segments on Windows)
-    assert.strictEqual(isValidSubfolderName("a\\b"), true);
+    // Windows separators and drive letters are rejected on every platform
+    assert.strictEqual(isValidSubfolderName("a\\b"), false);
+    assert.strictEqual(isValidSubfolderName("C:\\x"), false);
+    assert.strictEqual(isValidSubfolderName("C:/x"), false);
+    assert.strictEqual(isValidSubfolderName("\\abs"), false);
 
     // Japanese / Unicode subfolder names are valid
     assert.strictEqual(isValidSubfolderName("ノート"), true);
@@ -182,6 +197,39 @@ suite("Shared Path Safety Test Suite", () => {
     assert.strictEqual(sanitizeSubfolderName("..", fallback), fallback);
     assert.strictEqual(sanitizeSubfolderName("../x", fallback), fallback);
     assert.strictEqual(sanitizeSubfolderName(path.join(path.sep, "abs"), fallback), fallback);
+    assert.strictEqual(sanitizeSubfolderName("a\\b", fallback), fallback);
+    assert.strictEqual(sanitizeSubfolderName("C:\\x", fallback), fallback);
+    assert.strictEqual(sanitizeSubfolderName("C:/x", fallback), fallback);
+  });
+
+  test("getMomentsSubfolderSetting applies the same rules as pathSafety", async function () {
+    // Each case writes the setting twice (set + restore), which is slower than 2s
+    this.timeout(20000);
+    const cases: Array<[string, string]> = [
+      ["", "moments"],
+      ["   ", "moments"],
+      ["..", "moments"],
+      ["../x", "moments"],
+      ["a/../../b", "moments"],
+      ["/abs", "moments"],
+      ["a\\b", "moments"],
+      ["C:\\x", "moments"],
+      ["C:/x", "moments"],
+      ["daily", "daily"],
+      ["a/b", path.join("a", "b")],
+      ["a//b", path.join("a", "b")],
+      ["ノート", "ノート"],
+      ["議事録/2026", path.join("議事録", "2026")],
+    ];
+
+    for (const [input, expected] of cases) {
+      await withMomentsSubfolder(input, () => {
+        const actual = getMomentsSubfolderSetting();
+        assert.strictEqual(actual, expected, `input: ${JSON.stringify(input)}`);
+        // Whatever survives the setting is a subfolder pathSafety calls valid
+        assert.strictEqual(isValidSubfolderName(actual), true);
+      });
+    }
   });
 });
 

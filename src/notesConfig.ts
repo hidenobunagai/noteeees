@@ -1,4 +1,5 @@
 import * as vscode from "vscode";
+import { sanitizeSubfolderName } from "../shared/pathSafety.js";
 import type { SidebarTagSortMode } from "./sidebarProvider.js";
 
 export type { SidebarTagSortMode };
@@ -89,21 +90,9 @@ export function updateSidebarTagSortSetting(
 }
 
 export function getMomentsSubfolderSetting(): string {
-  const raw = getNotesConfiguration().get<string>("momentsSubfolder") || "moments";
-  const trimmed = raw.trim();
-  if (!trimmed) {
-    return "moments";
-  }
-  // Reject absolute paths and traversal — fall back to default
-  if (trimmed.includes("..") || trimmed.startsWith("/") || trimmed.startsWith("\\")) {
-    return "moments";
-  }
-  // Also reject if normalized form would escape
-  const normalized = trimmed.replace(/\\/g, "/");
-  if (normalized.split("/").some((seg) => seg === ".." || seg === "")) {
-    return "moments";
-  }
-  return trimmed;
+  const raw = getNotesConfiguration().get<string>("momentsSubfolder") ?? "";
+  // Validation lives in shared/pathSafety.ts — keep both callers on the same rules.
+  return sanitizeSubfolderName(raw.trim(), "moments");
 }
 
 export function getMomentsSendOnEnterSetting(): boolean {

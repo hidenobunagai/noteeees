@@ -14,6 +14,11 @@ export function isValidSubfolderName(value: string): boolean {
   if (!value || value.trim().length === 0) {
     return false;
   }
+  // Windows-style input is rejected on every platform, so a folder name means the
+  // same thing on Windows and POSIX: backslash separators and drive letters.
+  if (value.includes("\\") || /^[A-Za-z]:/.test(value)) {
+    return false;
+  }
   if (path.isAbsolute(value)) {
     return false;
   }
