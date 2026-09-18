@@ -8,9 +8,7 @@
  * Returns { title, datePrefix } where datePrefix is the matched date string
  * (without trailing separator), or empty string if none matched.
  */
-export function stripDatePrefix(
-  basename: string,
-): { title: string; datePrefix: string } {
+export function stripDatePrefix(basename: string): { title: string; datePrefix: string } {
   const match = basename.match(
     /^(\d{4}[-_]\d{2}[-_]\d{2}(?:[-_]\d{2}[-_]\d{2}(?:[-_]\d{2})?)?)[-_ ](.*)/,
   );

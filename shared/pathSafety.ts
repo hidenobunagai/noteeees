@@ -35,10 +35,7 @@ export function sanitizeSubfolderName(value: string, fallback: string): string {
   return fallback;
 }
 
-export async function resolveUniqueFilePath(
-  targetDir: string,
-  filename: string,
-): Promise<string> {
+export async function resolveUniqueFilePath(targetDir: string, filename: string): Promise<string> {
   const candidate = path.join(targetDir, filename);
   try {
     await fs.access(candidate);
