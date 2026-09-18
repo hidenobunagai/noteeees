@@ -13,7 +13,7 @@
 1. **Update version and changelog**
    ```bash
    # Edit package.json - bump version
-   # Edit CHANGELOG.md - move Unreleased to new version section
+   # Edit CHANGELOG.md - add a new "## [X.Y.Z] - YYYY-MM-DD" section at the top
    ```
 
 2. **Build and test**
@@ -33,19 +33,12 @@
    git push origin main --tags
    ```
 
-5. **Publish to VS Code Marketplace**
-   ```bash
-   vsce publish
-   ```
-   - Requires: `vsce` CLI installed
-   - Authentication: Azure DevOps Personal Access Token configured
-
-6. **Publish to Open VSX Registry**
-   ```bash
-   npx ovsx publish
-   ```
-   - Requires: `OVSX_PAT` environment variable set
-   - Get token from: https://open-vsx.org/user-settings/tokens
+5. **Let the workflow publish**
+   Pushing the `v*` tag triggers `.github/workflows/publish.yml`, which builds the
+   `.vsix` and publishes it to both the VS Code Marketplace and Open VSX.
+   No local publish step is needed — running `vsce publish` / `ovsx publish` by hand
+   would publish the same version a second time.
+   - Requires: `VSCE_PAT` and `OVSX_PAT` repository secrets
 
 ### Post-release
 - [ ] Verify both marketplaces show new version
@@ -55,10 +48,10 @@
 
 ### Project Structure
 - `src/` - VS Code extension source
-- `shared/` - Modules shared by extension features (task syntax, note collection, path safety)
+- `shared/` - Dependency-free helpers shared by extension features: `collectNoteFiles.ts` (note file listing), `frontMatter.ts` (front matter parsing), `noteFilename.ts` (filename/date-prefix tokens), `pathSafety.ts` (path containment checks)
 - `webview/` - Real webview scripts/styles inlined into `src/webview/generated.ts` by `scripts/embed-webview.mjs`
 - `dist/` - Compiled extension (generated)
-- `CHANGELOG.md` - Release history and Unreleased section
+- `CHANGELOG.md` - Release history (newest version first)
 
 ### Testing
 ```bash

@@ -11,7 +11,7 @@ A quick-capture timeline panel for fleeting thoughts and ideas — always one ke
 
 - **`Cmd+Shift+M`**: Open the Moments panel from the Activity Bar (⚡ lightning icon)
 - **Timeline view**: Entries displayed as a continuous recent feed with timestamps and quick actions
-- **Quick input**: The composer stays pinned below the topbar so you can type immediately; press `Enter` to save instantly, or use `Shift+Enter` for multiline posts
+- **Quick input**: The composer stays pinned below the topbar so you can type immediately; by default press `Enter` to save instantly and `Shift+Enter` for a multiline post (set `notes.momentsSendOnEnter` to `false` to send with `Ctrl+Enter` / `Cmd+Enter` and use `Enter` for newlines instead)
 - **Inline editing**: Edit a Moment in place and save without leaving the panel
 - **Safe deletion**: Delete a Moment from the panel with a confirmation step
 - **Sticky date markers**: Each day label stays visible while you scroll through the feed
@@ -146,5 +146,9 @@ When `notes.templates` is set, a picker will appear on note creation to choose b
 | `notes.templates` | Custom template names (maps to `noteeees_template_{name}` snippets) |
 | `notes.sidebarRecentLimit` | Number of notes shown in the sidebar Recent section (`0` = all) |
 | `notes.sidebarTagSort` | Sort mode for the sidebar Tags section (`frequency` or `alphabetical`) |
+| `notes.momentsSubfolder` | Subfolder of the notes directory where Moments are stored (default: `moments`). Each day is written to `YYYY-MM-DD.md`. |
+| `notes.momentsSendOnEnter` | When `true` (default), `Enter` sends a Moment and `Shift+Enter` adds a newline. When `false`, `Ctrl+Enter` / `Cmd+Enter` sends and `Enter` adds a newline. |
 | `notes.momentsFeedDays` | Number of days shown in the stacked Moments feed (`1`-`30`) |
+| `notes.momentsArchiveAfterDays` | Age in days after which `Noteeees Moments: Archive Old Moments` moves a day's file to `<moments subfolder>/archive/YYYY-MM/`; newer files stay in place (`1` or more, default: `90`) |
+| `notes.dailyNoteTemplate` | Path to a template file for daily notes. Supports `{date}`, `{weekday}`, and `{time}` tokens. Leave empty to use the built-in default. |
 | `notes.locale` | UI language for webviews and notifications: `auto` (follows VS Code), `en`, or `ja` |
