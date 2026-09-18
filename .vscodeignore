@@ -54,7 +54,8 @@ opencode.jsonc
 
 # Docs / misc
 docs/
-CHANGELOG.md
+# CHANGELOG.md is deliberately NOT ignored: vsce ships it as extension/changelog.md,
+# which powers the Marketplace "Changelog" tab.
 vsc-extension-quickstart.md
 webview_test.html
 excalidraw.log
