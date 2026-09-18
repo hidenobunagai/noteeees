@@ -396,7 +396,7 @@ ${momentsStyle}
 </div>
 
 <div class="input-area">
-  <div id="errorBanner" style="display:none"></div>
+  <div id="errorBanner" class="error-banner" style="display:none"></div>
   <div class="input-container" id="inputContainer">
     <textarea id="inputBox" rows="1" placeholder="Capture a thought... (#tag to categorize)"></textarea>
     <div class="input-actions">
