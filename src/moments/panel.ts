@@ -103,7 +103,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
             todayDate: formatDateString(new Date()),
             anchorDate: this._anchorDate,
             locale: resolveLocale(),
-            pinnedEntries: [],
+            pinnedEntries: resolvePinnedEntries(this._getPinnedEntries(), feed.sections),
             hasMoreOlder: false,
           });
           break;

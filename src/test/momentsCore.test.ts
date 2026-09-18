@@ -51,10 +51,10 @@ const momentFileVariants: Array<{ label: string; raw: (date: string) => string }
   },
 ];
 
-function createMementoStub(): vscode.Memento & {
+function createMementoStub(initialState?: Record<string, unknown>): vscode.Memento & {
   setKeysForSync(keys: readonly string[]): void;
 } {
-  const store = new Map<string, unknown>();
+  const store = new Map<string, unknown>(initialState ? Object.entries(initialState) : undefined);
 
   return {
     get<T>(key: string, defaultValue?: T): T {
@@ -77,9 +77,11 @@ function createMementoStub(): vscode.Memento & {
   };
 }
 
-function createExtensionContextStub(): vscode.ExtensionContext {
+function createExtensionContextStub(
+  initialState?: Record<string, unknown>,
+): vscode.ExtensionContext {
   const context = {
-    globalState: createMementoStub(),
+    globalState: createMementoStub(initialState),
   } satisfies Pick<vscode.ExtensionContext, "globalState">;
 
   return context as vscode.ExtensionContext;
@@ -500,6 +502,89 @@ suite("Moments Core Test Suite", () => {
       await appendMoment(tmpDir, "2026-03-07", "hello world");
       const result = await searchMomentsFeed(tmpDir, "   ");
       assert.deepStrictEqual(result.sections, []);
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  test("Moments search keeps pinned entries", async () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "noteeees-moments-"));
+    try {
+      const date = "2026-03-07";
+      const text = "alpha pin target";
+      await appendMoment(tmpDir, date, text);
+      const [liveEntry] = await readMoments(tmpDir, date);
+      assert.ok(liveEntry);
+
+      let messageListener: ((message: unknown) => Promise<unknown> | unknown) | undefined;
+      const postedMessages: Array<Record<string, unknown>> = [];
+
+      const webview: Pick<
+        vscode.Webview,
+        "cspSource" | "html" | "options" | "asWebviewUri" | "onDidReceiveMessage" | "postMessage"
+      > = {
+        cspSource: "vscode-webview-resource://test",
+        html: "",
+        options: {},
+        asWebviewUri(uri: vscode.Uri): vscode.Uri {
+          return uri;
+        },
+        onDidReceiveMessage<T>(listener: (e: T) => unknown): vscode.Disposable {
+          messageListener = listener as (message: unknown) => Promise<unknown> | unknown;
+          return new vscode.Disposable(() => undefined);
+        },
+        postMessage(message: unknown): Thenable<boolean> {
+          postedMessages.push(message as Record<string, unknown>);
+          return Promise.resolve(true);
+        },
+      };
+
+      const viewStub = {
+        webview,
+        show(_preserveFocus?: boolean): void {
+          return;
+        },
+      } as unknown as vscode.WebviewView;
+
+      const context = createExtensionContextStub({
+        "moments.pinnedEntries": [
+          {
+            date,
+            index: 1,
+            text: "stale text",
+            time: "00:00",
+          },
+        ],
+      });
+
+      const provider = new MomentsViewProvider(() => tmpDir, context);
+      provider.resolveWebviewView(
+        viewStub,
+        {} as vscode.WebviewViewResolveContext,
+        {} as vscode.CancellationToken,
+      );
+
+      assert.ok(messageListener);
+      await messageListener({ command: "searchMoments", query: "alpha" });
+
+      assert.ok(postedMessages.length > 0);
+      const lastMessage = postedMessages[postedMessages.length - 1] as {
+        command: string;
+        sections: unknown[];
+        pinnedEntries: unknown[];
+      };
+      assert.strictEqual(lastMessage.command, "update");
+      assert.ok(Array.isArray(lastMessage.sections) && lastMessage.sections.length > 0);
+      assert.ok(lastMessage.pinnedEntries.length > 0);
+      assert.deepStrictEqual(lastMessage.pinnedEntries, [
+        {
+          date,
+          index: 1,
+          text,
+          time: liveEntry.time,
+          isAvailable: true,
+        },
+      ]);
     } finally {
       fs.rmSync(tmpDir, { recursive: true, force: true });
     }
