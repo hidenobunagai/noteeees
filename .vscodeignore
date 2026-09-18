@@ -14,12 +14,17 @@ AGENTS.md
 node_modules/
 src/
 out/
-*.ts
+**/*.ts
 **/*.map
 .eslintrc*
 eslint.config.mjs
+.prettierignore
 tsconfig.json
 esbuild.js
+scripts/
+
+# Webview sources (inlined into src/webview/generated.ts by scripts/embed-webview.mjs)
+webview/
 
 # Bun
 bun.lock
@@ -41,6 +46,7 @@ QODER.md
 opencode.jsonc
 .claude/
 .codebuddy/
+.commandcode/
 .cursor/
 .gemini/
 .kiro/
