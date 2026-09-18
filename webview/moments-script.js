@@ -131,10 +131,6 @@
     } else {
       topbarCount.style.display = 'none';
     }
-
-    // Highlight allBtn as active (default view)
-    allBtn.classList.add('active');
-    allBtn.setAttribute('aria-pressed', 'true');
   }
 
   function updateAnchorChip(anchorDate, todayDate) {
@@ -291,8 +287,10 @@
       }))
       .filter((section) => section.entries.length > 0);
 
-    allBtn.classList.add('active');
-    allBtn.setAttribute('aria-pressed', 'true');
+    // "All moments" is the pressed view only while no tag/search filter applies.
+    const isFiltered = Boolean(activeTag || currentSearchText);
+    allBtn.classList.toggle('active', !isFiltered);
+    allBtn.setAttribute('aria-pressed', String(!isFiltered));
     activeTagBtn.style.display = activeTag ? '' : 'none';
     activeTagBtn.textContent = activeTag ? activeTagLabel + ' ×' : '';
     activeTagBtn.title = activeTag ? UI('clearSearch') : UI('clearSearch');
@@ -667,7 +665,15 @@
     maybeLoadOlderEntries();
   }, { passive: true });
   allBtn.addEventListener('click', () => {
-    renderTimeline(latestSections);
+    const hadQuery = resetSearchQuery(false);
+    activeTag = null;
+    activeTagLabel = '';
+    if (hadQuery) {
+      // Search results replace the feed, so ask for the unfiltered feed again.
+      vscode.postMessage({ command: 'refreshFeed' });
+    } else {
+      renderTimeline(latestSections);
+    }
   });
   activeTagBtn.addEventListener('click', () => {
     activeTag = null;
@@ -676,6 +682,22 @@
   });
 
   let searchDebounceTimer = null;
+
+  // Drops the search query; returns true when a query was actually applied or pending.
+  function resetSearchQuery(refocus) {
+    if (searchDebounceTimer) {
+      clearTimeout(searchDebounceTimer);
+      searchDebounceTimer = null;
+    }
+    const hadQuery = Boolean(currentSearchText || searchInput.value.trim());
+    searchInput.value = '';
+    currentSearchText = '';
+    clearSearch.style.display = 'none';
+    if (refocus) {
+      searchInput.focus();
+    }
+    return hadQuery;
+  }
 
   searchInput.addEventListener('input', () => {
     const query = searchInput.value;
@@ -697,14 +719,7 @@
   });
 
   clearSearch.addEventListener('click', () => {
-    if (searchDebounceTimer) {
-      clearTimeout(searchDebounceTimer);
-      searchDebounceTimer = null;
-    }
-    searchInput.value = '';
-    currentSearchText = '';
-    clearSearch.style.display = 'none';
-    searchInput.focus();
+    resetSearchQuery(true);
     vscode.postMessage({ command: 'refreshFeed' });
   });
 
