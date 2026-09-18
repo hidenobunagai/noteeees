@@ -57,6 +57,22 @@ export function movePinnedItem<T>(items: T[], index: number, direction: MoveDire
   return reordered;
 }
 
+/**
+ * Orders sidebar notes by the saved pinned list, so manual reordering via
+ * notes.movePinnedNoteUp/Down is reflected in the tree.
+ */
+export function orderPinnedNotes<T extends { relativePath: string }>(
+  notes: T[],
+  pinnedRelativePaths: string[],
+): T[] {
+  const notesByPath = new Map(notes.map((note) => [note.relativePath, note]));
+
+  return pinnedRelativePaths.flatMap((relativePath) => {
+    const note = notesByPath.get(relativePath);
+    return note ? [note] : [];
+  });
+}
+
 export function buildTagSummary(
   notes: Array<{ tags: string[] }>,
   sortMode: SidebarTagSortMode = "frequency",
@@ -171,9 +187,10 @@ export class NotesTreeProvider implements vscode.TreeDataProvider<NoteTreeItem> 
     }
 
     const notes = await this._getSidebarNotes(notesDir);
-    const pinnedRelativePaths = new Set(this.getPinnedRelativePaths());
-    const pinnedNotes = notes.filter((note) => pinnedRelativePaths.has(note.relativePath));
-    const unpinnedNotes = notes.filter((note) => !pinnedRelativePaths.has(note.relativePath));
+    const pinnedRelativePaths = this.getPinnedRelativePaths();
+    const pinnedNotes = orderPinnedNotes(notes, pinnedRelativePaths);
+    const pinnedPathSet = new Set(pinnedRelativePaths);
+    const unpinnedNotes = notes.filter((note) => !pinnedPathSet.has(note.relativePath));
 
     if (!element) {
       return [

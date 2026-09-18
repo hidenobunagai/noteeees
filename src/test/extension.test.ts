@@ -26,6 +26,7 @@ import {
   buildTagSummary,
   limitSidebarNotes,
   movePinnedItem,
+  NotesTreeProvider,
 } from "../sidebarProvider";
 
 suite("Extension Test Suite", () => {
@@ -212,6 +213,36 @@ suite("Extension Test Suite", () => {
     assert.deepStrictEqual(movePinnedItem(["a", "b", "c"], 1, "up"), ["b", "a", "c"]);
     assert.deepStrictEqual(movePinnedItem(["a", "b", "c"], 1, "down"), ["a", "c", "b"]);
     assert.deepStrictEqual(movePinnedItem(["a", "b", "c"], 0, "up"), ["a", "b", "c"]);
+  });
+
+  test("pinned root lists notes in saved pin order instead of mtime order", async () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "noteeees-pin-order-"));
+    try {
+      const pinnedFirst = path.join(tmpDir, "b.md");
+      const pinnedSecond = path.join(tmpDir, "a.md");
+      fs.writeFileSync(pinnedFirst, "# B\n");
+      fs.writeFileSync(pinnedSecond, "# A\n");
+      // mtime order (a.md newest) is the opposite of the saved pin order (b.md, a.md).
+      fs.utimesSync(pinnedFirst, new Date(1000), new Date(1000));
+      fs.utimesSync(pinnedSecond, new Date(2000), new Date(2000));
+
+      const provider = new NotesTreeProvider(
+        () => tmpDir,
+        () => ["b.md", "a.md"],
+        () => "frequency",
+      );
+
+      const [pinnedRoot] = await provider.getChildren();
+      assert.strictEqual(pinnedRoot.kind, "pinnedRoot");
+
+      const children = await provider.getChildren(pinnedRoot);
+      assert.deepStrictEqual(
+        children.map((child) => child.relativePath),
+        ["b.md", "a.md"],
+      );
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
   });
 
   test("notes watcher pattern is scoped to notes directory", () => {
