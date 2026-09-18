@@ -124,6 +124,18 @@ function renderMomentsWebviewHtml(): string {
   return webview.html;
 }
 
+/** Forces the extension locale so assertions do not depend on the host language. */
+async function withLocale<T>(locale: "en" | "ja", run: () => T | Promise<T>): Promise<T> {
+  const config = vscode.workspace.getConfiguration("notes");
+  const original = config.get<string>("locale");
+  await config.update("locale", locale, vscode.ConfigurationTarget.Global);
+  try {
+    return await run();
+  } finally {
+    await config.update("locale", original, vscode.ConfigurationTarget.Global);
+  }
+}
+
 suite("Moments Core Test Suite", () => {
   test("moment tag extraction keeps unique normalized hashtags", () => {
     assert.deepStrictEqual(extractMomentTags("Discuss #AI and #notes with #AI again"), [
@@ -138,6 +150,16 @@ suite("Moments Core Test Suite", () => {
       "#振り返り-設計",
     ]);
     assert.deepStrictEqual(extractMomentTags("No tags here"), []);
+  });
+
+  test("Moments webview lang attribute follows the resolved locale", async function () {
+    this.timeout(20000);
+    await withLocale("ja", () => {
+      assert.ok(renderMomentsWebviewHtml().includes('<html lang="ja">'));
+    });
+    await withLocale("en", () => {
+      assert.ok(renderMomentsWebviewHtml().includes('<html lang="en">'));
+    });
   });
 
   test("Moments webview renders the composer before the timeline", () => {
@@ -280,9 +302,17 @@ suite("Moments Core Test Suite", () => {
     }
   });
 
-  test("moments date label only prefixes today", () => {
-    assert.strictEqual(buildMomentsDateLabel("2026-03-09", "2026-03-09"), "Today · 2026-03-09");
-    assert.strictEqual(buildMomentsDateLabel("2026-03-08", "2026-03-09"), "2026-03-08");
+  test("moments date label only prefixes today", async function () {
+    this.timeout(20000);
+    await withLocale("en", () => {
+      assert.strictEqual(buildMomentsDateLabel("2026-03-09", "2026-03-09"), "Today · 2026-03-09");
+      assert.strictEqual(buildMomentsDateLabel("2026-03-08", "2026-03-09"), "2026-03-08");
+    });
+
+    await withLocale("ja", () => {
+      assert.strictEqual(buildMomentsDateLabel("2026-03-09", "2026-03-09"), "今日 · 2026-03-09");
+      assert.strictEqual(buildMomentsDateLabel("2026-03-08", "2026-03-09"), "2026-03-08");
+    });
   });
 
   test("moments feed dates stack backward from the anchor date", () => {

@@ -53,6 +53,7 @@ const en = {
   sendBtn: "Send (Enter)",
   exportAsNote: "Export as Note",
   selectedCount: "{count} selected",
+  selectEntryLabel: "Select entry for export",
   noMomentsSearchTag: 'No moments tagged {tag} matching "{query}"',
   noMomentsSearch: 'No moments matching "{query}"',
   noMomentsTagged: "No moments tagged {tag} in this recent feed",
@@ -70,7 +71,6 @@ const en = {
   momentDeleteBtn: "Delete",
   momentsExported: "Exported {count} moment(s) to {name}",
   momentCount: "{count} moment(s)",
-  listSeparator: ", ",
   todayBadge: "Today",
 
   // --- Sidebar ---
@@ -141,6 +141,7 @@ const ja: Record<keyof typeof en, string> = {
   sendBtn: "送信（Enter）",
   exportAsNote: "ノートとしてエクスポート",
   selectedCount: "{count} 件選択中",
+  selectEntryLabel: "エクスポートする項目を選択",
   noMomentsSearchTag: "「{tag}」タグの「{query}」に一致するモーメントはありません",
   noMomentsSearch: "「{query}」に一致するモーメントはありません",
   noMomentsTagged: "最近のフィードに「{tag}」タグのモーメントはありません",
@@ -158,7 +159,6 @@ const ja: Record<keyof typeof en, string> = {
   momentDeleteBtn: "削除",
   momentsExported: "{count} 件のモーメントを {name} にエクスポートしました。",
   momentCount: "{count} 件のモーメント",
-  listSeparator: "、",
   todayBadge: "今日",
 
   // --- Sidebar ---
@@ -193,6 +193,11 @@ export function resolveLocale(): Locale {
 
   const vscodeLang = (vscode.env.language || "en").toLowerCase();
   return vscodeLang.startsWith("ja") ? "ja" : "en";
+}
+
+/** BCP 47 tag for `Date#toLocale*`, so dates follow the resolved locale too. */
+export function localeTag(locale: Locale = resolveLocale()): string {
+  return locale === "ja" ? "ja-JP" : "en-US";
 }
 
 export function t(key: I18nKey, params?: Record<string, string | number>): string {

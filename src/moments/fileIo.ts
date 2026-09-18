@@ -2,6 +2,7 @@ import * as fs from "fs/promises";
 import * as path from "path";
 import { parseNoteBody } from "../../shared/frontMatter.js";
 import { formatDateString, formatTimeHM, todayDateString } from "../dateUtils.js";
+import { t } from "../i18n.js";
 import { getMomentsArchiveAfterDaysSetting, getMomentsSubfolderSetting } from "../notesConfig.js";
 import {
   extractMomentTags,
@@ -182,7 +183,7 @@ export function mapMomentBodyIndexToFileLine(raw: string, bodyIndex: number): nu
 
 export function buildMomentsDateLabel(date: string, today: string): string {
   if (date === today) {
-    return `Today · ${date}`;
+    return `${t("todayBadge")} · ${date}`;
   }
 
   return date;

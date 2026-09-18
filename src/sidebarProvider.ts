@@ -1,6 +1,7 @@
 import * as path from "path";
 import * as vscode from "vscode";
 import { stripDatePrefix } from "../shared/noteFilename.js";
+import { t } from "./i18n.js";
 import { buildQueryExcerpt, type IndexedNote } from "./noteCommands";
 import { getIndexedNotesCached } from "./notesIndexCache.js";
 import { getMomentsSubfolderSetting, getSidebarRecentLimitSetting } from "./notesConfig.js";
@@ -123,7 +124,7 @@ function getRecentNotesLimit(): number {
 }
 
 function formatTagCount(count: number): string {
-  return `${count} note${count === 1 ? "" : "s"}`;
+  return t("tagNoteCount", { count });
 }
 
 function buildTagTooltip(group: SidebarTagGroup): vscode.MarkdownString {
@@ -131,10 +132,10 @@ function buildTagTooltip(group: SidebarTagGroup): vscode.MarkdownString {
   md.isTrusted = true;
 
   md.appendMarkdown(`**${group.tag}**\n\n`);
-  md.appendMarkdown(`${formatTagCount(group.count)} notes\n\n`);
+  md.appendMarkdown(`${formatTagCount(group.count)}\n\n`);
 
   if (group.latestTitle) {
-    md.appendMarkdown(`---\n**Latest**: ${group.latestTitle}\n\n`);
+    md.appendMarkdown(`---\n${t("tagLatest", { title: group.latestTitle })}\n\n`);
   }
 
   if (group.latestRelativePath) {
@@ -142,7 +143,9 @@ function buildTagTooltip(group: SidebarTagGroup): vscode.MarkdownString {
   }
 
   if (typeof group.latestMtime === "number") {
-    md.appendMarkdown(`$(clock) Updated ${new Date(group.latestMtime).toLocaleString()}`);
+    md.appendMarkdown(
+      `$(clock) ${t("tagUpdated", { date: new Date(group.latestMtime).toLocaleString() })}`,
+    );
   }
 
   return md;
@@ -197,7 +200,7 @@ export class NotesTreeProvider implements vscode.TreeDataProvider<NoteTreeItem> 
         ...(pinnedNotes.length > 0
           ? [
               {
-                label: "Pinned",
+                label: t("sidebarPinned"),
                 kind: "pinnedRoot" as const,
                 collapsibleState: vscode.TreeItemCollapsibleState.Expanded,
                 iconPath: new vscode.ThemeIcon("pin"),
@@ -205,13 +208,13 @@ export class NotesTreeProvider implements vscode.TreeDataProvider<NoteTreeItem> 
             ]
           : []),
         {
-          label: "Recent",
+          label: t("sidebarRecent"),
           kind: "recentRoot",
           collapsibleState: vscode.TreeItemCollapsibleState.Expanded,
           iconPath: new vscode.ThemeIcon("history"),
         },
         {
-          label: "Tags",
+          label: t("sidebarTags"),
           kind: "tagsRoot",
           collapsibleState: vscode.TreeItemCollapsibleState.Collapsed,
           iconPath: new vscode.ThemeIcon("symbol-keyword"),
@@ -298,7 +301,7 @@ export class NotesTreeProvider implements vscode.TreeDataProvider<NoteTreeItem> 
       ),
       command: {
         command: "notes.openNoteFile",
-        title: "Open Note",
+        title: t("openNoteBtn"),
         arguments: [note.absolutePath],
       },
     };
@@ -315,7 +318,9 @@ export class NotesTreeProvider implements vscode.TreeDataProvider<NoteTreeItem> 
       md.appendMarkdown(`$(tag) ${note.tags.join(" ")}\n\n`);
     }
 
-    md.appendMarkdown(`$(clock) Updated ${new Date(note.mtime).toLocaleString()}\n\n`);
+    md.appendMarkdown(
+      `$(clock) ${t("tagUpdated", { date: new Date(note.mtime).toLocaleString() })}\n\n`,
+    );
 
     if (activeTag) {
       const matchExcerpt = buildQueryExcerpt(note.searchText || note.preview, activeTag, 120);

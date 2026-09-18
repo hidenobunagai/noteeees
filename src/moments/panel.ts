@@ -349,7 +349,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
     const script = momentsScript.replace("__MOMENT_TAG_PATTERN__", momentTagPatternSource);
 
     return /* html */ `<!DOCTYPE html>
-<html lang="en">
+<html lang="${resolveLocale()}">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">

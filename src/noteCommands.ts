@@ -4,7 +4,7 @@ import * as vscode from "vscode";
 import { stripFrontMatterTrimmed } from "../shared/frontMatter.js";
 import { isPathInside, resolveUniqueFilePath } from "../shared/pathSafety.js";
 import { formatDateString, formatTimeHM } from "./dateUtils.js";
-import { t } from "./i18n.js";
+import { localeTag, t } from "./i18n.js";
 import { getIndexedNotesCached } from "./notesIndexCache.js";
 import {
   getDefaultNoteTitleSetting,
@@ -495,7 +495,7 @@ export async function createNewNote(notesDir: string, initialTitle?: string): Pr
 const DAILY_NOTE_DEFAULT_TEMPLATE = "# {date}\n\n## Tasks\n\n## Notes\n\n## Journal\n";
 
 function getWeekdayName(date: Date): string {
-  return date.toLocaleDateString("en-US", { weekday: "long" });
+  return date.toLocaleDateString(localeTag(), { weekday: "long" });
 }
 
 function applyDailyNoteTokens(template: string, date: Date): string {

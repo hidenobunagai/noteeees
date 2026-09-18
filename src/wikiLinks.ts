@@ -3,6 +3,7 @@ import * as path from "path";
 import * as vscode from "vscode";
 import { collectNoteFiles } from "../shared/collectNoteFiles.js";
 import { stripDatePrefixTitle } from "../shared/noteFilename.js";
+import { t } from "./i18n.js";
 
 // Regex to find [[...]] links (supports [[Target|Alias]])
 const WIKI_LINK_RE = /\[\[([^\]|]+)(?:\|([^\]]*))?\]\]/g;
@@ -104,7 +105,7 @@ export class WikiLinkDocumentLinkProvider implements vscode.DocumentLinkProvider
       const start = document.positionAt(match.index!);
       const end = document.positionAt(match.index! + match[0].length);
       const link = new vscode.DocumentLink(new vscode.Range(start, end), vscode.Uri.file(filePath));
-      link.tooltip = `Open: ${path.basename(filePath)}`;
+      link.tooltip = t("openTooltip", { name: path.basename(filePath) });
       links.push(link);
     }
 
@@ -290,7 +291,7 @@ class BacklinkTreeItem extends vscode.TreeItem {
       if (opts.lineNumber !== undefined) {
         this.command = {
           command: "vscode.open",
-          title: "Open",
+          title: t("openBtn"),
           arguments: [
             vscode.Uri.file(opts.sourceFile),
             { selection: new vscode.Range(opts.lineNumber, 0, opts.lineNumber, 0) },
@@ -341,7 +342,7 @@ export class BacklinksProvider implements vscode.TreeDataProvider<BacklinkTreeIt
           kind: "file",
           sourceFile: file,
           fileBacklinks: items,
-          description: `${items.length} link${items.length === 1 ? "" : "s"}`,
+          description: t("backlinkCount", { count: items.length }),
         });
       });
     }
@@ -349,7 +350,7 @@ export class BacklinksProvider implements vscode.TreeDataProvider<BacklinkTreeIt
     if (element.kind === "file" && element.fileBacklinks) {
       return element.fileBacklinks.map((item) => {
         return new BacklinkTreeItem({
-          label: `Line ${item.lineNumber + 1}: ${item.linkText}`,
+          label: t("backlinkLine", { line: item.lineNumber + 1, text: item.linkText }),
           kind: "line",
           sourceFile: element.sourceFile,
           lineNumber: item.lineNumber,

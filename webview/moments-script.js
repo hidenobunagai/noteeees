@@ -531,7 +531,7 @@
       selectCb.type = 'checkbox';
       selectCb.className = 'select-entry-cb';
       selectCb.checked = selectedEntries.has(exportKey);
-      selectCb.setAttribute('aria-label', 'Select entry for export');
+      selectCb.setAttribute('aria-label', UI('selectEntryLabel'));
       selectCb.addEventListener('change', () => {
         if (selectCb.checked) {
           selectedEntries.add(exportKey);
