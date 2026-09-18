@@ -26,6 +26,31 @@ function feedDates(anchor: string, dayCount: number): string[] {
   return Array.from({ length: dayCount }, (_, index) => shiftDate(anchor, -index));
 }
 
+/**
+ * Every variant starts with front matter, then a blank line, so body index 1 is
+ * always the first entry and its file line is always 5.
+ */
+const momentFileVariants: Array<{ label: string; raw: (date: string) => string }> = [
+  {
+    label: "LF",
+    raw: (date) => `---\ntype: moments\ndate: ${date}\n---\n\n- 09:00 First\n- 09:30 Second\n`,
+  },
+  {
+    label: "CRLF",
+    raw: (date) =>
+      `---\r\ntype: moments\r\ndate: ${date}\r\n---\r\n\r\n- 09:00 First\r\n- 09:30 Second\r\n`,
+  },
+  {
+    label: "BOM",
+    raw: (date) =>
+      `\uFEFF---\ntype: moments\ndate: ${date}\n---\n\n- 09:00 First\n- 09:30 Second\n`,
+  },
+  {
+    label: "divider with trailing space",
+    raw: (date) => `--- \ntype: moments\ndate: ${date}\n--- \n\n- 09:00 First\n- 09:30 Second\n`,
+  },
+];
+
 function createMementoStub(): vscode.Memento & {
   setKeysForSync(keys: readonly string[]): void;
 } {
@@ -177,8 +202,80 @@ suite("Moments Core Test Suite", () => {
   });
 
   test("moment body index maps to file line after front matter", () => {
-    const raw = "---\ntype: moments\ndate: 2026-03-07\n---\n\n- 09:00 task";
-    assert.strictEqual(mapMomentBodyIndexToFileLine(raw, 1), 5);
+    for (const { label, raw } of momentFileVariants) {
+      const content = raw("2026-03-07");
+      const fileLine = mapMomentBodyIndexToFileLine(content, 1);
+
+      assert.strictEqual(fileLine, 5, `${label}: expected body index 1 to map to file line 5`);
+      assert.ok(
+        (content.split("\n")[fileLine] ?? "").startsWith("- 09:00 First"),
+        `${label}: expected the mapped file line to hold the entry`,
+      );
+    }
+  });
+
+  test("read index and file line round-trip across front matter variants", async () => {
+    const date = "2026-03-07";
+
+    for (const { label, raw } of momentFileVariants) {
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "noteeees-moments-"));
+      const filePath = getMomentsFilePath(tmpDir, date);
+
+      try {
+        fs.mkdirSync(path.dirname(filePath), { recursive: true });
+        fs.writeFileSync(filePath, raw(date), "utf8");
+
+        const entries = await readMoments(tmpDir, date);
+        assert.deepStrictEqual(
+          entries.map((entry) => `${entry.time} ${entry.text}`),
+          ["09:00 First", "09:30 Second"],
+          `${label}: expected both entries to be read without front matter`,
+        );
+
+        const fileLines = fs.readFileSync(filePath, "utf8").split("\n");
+        for (const entry of entries) {
+          const fileLine = mapMomentBodyIndexToFileLine(
+            fs.readFileSync(filePath, "utf8"),
+            entry.index,
+          );
+          assert.ok(
+            (fileLines[fileLine] ?? "").startsWith(`- ${entry.time} ${entry.text}`),
+            `${label}: body index ${entry.index} should map to its own file line`,
+          );
+        }
+
+        assert.strictEqual(
+          await saveMomentEdit(tmpDir, date, entries[0].index, "Edited first"),
+          true,
+          `${label}: expected the edit to be written`,
+        );
+        assert.strictEqual(
+          await deleteMomentEntry(tmpDir, date, entries[1].index),
+          true,
+          `${label}: expected the deletion to be written`,
+        );
+
+        const remaining = await readMoments(tmpDir, date);
+        assert.deepStrictEqual(
+          remaining.map((entry) => entry.text),
+          ["Edited first"],
+          `${label}: expected only the edited entry to survive`,
+        );
+
+        const saved = fs.readFileSync(filePath, "utf8");
+        assert.ok(
+          saved.includes("type: moments"),
+          `${label}: expected front matter to be preserved`,
+        );
+        assert.strictEqual(
+          saved.includes("\r\n"),
+          raw(date).includes("\r\n"),
+          `${label}: expected the file to keep its line endings`,
+        );
+      } finally {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    }
   });
 
   test("moments date label only prefixes today", () => {

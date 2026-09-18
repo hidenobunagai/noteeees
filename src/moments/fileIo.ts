@@ -1,6 +1,6 @@
 import * as fs from "fs/promises";
 import * as path from "path";
-import { stripFrontMatter } from "../../shared/frontMatter.js";
+import { parseNoteBody } from "../../shared/frontMatter.js";
 import { formatDateString, formatTimeHM, todayDateString } from "../dateUtils.js";
 import { getMomentsArchiveAfterDaysSetting, getMomentsSubfolderSetting } from "../notesConfig.js";
 import {
@@ -138,7 +138,7 @@ export async function readMoments(notesDir: string, date: string): Promise<Momen
 
   const raw = await fs.readFile(filePath, "utf8");
   // Strip front matter only — do NOT trim, so line indices stay consistent with edits
-  const body = stripFrontMatter(raw);
+  const { body } = parseNoteBody(raw);
   const lines = body.split("\n");
   const entries: MomentEntry[] = [];
 
@@ -172,16 +172,12 @@ export async function readMoments(notesDir: string, date: string): Promise<Momen
   return entries;
 }
 
+/**
+ * `readMoments` reports `index` as a line of the body returned by
+ * `parseNoteBody`, so the file line is that body's offset into the raw file.
+ */
 export function mapMomentBodyIndexToFileLine(raw: string, bodyIndex: number): number {
-  let bodyStart = 0;
-  if (raw.startsWith("---")) {
-    const fmEnd = raw.indexOf("\n---", 3);
-    if (fmEnd !== -1) {
-      bodyStart = raw.slice(0, fmEnd + 4).split("\n").length;
-    }
-  }
-
-  return bodyStart + bodyIndex;
+  return parseNoteBody(raw).bodyStartLine + bodyIndex;
 }
 
 export function buildMomentsDateLabel(date: string, today: string): string {
@@ -318,7 +314,9 @@ export async function saveMomentEdit(
   }
 
   const raw = await fs.readFile(filePath, "utf8");
-  const lines = raw.split("\n");
+  // Entry lines are matched on normalized text, then written back in the file's own style
+  const eol = raw.includes("\r\n") ? "\r\n" : "\n";
+  const lines = raw.replace(/\r\n/g, "\n").split("\n");
   const fileLineIdx = mapMomentBodyIndexToFileLine(raw, index);
   if (fileLineIdx < 0 || fileLineIdx >= lines.length) {
     return false;
@@ -334,7 +332,7 @@ export async function saveMomentEdit(
     return false;
   }
 
-  await fs.writeFile(filePath, result.lines.join("\n"), "utf8");
+  await fs.writeFile(filePath, result.lines.join(eol), "utf8");
   return true;
 }
 
@@ -351,7 +349,9 @@ export async function deleteMomentEntry(
   }
 
   const raw = await fs.readFile(filePath, "utf8");
-  const lines = raw.split("\n");
+  // Entry lines are matched on normalized text, then written back in the file's own style
+  const eol = raw.includes("\r\n") ? "\r\n" : "\n";
+  const lines = raw.replace(/\r\n/g, "\n").split("\n");
   const fileLineIdx = mapMomentBodyIndexToFileLine(raw, index);
   const range = findMomentEntryRange(lines, fileLineIdx);
   if (!range) {
@@ -359,7 +359,7 @@ export async function deleteMomentEntry(
   }
 
   const nextLines = [...lines.slice(0, range.startIndex), ...lines.slice(range.endIndex)];
-  await fs.writeFile(filePath, nextLines.join("\n"), "utf8");
+  await fs.writeFile(filePath, nextLines.join(eol), "utf8");
   return true;
 }
 
