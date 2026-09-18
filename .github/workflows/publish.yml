@@ -11,9 +11,20 @@ permissions:
 
 jobs:
   publish:
+    # workflow_dispatch can be dispatched from any ref, so gate publishing on a v* tag.
+    if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+      - name: Verify tag matches package.json version
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          version="$(node -p "require('./package.json').version")"
+          if [ "$tag" != "$version" ]; then
+            echo "::error::Tag ${GITHUB_REF_NAME} does not match package.json version ${version}"
+            exit 1
+          fi
+          echo "Tag ${GITHUB_REF_NAME} matches package.json version ${version}"
       - uses: oven-sh/setup-bun@v2
         with:
           bun-version: 1.4.0
