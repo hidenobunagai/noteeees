@@ -734,3 +734,24 @@
     height: 1px;
     clip: rect(0 0 0 0);
   }
+
+  /* ---- Reduced motion (WCAG 2.3.3) ---- */
+  /* OS の「視差効果を減らす」が有効なときは、スムーススクロールと
+     トランジション/アニメーション、ホバー時の移動・拡大を止める。
+     位置決め用の transform (translateY(-50%) など) は動きではないので対象外。 */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      transition: none !important;
+      animation: none !important;
+    }
+    .timeline {
+      scroll-behavior: auto;
+    }
+    .entry:hover,
+    .entry:hover::before,
+    .entry-action:hover,
+    .pin-btn:hover,
+    .send-icon-btn:hover {
+      transform: none;
+    }
+  }
