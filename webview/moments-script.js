@@ -293,8 +293,8 @@
     allBtn.setAttribute('aria-pressed', String(!isFiltered));
     activeTagBtn.style.display = activeTag ? '' : 'none';
     activeTagBtn.textContent = activeTag ? activeTagLabel + ' ×' : '';
-    activeTagBtn.title = activeTag ? UI('clearSearch') : UI('clearSearch');
-    activeTagBtn.setAttribute('aria-label', activeTag ? UI('clearSearch') : UI('clearSearch'));
+    activeTagBtn.title = UI('clearTagFilter');
+    activeTagBtn.setAttribute('aria-label', UI('clearTagFilter'));
 
     if (visibleSections.length === 0) {
       emptyState.style.display = 'block';
