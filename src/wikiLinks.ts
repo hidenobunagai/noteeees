@@ -18,7 +18,12 @@ type NoteFileCache = {
   signature: string;
 };
 
-let noteFileCache: NoteFileCache | undefined;
+/**
+ * Keyed by notes directory: identical relative paths and mtimes can occur in
+ * different directories (e.g. a copied notes folder), so a signature of
+ * path+mtime alone is not unique across directories.
+ */
+const noteFileCache = new Map<string, NoteFileCache>();
 
 /** Returns note files with mtimes, cached by a path+mtime signature. */
 async function getAllNoteFilesWithMtime(
@@ -26,15 +31,14 @@ async function getAllNoteFilesWithMtime(
 ): Promise<Array<{ filePath: string; mtime: number }>> {
   const collected = await collectNoteFiles(notesDir);
   const signature = collected.map((f) => `${f.relativePath}:${f.mtime}`).join("|");
-  if (noteFileCache?.signature === signature) {
-    return noteFileCache.files;
+  const cached = noteFileCache.get(notesDir);
+  if (cached?.signature === signature) {
+    return cached.files;
   }
 
-  noteFileCache = {
-    files: collected.map((f) => ({ filePath: f.filePath, mtime: f.mtime })),
-    signature,
-  };
-  return noteFileCache.files;
+  const files = collected.map((f) => ({ filePath: f.filePath, mtime: f.mtime }));
+  noteFileCache.set(notesDir, { files, signature });
+  return files;
 }
 
 async function getAllNoteFiles(notesDir: string): Promise<string[]> {

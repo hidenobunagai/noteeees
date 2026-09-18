@@ -92,6 +92,38 @@ suite("WikiLinks - resolveWikiLinkPath", () => {
   });
 });
 
+suite("WikiLinks - cache isolation across notes directories", () => {
+  let dirA: string;
+  let dirB: string;
+  const fixedTime = new Date("2025-01-01T00:00:00Z");
+
+  setup(() => {
+    dirA = fs.mkdtempSync(path.join(os.tmpdir(), "wiki-multi-a-"));
+    dirB = fs.mkdtempSync(path.join(os.tmpdir(), "wiki-multi-b-"));
+    // Same relative paths and identical mtimes, as when a notes directory is
+    // copied: the cached file list of one directory must not answer for the other.
+    for (const dir of [dirA, dirB]) {
+      fs.writeFileSync(path.join(dir, "Alpha.md"), "# Alpha", "utf8");
+      fs.writeFileSync(path.join(dir, "Beta.md"), "# Beta", "utf8");
+      for (const name of ["Alpha.md", "Beta.md"]) {
+        fs.utimesSync(path.join(dir, name), fixedTime, fixedTime);
+      }
+    }
+  });
+
+  teardown(() => {
+    fs.rmSync(dirA, { recursive: true, force: true });
+    fs.rmSync(dirB, { recursive: true, force: true });
+  });
+
+  test("returns files from the requested directory when alternating directories", async () => {
+    assert.strictEqual(await resolveWikiLinkPath("Alpha", dirA), path.join(dirA, "Alpha.md"));
+    assert.strictEqual(await resolveWikiLinkPath("Alpha", dirB), path.join(dirB, "Alpha.md"));
+    assert.strictEqual(await resolveWikiLinkPath("Beta", dirB), path.join(dirB, "Beta.md"));
+    assert.strictEqual(await resolveWikiLinkPath("Beta", dirA), path.join(dirA, "Beta.md"));
+  });
+});
+
 suite("WikiLinks - collectBacklinks", () => {
   let tmpDir: string;
 
