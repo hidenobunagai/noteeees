@@ -2,7 +2,12 @@ import * as assert from "assert";
 import * as path from "path";
 import * as fs from "fs";
 import * as os from "os";
-import { parseWikiLinks, resolveWikiLinkPath, collectBacklinks } from "../wikiLinks.js";
+import {
+  parseWikiLinks,
+  resolveWikiLinkPath,
+  collectBacklinks,
+  WikiLinkIndex,
+} from "../wikiLinks.js";
 
 suite("WikiLinks - parseWikiLinks", () => {
   test("extracts single wiki link", () => {
@@ -56,6 +61,7 @@ suite("WikiLinks - resolveWikiLinkPath", () => {
     const subDir = path.join(tmpDir, "projects");
     fs.mkdirSync(subDir, { recursive: true });
     fs.writeFileSync(path.join(subDir, "Alpha.md"), "# Alpha", "utf8");
+    fs.writeFileSync(path.join(tmpDir, "2025-01-15_Weekly_Review.md"), "# Review", "utf8");
   });
 
   teardown(() => {
@@ -78,6 +84,12 @@ suite("WikiLinks - resolveWikiLinkPath", () => {
     const result = await resolveWikiLinkPath("Daily", tmpDir);
     assert.ok(result);
     assert.strictEqual(path.basename(result), "2025-01-15_Daily.md");
+  });
+
+  test("resolves by any suffix after an underscore, not only the first one", async () => {
+    const result = await resolveWikiLinkPath("Review", tmpDir);
+    assert.ok(result);
+    assert.strictEqual(path.basename(result), "2025-01-15_Weekly_Review.md");
   });
 
   test("resolves in subdirectory", async () => {
@@ -185,5 +197,37 @@ suite("WikiLinks - collectBacklinks", () => {
     const aliasItems = result.get(path.join(tmpDir, "SourceWithAlias.md"));
     assert.ok(aliasItems);
     assert.strictEqual(aliasItems[0].linkText, "[[Target|My Custom Alias]]");
+  });
+
+  test("memoizes wiki link resolution per scan in collectBacklinks", async () => {
+    // Own directory: only one distinct link exists, so the resolve call count
+    // equals the number of resolutions (no fixture noise).
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "wiki-memo-"));
+    const multiLinkFile = path.join(dir, "SourceMulti.md");
+    fs.writeFileSync(path.join(dir, "Target.md"), "# Target", "utf8");
+    fs.writeFileSync(
+      multiLinkFile,
+      "Line 1: [[Target]]\nLine 2: [[Target]]\nLine 3: [[Target]]\n",
+      "utf8",
+    );
+
+    // Spy below the memo cache: only the expensive index lookup must run once.
+    const originalLookup = WikiLinkIndex.prototype.lookup;
+    let lookups = 0;
+    WikiLinkIndex.prototype.lookup = function (this: WikiLinkIndex, title: string) {
+      lookups++;
+      return originalLookup.call(this, title);
+    };
+
+    try {
+      const result = await collectBacklinks(path.join(dir, "Target.md"), dir);
+      const items = result.get(multiLinkFile);
+      assert.ok(items);
+      assert.strictEqual(items.length, 3);
+      assert.strictEqual(lookups, 1);
+    } finally {
+      WikiLinkIndex.prototype.lookup = originalLookup;
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
   });
 });

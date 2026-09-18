@@ -46,39 +46,71 @@ async function getAllNoteFiles(notesDir: string): Promise<string[]> {
   return (await getAllNoteFilesWithMtime(notesDir)).map((f) => f.filePath);
 }
 
-function resolveWikiLinkFromFiles(title: string, files: string[]): string | undefined {
-  const titleLower = title.toLowerCase();
+export class WikiLinkIndex {
+  private readonly byName = new Map<string, string>();
+  private readonly byLowerName = new Map<string, string>();
+  private readonly bySuffix = new Map<string, string>();
+  private readonly byLowerSuffix = new Map<string, string>();
+  private readonly cache = new Map<string, string | undefined>();
 
-  for (const file of files) {
-    if (path.basename(file) === title + ".md") {
-      return file;
+  constructor(files: string[]) {
+    for (const file of files) {
+      const base = path.basename(file);
+      const stem = path.basename(file, ".md");
+
+      if (!this.byName.has(base)) {
+        this.byName.set(base, file);
+      }
+
+      const lowerBase = base.toLowerCase();
+      if (!this.byLowerName.has(lowerBase)) {
+        this.byLowerName.set(lowerBase, file);
+      }
+
+      // The old scan matched `stem.endsWith("_" + title)`, so every suffix that
+      // starts right after an underscore is a candidate ("a_b_Daily" -> "b_Daily", "Daily").
+      const stemLower = stem.toLowerCase();
+      let i = stem.indexOf("_");
+      while (i !== -1) {
+        const suffix = stem.slice(i + 1);
+        if (!this.bySuffix.has(suffix)) {
+          this.bySuffix.set(suffix, file);
+        }
+        const lowerSuffix = stemLower.slice(i + 1);
+        if (!this.byLowerSuffix.has(lowerSuffix)) {
+          this.byLowerSuffix.set(lowerSuffix, file);
+        }
+        i = stem.indexOf("_", i + 1);
+      }
     }
   }
-  for (const file of files) {
-    const stem = path.basename(file, ".md");
-    if (stem.endsWith("_" + title)) {
-      return file;
-    }
+
+  /** One probe chain against the prebuilt index, without memoization. */
+  lookup(title: string): string | undefined {
+    const titleLower = title.toLowerCase();
+    return (
+      this.byName.get(title + ".md") ??
+      this.bySuffix.get(title) ??
+      this.byLowerName.get(titleLower + ".md") ??
+      this.byLowerSuffix.get(titleLower)
+    );
   }
-  for (const file of files) {
-    if (path.basename(file).toLowerCase() === titleLower + ".md") {
-      return file;
+
+  /** Memoized lookup so a scan resolves each distinct title only once. */
+  resolve(title: string): string | undefined {
+    if (!this.cache.has(title)) {
+      this.cache.set(title, this.lookup(title));
     }
+    return this.cache.get(title);
   }
-  for (const file of files) {
-    const stem = path.basename(file, ".md").toLowerCase();
-    if (stem.endsWith("_" + titleLower)) {
-      return file;
-    }
-  }
-  return undefined;
 }
 
 export async function resolveWikiLinkPath(
   title: string,
   notesDir: string,
 ): Promise<string | undefined> {
-  return resolveWikiLinkFromFiles(title, await getAllNoteFiles(notesDir));
+  const index = new WikiLinkIndex(await getAllNoteFiles(notesDir));
+  return index.lookup(title);
 }
 
 // --- DocumentLinkProvider ---
@@ -94,10 +126,11 @@ export class WikiLinkDocumentLinkProvider implements vscode.DocumentLinkProvider
 
     const text = document.getText();
     const links: vscode.DocumentLink[] = [];
+    const index = new WikiLinkIndex(await getAllNoteFiles(notesDir));
 
     for (const match of text.matchAll(/\[\[([^\]|]+)(?:\|([^\]]*))?\]\]/g)) {
       const title = match[1];
-      const filePath = await resolveWikiLinkPath(title, notesDir);
+      const filePath = index.resolve(title);
       if (!filePath) {
         continue;
       }
@@ -208,6 +241,8 @@ export async function collectBacklinks(
   const mtimes = new Map(collected.map((f) => [f.filePath, f.mtime]));
   const result = new Map<string, BacklinkItem[]>();
 
+  const index = new WikiLinkIndex(files);
+
   for (const file of files) {
     if (file === targetFile) {
       continue;
@@ -232,7 +267,7 @@ export async function collectBacklinks(
 
     for (let i = 0; i < lines.length; i++) {
       for (const match of lines[i].matchAll(/\[\[([^\]|]+)(?:\|([^\]]*))?\]\]/g)) {
-        if (resolveWikiLinkFromFiles(match[1], files) === targetFile) {
+        if (index.resolve(match[1]) === targetFile) {
           items.push({ sourceFile: file, linkText: match[0], lineNumber: i });
         }
       }
