@@ -4,6 +4,36 @@ All notable changes to the "notes" extension will be documented in this file.
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## [0.17.2] - 2026-09-19
+
+A consolidation release: two days of fixes and performance work on top of 0.17.1,
+plus test coverage for the previously untested `shared/` helpers and a VSIX that
+ships its changelog again.
+
+### Fixed
+
+- **Moments editing**: Front-matter stripping is now a single implementation (`parseNoteBody` in `shared/frontMatter.ts`) that normalizes BOM and CRLF while preserving line counts, so inline edits and deletions in a CRLF, BOM-prefixed or `--- `-delimited file now hit the intended entry instead of silently failing.
+- **Moments dates**: Dates coming from the webview are validated before they reach the filesystem, so a malformed value such as `../../x` can no longer escape the notes directory through `fs.writeFile` / `fs.rm`.
+- **Moments filters**: Clicking the "All moments" tab clears the active tag and the search query (its pressed state is derived from the filter state instead of always being true), and the pinned section no longer disappears while a search is active.
+- **Moments webview**: Error messages get the `.error-banner` class they are styled by, the active tag chip announces "clear tag filter" instead of "Clear search", and the timeline honors `prefers-reduced-motion`.
+- **Sidebar**: The pinned tree follows the order saved by `notes.movePinnedNoteUp` / `notes.movePinnedNoteDown` instead of mtime order.
+- **Wiki links**: The note file cache is keyed by notes directory, so two folders whose files share relative paths and mtimes (a copied notes folder, a multi-root workspace) can no longer answer with each other's file list.
+- **Note filenames**: `notes.defaultNoteTitle` and the `YYYY` / `MM` / `DD` / `HH` / `mm` / `ss` tokens now replace every occurrence instead of only the first.
+- **Localization**: The remaining hardcoded UI strings — the Moments "today" heading, the sidebar Pinned / Recent / Tags labels, the backlink and wiki-link labels, the tag tooltip, the `{weekday}` daily-note token and the webview `<html lang>` — now follow `notes.locale`.
+- **Settings**: `notes.momentsSubfolder` is validated through `shared/pathSafety`, which now also rejects backslashes and drive letters so one subfolder name means the same thing on Windows and POSIX.
+
+### Changed
+
+- **Performance**: Backlink scans build their basename index once per scan, the sidebar reuses one vault walk per refresh cycle, and the Moments feed reuses parsed entries while the file mtime is unchanged.
+- **Build**: `CHANGELOG.md` is shipped in the VSIX again (the Marketplace "Changelog" tab was empty for 0.17.0 / 0.17.1), while `shared/*.ts`, `scripts/`, `webview/` and the agent config files stay out of it.
+- **CI**: The publish workflow is gated on `v*` tags and fails when the tag does not match the `package.json` version.
+
+### Internal
+
+- Added `src/test/shared.test.ts`: front matter parsing (LF / CRLF / BOM / unclosed), path containment guards, note file collection, filename date-prefix tokens, and direct coverage for Moments file creation and archiving.
+- Removed the dead `renderText` / `escapeHtml` string renderer from the Moments webview, leaving DOM construction as the only render path.
+- Brought `shared/` and the build scripts under the lint and Prettier gates, and aligned README / AGENTS.md with the implemented feature set.
+
 ## [0.17.1] - 2026-09-18
 
 ### Fixed
