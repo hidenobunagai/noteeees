@@ -29,12 +29,12 @@ jobs:
         with:
           bun-version: 1.4.0
       - run: bun install --frozen-lockfile --ignore-scripts
-      - run: bun run package && npx --yes @vscode/vsce package
+      - run: bun run package && npx --yes @vscode/vsce@4.0.0 package
       - name: Publish to VS Code Marketplace
         env:
           VSCE_PAT: ${{ secrets.VSCE_PAT }}
-        run: npx --yes @vscode/vsce publish --packagePath *.vsix -p "$VSCE_PAT"
+        run: npx --yes @vscode/vsce@4.0.0 publish --packagePath *.vsix -p "$VSCE_PAT"
       - name: Publish to Open VSX
         env:
           OVSX_PAT: ${{ secrets.OVSX_PAT }}
-        run: npx --yes ovsx publish *.vsix -p "$OVSX_PAT"
+        run: npx --yes ovsx@1.2.0 publish *.vsix -p "$OVSX_PAT"
