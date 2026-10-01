@@ -3,7 +3,7 @@ import { registerNotesCommands } from "./commands.js";
 import { MomentsViewProvider } from "./moments/panel.js";
 import { createNewNote, type IndexedNote, pickIndexedNote } from "./noteCommands";
 import { getIndexedNotesCached } from "./notesIndexCache.js";
-import { t } from "./i18n.js";
+import { formatDate, t } from "./i18n.js";
 import {
   affectsNotesConfiguration,
   getLegacyNotesDirectorySetting,
@@ -67,7 +67,7 @@ export function buildTagSearchItems(
       description: `${count} note${count === 1 ? "" : "s"}`,
       detail:
         latestTitle && typeof latestMtime === "number"
-          ? `Latest: ${latestTitle} • ${new Date(latestMtime).toLocaleDateString()}${latestRelativePath ? ` • ${latestRelativePath}` : ""}`
+          ? `Latest: ${latestTitle} • ${formatDate(latestMtime)}${latestRelativePath ? ` • ${latestRelativePath}` : ""}`
           : undefined,
     };
   });

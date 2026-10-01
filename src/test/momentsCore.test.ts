@@ -22,6 +22,7 @@ import {
 } from "../moments/config";
 import { MomentsViewProvider } from "../moments/panel";
 import { shiftDate, todayDateString } from "../dateUtils";
+import { formatDate, formatDateTime } from "../i18n";
 
 function feedDates(anchor: string, dayCount: number): string[] {
   return Array.from({ length: dayCount }, (_, index) => shiftDate(anchor, -index));
@@ -410,6 +411,21 @@ suite("Moments Core Test Suite", () => {
     } finally {
       fs.rmSync(tmpDir, { recursive: true, force: true });
     }
+  });
+
+  test("note dates follow notes.locale, not the OS locale", async function () {
+    this.timeout(20000);
+    // Local-time constructor so the expected wall clock holds in any TZ.
+    const mtime = new Date(2026, 8, 18, 9, 41, 15).getTime();
+    await withLocale("en", () => {
+      assert.strictEqual(formatDate(mtime), "9/18/2026");
+      // ICU versions differ on the space before AM (U+0020 vs U+202F).
+      assert.strictEqual(formatDateTime(mtime).replace(/\s/g, " "), "9/18/2026, 9:41:15 AM");
+    });
+    await withLocale("ja", () => {
+      assert.strictEqual(formatDate(mtime), "2026/9/18");
+      assert.strictEqual(formatDateTime(mtime), "2026/9/18 9:41:15");
+    });
   });
 
   test("moments date label only prefixes today", async function () {

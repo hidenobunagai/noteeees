@@ -1,7 +1,7 @@
 import * as path from "path";
 import * as vscode from "vscode";
 import { stripDatePrefix } from "../shared/noteFilename.js";
-import { t } from "./i18n.js";
+import { formatDate, formatDateTime, t } from "./i18n.js";
 import { buildQueryExcerpt, type IndexedNote } from "./noteCommands";
 import { getIndexedNotesCached } from "./notesIndexCache.js";
 import { getMomentsSubfolderSetting, getSidebarRecentLimitSetting } from "./notesConfig.js";
@@ -143,9 +143,7 @@ function buildTagTooltip(group: SidebarTagGroup): vscode.MarkdownString {
   }
 
   if (typeof group.latestMtime === "number") {
-    md.appendMarkdown(
-      `$(clock) ${t("tagUpdated", { date: new Date(group.latestMtime).toLocaleString() })}`,
-    );
+    md.appendMarkdown(`$(clock) ${t("tagUpdated", { date: formatDateTime(group.latestMtime) })}`);
   }
 
   return md;
@@ -158,7 +156,7 @@ export function buildTagNoteDescription(
   const excerpt = buildQueryExcerpt(note.searchText || note.preview, activeTag, 72);
 
   if (!excerpt) {
-    return [note.relativePath, new Date(note.mtime).toLocaleDateString()].join(" • ");
+    return [note.relativePath, formatDate(note.mtime)].join(" • ");
   }
 
   return [note.relativePath, excerpt].join(" • ");
@@ -334,9 +332,7 @@ export class NotesTreeProvider implements vscode.TreeDataProvider<NoteTreeItem> 
       md.appendMarkdown(`$(tag) ${note.tags.join(" ")}\n\n`);
     }
 
-    md.appendMarkdown(
-      `$(clock) ${t("tagUpdated", { date: new Date(note.mtime).toLocaleString() })}\n\n`,
-    );
+    md.appendMarkdown(`$(clock) ${t("tagUpdated", { date: formatDateTime(note.mtime) })}\n\n`);
 
     if (activeTag) {
       const matchExcerpt = buildQueryExcerpt(note.searchText || note.preview, activeTag, 120);

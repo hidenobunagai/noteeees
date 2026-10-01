@@ -200,6 +200,16 @@ export function localeTag(locale: Locale = resolveLocale()): string {
   return locale === "ja" ? "ja-JP" : "en-US";
 }
 
+/** Date + time for tooltips and details, in the resolved locale rather than the OS one. */
+export function formatDateTime(ms: number): string {
+  return new Date(ms).toLocaleString(localeTag());
+}
+
+/** Date only, in the resolved locale rather than the OS one. */
+export function formatDate(ms: number): string {
+  return new Date(ms).toLocaleDateString(localeTag());
+}
+
 export function t(key: I18nKey, params?: Record<string, string | number>): string {
   const table = STRINGS[resolveLocale()] ?? STRINGS.en;
   let str = table[key] ?? STRINGS.en[key] ?? key;

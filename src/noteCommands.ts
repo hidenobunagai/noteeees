@@ -4,7 +4,7 @@ import * as vscode from "vscode";
 import { stripFrontMatterTrimmed } from "../shared/frontMatter.js";
 import { isPathInside, resolveUniqueFilePath } from "../shared/pathSafety.js";
 import { formatDateString, formatTimeHM } from "./dateUtils.js";
-import { localeTag, t } from "./i18n.js";
+import { formatDateTime, localeTag, t } from "./i18n.js";
 import { getIndexedNotesCached } from "./notesIndexCache.js";
 import {
   getDefaultNoteTitleSetting,
@@ -268,10 +268,6 @@ export function extractNoteMetadata(rawContent: string, fallbackTitle: string): 
   return { title, tags };
 }
 
-function formatModifiedAt(mtime: number): string {
-  return new Date(mtime).toLocaleString();
-}
-
 export interface IndexedNote {
   relativePath: string;
   absolutePath: string;
@@ -288,7 +284,7 @@ interface NoteQuickPickItem extends vscode.QuickPickItem {
 }
 
 export function buildNoteSearchDetail(note: IndexedNote, query: string = ""): string {
-  const details = [`Updated ${formatModifiedAt(note.mtime)}`];
+  const details = [`Updated ${formatDateTime(note.mtime)}`];
 
   if (note.metadata.tags.length > 0) {
     details.unshift(note.metadata.tags.join(" "));
