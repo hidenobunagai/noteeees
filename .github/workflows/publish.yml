@@ -30,6 +30,13 @@ jobs:
           bun-version: 1.4.0
       - run: bun install --frozen-lockfile --ignore-scripts
       - run: bun run package && npx --yes @vscode/vsce@4.0.0 package
+      # .vscodeignore cleanups have silently dropped Marketplace files before (0.17.0
+      # shipped without a changelog), so check the real VSIX before publishing it.
+      - name: Verify VSIX contents
+        run: |
+          for f in extension/changelog.md extension/readme.md extension/dist/extension.js; do
+            unzip -l *.vsix | grep -q " $f$" || { echo "::error::VSIX is missing $f"; exit 1; }
+          done
       - name: Publish to VS Code Marketplace
         env:
           VSCE_PAT: ${{ secrets.VSCE_PAT }}
