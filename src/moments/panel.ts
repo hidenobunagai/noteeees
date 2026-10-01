@@ -2,7 +2,12 @@ import * as crypto from "crypto";
 import * as fs from "fs/promises";
 import * as path from "path";
 import * as vscode from "vscode";
-import { MOMENT_TAG_PATTERN, getMomentsFeedDayCount, resolvePinnedEntries } from "./config.js";
+import {
+  MOMENT_TAG_PATTERN,
+  getMomentsFeedDayCount,
+  resolvePinnedEntries,
+  shiftPinnedEntries,
+} from "./config.js";
 import { getMomentsSendOnEnterSetting } from "../notesConfig.js";
 import {
   appendMoment,
@@ -144,9 +149,15 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
             return;
           }
 
-          if (!(await saveMomentEdit(notesDir, date, message.index, message.text))) {
+          const editDelta = await saveMomentEdit(notesDir, date, message.index, message.text);
+          if (editDelta === null) {
             this._showError(t("momentSaveFailed"));
             return;
+          }
+          if (editDelta !== 0) {
+            this._setPinnedEntries(
+              shiftPinnedEntries(this._getPinnedEntries(), date, message.index, editDelta, false),
+            );
           }
 
           this._sendEntries();
@@ -176,10 +187,20 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
                 return;
               }
 
-              if (!(await deleteMomentEntry(notesDir, date, message.index))) {
+              const deleteDelta = await deleteMomentEntry(notesDir, date, message.index);
+              if (deleteDelta === null) {
                 this._showError(t("momentDeleteFailed"));
                 return;
               }
+              this._setPinnedEntries(
+                shiftPinnedEntries(
+                  this._getPinnedEntries(),
+                  date,
+                  message.index,
+                  deleteDelta,
+                  true,
+                ),
+              );
 
               this._sendEntries();
             });

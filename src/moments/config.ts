@@ -40,6 +40,27 @@ export function resolvePinnedEntries(
   });
 }
 
+/**
+ * Pins are keyed by `date:index`, where index is the entry's body line. After an edit or
+ * delete changes that file's line count, move later pins on the same day with their entries
+ * and drop the pin of a deleted entry, so no pin silently points at a neighbour.
+ */
+export function shiftPinnedEntries(
+  pinnedEntries: PinnedEntryData[],
+  date: string,
+  index: number,
+  lineDelta: number,
+  removed: boolean,
+): PinnedEntryData[] {
+  return pinnedEntries
+    .filter((pinned) => !(removed && pinned.date === date && pinned.index === index))
+    .map((pinned) =>
+      pinned.date === date && pinned.index > index
+        ? { ...pinned, index: pinned.index + lineDelta }
+        : pinned,
+    );
+}
+
 export function normalizeMomentsFeedDayCount(value: number | undefined): number {
   if (typeof value !== "number" || !Number.isFinite(value)) {
     return MOMENTS_FEED_DAY_COUNT;

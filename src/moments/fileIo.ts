@@ -332,17 +332,18 @@ export async function appendMoment(notesDir: string, date: string, text: string)
   momentsCacheByPath.delete(filePath);
 }
 
+/** Returns the file's line-count change (later entry indices shift by it), or null if nothing was written. */
 export async function saveMomentEdit(
   notesDir: string,
   date: string,
   index: number,
   text: string,
-): Promise<boolean> {
+): Promise<number | null> {
   const filePath = getMomentsFilePath(notesDir, date);
   try {
     await fs.access(filePath);
   } catch {
-    return false;
+    return null;
   }
 
   const raw = await fs.readFile(filePath, "utf8");
@@ -351,34 +352,35 @@ export async function saveMomentEdit(
   const lines = raw.replace(/\r\n/g, "\n").split("\n");
   const fileLineIdx = mapMomentBodyIndexToFileLine(raw, index);
   if (fileLineIdx < 0 || fileLineIdx >= lines.length) {
-    return false;
+    return null;
   }
 
   const range = findMomentEntryRange(lines, fileLineIdx);
   if (!range) {
-    return false;
+    return null;
   }
 
   const result = replaceMomentEntryBlock(lines, range, text);
   if (!result.changed) {
-    return false;
+    return null;
   }
 
   await fs.writeFile(filePath, result.lines.join(eol), "utf8");
   momentsCacheByPath.delete(filePath);
-  return true;
+  return result.lines.length - lines.length;
 }
 
+/** Returns the file's line-count change (later entry indices shift by it), or null if nothing was deleted. */
 export async function deleteMomentEntry(
   notesDir: string,
   date: string,
   index: number,
-): Promise<boolean> {
+): Promise<number | null> {
   const filePath = getMomentsFilePath(notesDir, date);
   try {
     await fs.access(filePath);
   } catch {
-    return false;
+    return null;
   }
 
   const raw = await fs.readFile(filePath, "utf8");
@@ -388,13 +390,13 @@ export async function deleteMomentEntry(
   const fileLineIdx = mapMomentBodyIndexToFileLine(raw, index);
   const range = findMomentEntryRange(lines, fileLineIdx);
   if (!range) {
-    return false;
+    return null;
   }
 
   const nextLines = [...lines.slice(0, range.startIndex), ...lines.slice(range.endIndex)];
   await fs.writeFile(filePath, nextLines.join(eol), "utf8");
   momentsCacheByPath.delete(filePath);
-  return true;
+  return nextLines.length - lines.length;
 }
 
 export async function archiveMoments(

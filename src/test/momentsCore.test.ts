@@ -19,6 +19,7 @@ import {
   extractMomentTags,
   normalizeMomentsFeedDayCount,
   resolvePinnedEntries,
+  shiftPinnedEntries,
 } from "../moments/config";
 import { MomentsViewProvider } from "../moments/panel";
 import { shiftDate, todayDateString } from "../dateUtils";
@@ -225,6 +226,26 @@ suite("Moments Core Test Suite", () => {
     ]);
   });
 
+  test("pins follow their entries when an earlier entry changes line count", () => {
+    const pins = [
+      { date: "2026-03-09", index: 1, text: "first", time: "08:00" },
+      { date: "2026-03-09", index: 3, text: "deleted", time: "09:00" },
+      { date: "2026-03-09", index: 5, text: "after", time: "10:00" },
+      { date: "2026-03-08", index: 5, text: "other day", time: "10:00" },
+    ];
+
+    // Deleting the 2-line entry at body line 3: its pin goes, the later one moves up.
+    assert.deepStrictEqual(
+      shiftPinnedEntries(pins, "2026-03-09", 3, -2, true).map((p) => `${p.date}:${p.index}`),
+      ["2026-03-09:1", "2026-03-09:3", "2026-03-08:5"],
+    );
+    // Editing line 1 into 3 lines keeps its own pin and pushes later ones down.
+    assert.deepStrictEqual(
+      shiftPinnedEntries(pins, "2026-03-09", 1, 2, false).map((p) => `${p.date}:${p.index}`),
+      ["2026-03-09:1", "2026-03-09:5", "2026-03-09:7", "2026-03-08:5"],
+    );
+  });
+
   test("moment body index maps to file line after front matter", () => {
     for (const { label, raw } of momentFileVariants) {
       const content = raw("2026-03-07");
@@ -270,12 +291,12 @@ suite("Moments Core Test Suite", () => {
 
         assert.strictEqual(
           await saveMomentEdit(tmpDir, date, entries[0].index, "Edited first"),
-          true,
+          0,
           `${label}: expected the edit to be written`,
         );
         assert.strictEqual(
           await deleteMomentEntry(tmpDir, date, entries[1].index),
-          true,
+          -2, // the last entry's range also takes the trailing empty line
           `${label}: expected the deletion to be written`,
         );
 
@@ -482,16 +503,13 @@ suite("Moments Core Test Suite", () => {
         "utf8",
       );
 
-      assert.strictEqual(
-        await saveMomentEdit(tmpDir, date, 1, "Updated first\nUpdated second"),
-        true,
-      );
+      assert.strictEqual(await saveMomentEdit(tmpDir, date, 1, "Updated first\nUpdated second"), 0);
       let entries = await readMoments(tmpDir, date);
       assert.strictEqual(entries.length, 2);
       assert.strictEqual(entries[0].text, "Updated first\nUpdated second");
       assert.strictEqual(entries[1].text, "Next entry");
 
-      assert.strictEqual(await deleteMomentEntry(tmpDir, date, 1), true);
+      assert.strictEqual(await deleteMomentEntry(tmpDir, date, 1), -2);
       entries = await readMoments(tmpDir, date);
       assert.deepStrictEqual(entries, [
         {
@@ -609,7 +627,7 @@ suite("Moments Core Test Suite", () => {
         ["First line", "Done line"],
       );
 
-      assert.strictEqual(await saveMomentEdit(tmpDir, date, 1, "Still first"), true);
+      assert.strictEqual(await saveMomentEdit(tmpDir, date, 1, "Still first"), 0);
       const saved = fs.readFileSync(filePath, "utf8");
       assert.strictEqual(saved.includes("- [ ]"), false);
       assert.ok(saved.includes("- 09:00 Still first"));
