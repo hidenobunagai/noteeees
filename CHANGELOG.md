@@ -4,6 +4,26 @@ All notable changes to the "notes" extension will be documented in this file.
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## [0.17.3] - 2026-10-02
+
+A stability release: deterministic note ordering, locale-aware date display,
+pins that track their Moments entries, and a pinned publish toolchain.
+
+### Fixed
+
+- **Note ordering**: Note files are now sorted with a fixed-locale collator and a code point tie-break instead of the host-default `localeCompare`, so Japanese names order the same way on every machine and the Backlinks panel and duplicate-name wiki-link resolution no longer depend on `LANG` or `readdir` order.
+- **Localization**: Tooltips, tag descriptions, quick-pick details and the Latest status now format dates in the `notes.locale` language instead of the OS locale.
+- **Moments pins**: Pins are keyed by `date:index` (the entry body line). Editing an entry into a different number of lines, or deleting one, now shifts later pins on the same day with their entries and drops the pin of a deleted entry, so no pin silently points at a neighbour.
+
+### Changed
+
+- **CI**: The publish workflow pins `@vscode/vsce@4.0.0` and `ovsx@1.2.0` (the versions the last successful publish used) instead of fetching latest on every run.
+
+### Internal
+
+- Removed the unused `isAvailable` field (and the `ResolvedPinnedEntryData` type) from resolved pins — it mostly meant "outside the loaded feed window", not "gone", and nothing read it.
+- Removed the unused code-review-graph scaffolding (generated configs, hooks, skills and instruction files); the `.gitignore` / `.vscodeignore` entries stay so a reinstall cannot leak the database into the VSIX.
+
 ## [0.17.2] - 2026-09-19
 
 A consolidation release: two days of fixes and performance work on top of 0.17.1,
