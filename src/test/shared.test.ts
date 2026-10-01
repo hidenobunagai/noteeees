@@ -259,18 +259,35 @@ suite("Shared Collect Note Files Test Suite", () => {
         expectedRelative,
       );
 
-      // Verify sorted order (localeCompare on filePath)
-      const sortedPaths = [...results.map((r) => r.filePath)].sort((a, b) => a.localeCompare(b));
-      assert.deepStrictEqual(
-        results.map((r) => r.filePath),
-        sortedPaths,
-      );
+      // 並び順は下の「sorts Japanese names the same way on any host locale」で固定する
 
       // Verify fields
       for (const item of results) {
         assert.ok(path.isAbsolute(item.filePath), `${item.filePath} should be absolute`);
         assert.ok(item.mtime > 0, `${item.filePath} mtime should be positive`);
       }
+    } finally {
+      fs.rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("sorts Japanese names the same way on any host locale", async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "noteeees-shared-"));
+    try {
+      // ja-JP と en-US/C で順序が変わる組（ァ/あ/ア、語/腕）と、ICU が同順位とみなす
+      // 組（9/９）を混ぜる。既定ロケール任せだと後者は readdir 順のまま残るので、
+      // どのロケールで走らせても同じ並びになることを固定する。
+      const names = ["あ.md", "ァ.md", "ア.md", "腕.md", "語.md", "9.md", "９.md", "Alpha.md"];
+      for (const name of names) {
+        fs.writeFileSync(path.join(dir, name), "# Note");
+      }
+
+      const results = await collectNoteFiles(dir);
+
+      assert.deepStrictEqual(
+        results.map((r) => r.relativePath),
+        ["9.md", "９.md", "Alpha.md", "ァ.md", "あ.md", "ア.md", "語.md", "腕.md"],
+      );
     } finally {
       fs.rmSync(dir, { recursive: true, force: true });
     }
