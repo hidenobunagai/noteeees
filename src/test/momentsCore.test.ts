@@ -215,14 +215,12 @@ suite("Moments Core Test Suite", () => {
         index: 1,
         text: "current text",
         time: "09:45",
-        isAvailable: true,
       },
       {
         date: "2026-03-09",
         index: 9,
         text: "orphaned pin",
         time: "12:15",
-        isAvailable: false,
       },
     ]);
   });
@@ -738,7 +736,6 @@ suite("Moments Core Test Suite", () => {
           index: 1,
           text,
           time: liveEntry.time,
-          isAvailable: true,
         },
       ]);
     } finally {

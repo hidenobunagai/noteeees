@@ -18,7 +18,3 @@ export interface PinnedEntryData {
   text: string;
   time: string;
 }
-
-export interface ResolvedPinnedEntryData extends PinnedEntryData {
-  isAvailable: boolean;
-}
