@@ -327,8 +327,10 @@ export async function appendMoment(notesDir: string, date: string, text: string)
   const entry = `- ${time} ${entryText}\n`;
 
   let content = await fs.readFile(filePath, "utf8");
-  const prefix = content.endsWith("\n") ? "" : "\n";
-  await fs.appendFile(filePath, `${prefix}${entry}`, "utf8");
+  // Write in the file's own EOL, or appended lines mix endings on CRLF files
+  const eol = content.includes("\r\n") ? "\r\n" : "\n";
+  const prefix = content.endsWith("\n") ? "" : eol;
+  await fs.appendFile(filePath, `${prefix}${entry.replace(/\n/g, eol)}`, "utf8");
   momentsCacheByPath.delete(filePath);
 }
 

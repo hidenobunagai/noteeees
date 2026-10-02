@@ -323,6 +323,71 @@ suite("Moments Core Test Suite", () => {
     }
   });
 
+  test("appendMoment keeps the file's line endings", async () => {
+    const date = "2026-03-07";
+
+    for (const { label, raw } of momentFileVariants) {
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "noteeees-moments-"));
+      const filePath = getMomentsFilePath(tmpDir, date);
+      const crlf = raw(date).includes("\r\n");
+
+      try {
+        fs.mkdirSync(path.dirname(filePath), { recursive: true });
+        fs.writeFileSync(filePath, raw(date), "utf8");
+
+        await appendMoment(tmpDir, date, "Appended\nsecond line");
+
+        const saved = fs.readFileSync(filePath, "utf8");
+        // Every terminated line must use the same EOL; the trailing chunk has none
+        const lines = saved.split("\n").slice(0, -1);
+        assert.ok(lines.length > 0, `${label}: expected terminated lines`);
+        for (const [index, line] of lines.entries()) {
+          assert.strictEqual(
+            line.endsWith("\r"),
+            crlf,
+            `${label}: expected every line to use the file's EOL (line ${index})`,
+          );
+        }
+
+        const entries = await readMoments(tmpDir, date);
+        assert.deepStrictEqual(
+          entries.map((entry) => entry.text),
+          ["First", "Second", "Appended\nsecond line"],
+          `${label}: expected the appended entry to round-trip through readMoments`,
+        );
+      } finally {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    }
+  });
+
+  test("appendMoment starts a new line when the file lacks a trailing newline", async () => {
+    for (const eol of ["\n", "\r\n"]) {
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "noteeees-moments-"));
+      const date = "2026-03-07";
+      const filePath = getMomentsFilePath(tmpDir, date);
+
+      try {
+        fs.mkdirSync(path.dirname(filePath), { recursive: true });
+        fs.writeFileSync(
+          filePath,
+          ["---", "type: moments", `date: ${date}`, "---", "", "- 09:00 First"].join(eol),
+          "utf8",
+        );
+
+        await appendMoment(tmpDir, date, "Appended");
+
+        assert.deepStrictEqual(
+          await readMoments(tmpDir, date).then((entries) => entries.map((entry) => entry.text)),
+          ["First", "Appended"],
+          `expected the entry to be appended after a file without a trailing newline (${JSON.stringify(eol)})`,
+        );
+      } finally {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    }
+  });
+
   test("readMoments reuses entries for an unchanged file (fs spy)", async () => {
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "noteeees-moments-"));
     const date = "2026-03-07";
