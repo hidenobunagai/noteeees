@@ -332,6 +332,13 @@ suite("Extension Test Suite", () => {
     );
   });
 
+  test("resolveFilename keeps `$` in the title as a literal character", () => {
+    const now = new Date(2026, 8, 18, 5, 4, 3);
+    assert.strictEqual(resolveFilename("a$&b", now, "{title}.{ext}", "_"), "a$&b.md");
+    assert.strictEqual(resolveFilename("a$$b", now, "{title}.{ext}", "_"), "a$$b.md");
+    assert.ok(!resolveFilename("a$&b", now, "{title}.{ext}", "_").includes("{title}"));
+  });
+
   test("formatDateTimeToken replaces every occurrence of a date placeholder", () => {
     const now = new Date(2026, 8, 18, 5, 4, 3);
     assert.strictEqual(formatDateTimeToken("YYYY/MM/DD YYYY-MM-DD", now), "2026/09/18 2026-09-18");

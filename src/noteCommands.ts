@@ -174,7 +174,9 @@ function resolveFilename(
         break;
     }
 
-    filename = filename.replaceAll(token.token, replacement);
+    // Function replacer: a title containing `$&` / `$$` / "$`" / "$'" must be inserted
+    // verbatim, not interpreted as a replacement pattern.
+    filename = filename.replaceAll(token.token, () => replacement);
   }
 
   if (convertSpaces) {
