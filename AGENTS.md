@@ -3,7 +3,7 @@
 ## Release Process
 
 ### Pre-release Checklist
-- [ ] All tests passing (`bun run test`)
+- [ ] All tests passing (`bun run test`; `bun run test:headless` on Linux hosts without an X server)
 - [ ] TypeScript compiles without errors (`bun run check-types`)
 - [ ] CHANGELOG.md updated with new version
 - [ ] Version bumped in package.json
@@ -55,9 +55,10 @@
 
 ### Testing
 ```bash
-# Extension tests
+# Extension tests (macOS, or any host with an X server)
 bun run test
-# Headless environments without an X server (e.g. homepi): run under xvfb
+# Linux hosts without an X server (homepi, CI): same suite under xvfb
+# (xvfb-run -a bun run test); needs the xvfb package installed
 bun run test:headless
 ```
 
