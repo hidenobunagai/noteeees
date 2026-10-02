@@ -57,6 +57,8 @@
 ```bash
 # Extension tests
 bun run test
+# Headless environments without an X server (e.g. homepi): run under xvfb
+bun run test:headless
 ```
 
 ### Build Commands
