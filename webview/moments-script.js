@@ -89,6 +89,10 @@ function showError(msg) {
 }
 
 function applyStaticStrings() {
+  // The host only sets <html lang> when it generates the HTML, so a locale
+  // switch while the panel stays open would otherwise leave screen readers on
+  // the stale language.
+  document.documentElement.lang = currentLocale;
   allBtn.title = UI("allMoments");
   allBtn.setAttribute("aria-label", UI("allMoments"));
   openFileBtn.title = UI("openTodayFile");

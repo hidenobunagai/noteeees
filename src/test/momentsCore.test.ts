@@ -24,6 +24,7 @@ import {
 import { MomentsViewProvider } from "../moments/panel";
 import { shiftDate, todayDateString } from "../dateUtils";
 import { buildWebviewI18nScript, formatDate, formatDateTime, localeTag } from "../i18n";
+import { momentsScript } from "../webview/generated";
 
 function feedDates(anchor: string, dayCount: number): string[] {
   return Array.from({ length: dayCount }, (_, index) => shiftDate(anchor, -index));
@@ -163,6 +164,19 @@ suite("Moments Core Test Suite", () => {
     await withLocale("en", () => {
       assert.ok(renderMomentsWebviewHtml().includes('<html lang="en">'));
     });
+  });
+
+  test("Moments webview retargets documentElement.lang on every locale update", () => {
+    // <html lang> is generated once by the host, so the webview has to keep it
+    // in step with the locale carried by each `update` message.
+    const applyStaticStrings = momentsScript.match(
+      /function applyStaticStrings\(\) \{[\s\S]*?\n\}/,
+    )?.[0];
+    assert.ok(applyStaticStrings, "expected applyStaticStrings() in the embedded webview script");
+    assert.ok(
+      /document\.documentElement\.lang = currentLocale;/.test(applyStaticStrings),
+      "expected applyStaticStrings() to set documentElement.lang from currentLocale",
+    );
   });
 
   test("webview dateLocale() follows localeTag() for every webview locale", async function () {
