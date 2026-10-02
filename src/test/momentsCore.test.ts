@@ -760,4 +760,68 @@ suite("Moments Core Test Suite", () => {
       fs.rmSync(tmpDir, { recursive: true, force: true });
     }
   });
+
+  test("pinEntry stores only well-formed dates and integer indexes", async () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "noteeees-moments-"));
+    try {
+      let messageListener: ((message: unknown) => Promise<unknown> | unknown) | undefined;
+
+      const webview: Pick<
+        vscode.Webview,
+        "cspSource" | "html" | "options" | "asWebviewUri" | "onDidReceiveMessage" | "postMessage"
+      > = {
+        cspSource: "vscode-webview-resource://test",
+        html: "",
+        options: {},
+        asWebviewUri(uri: vscode.Uri): vscode.Uri {
+          return uri;
+        },
+        onDidReceiveMessage<T>(listener: (e: T) => unknown): vscode.Disposable {
+          messageListener = listener as (message: unknown) => Promise<unknown> | unknown;
+          return new vscode.Disposable(() => undefined);
+        },
+        postMessage(): Thenable<boolean> {
+          return Promise.resolve(true);
+        },
+      };
+
+      const viewStub = {
+        webview,
+        show(_preserveFocus?: boolean): void {
+          return;
+        },
+      } as unknown as vscode.WebviewView;
+
+      const context = createExtensionContextStub();
+      const provider = new MomentsViewProvider(() => tmpDir, context);
+      provider.resolveWebviewView(
+        viewStub,
+        {} as vscode.WebviewViewResolveContext,
+        {} as vscode.CancellationToken,
+      );
+
+      assert.ok(messageListener);
+      const send = async (message: unknown): Promise<void> => {
+        await messageListener!(message);
+      };
+
+      // A webview can send any string: these never become a stored pin.
+      await send({ command: "pinEntry", date: "../../etc/passwd", index: 1, text: "escape" });
+      await send({ command: "pinEntry", date: "2026-3-7", index: 1, text: "unpadded" });
+      await send({ command: "pinEntry", date: "2026-03-07", index: 1.5, text: "fractional" });
+      assert.deepStrictEqual(context.globalState.get("moments.pinnedEntries", []), []);
+
+      await send({ command: "pinEntry", date: "2026-03-07", index: 2, text: "real pin" });
+      assert.deepStrictEqual(context.globalState.get("moments.pinnedEntries", []), [
+        {
+          date: "2026-03-07",
+          index: 2,
+          text: "real pin",
+          time: "",
+        },
+      ]);
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
 });

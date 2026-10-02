@@ -285,7 +285,7 @@ export class MomentsViewProvider implements vscode.WebviewViewProvider {
         }
 
         case "pinEntry": {
-          if (typeof message.date !== "string" || typeof message.index !== "number") {
+          if (!isValidMomentDate(message.date) || !Number.isInteger(message.index)) {
             return;
           }
           const pinned = this._getPinnedEntries();
