@@ -195,9 +195,12 @@ export function resolveLocale(): Locale {
   return vscodeLang.startsWith("ja") ? "ja" : "en";
 }
 
+/** Single locale -> BCP 47 table, shared by the extension host and the webview. */
+const LOCALE_TAGS: Record<Locale, string> = { ja: "ja-JP", en: "en-US" };
+
 /** BCP 47 tag for `Date#toLocale*`, so dates follow the resolved locale too. */
 export function localeTag(locale: Locale = resolveLocale()): string {
-  return locale === "ja" ? "ja-JP" : "en-US";
+  return LOCALE_TAGS[locale] ?? LOCALE_TAGS.en;
 }
 
 /** Date + time for tooltips and details, in the resolved locale rather than the OS one. */
@@ -237,5 +240,8 @@ function UI(key, params) {
     }
   }
   return str;
+}
+function dateLocale() {
+  return ${JSON.stringify(LOCALE_TAGS)}[currentLocale] || ${JSON.stringify(LOCALE_TAGS.en)};
 }`;
 }

@@ -119,8 +119,7 @@ function updateTopbar(dateStr, sections, anchorDate) {
   if (anchor) {
     const d = new Date(anchor + "T00:00:00");
     const opts = { month: "short", day: "numeric", year: "numeric" };
-    const dateLocale = currentLocale === "ja" ? "ja-JP" : "en-US";
-    const label = d.toLocaleDateString(dateLocale, opts);
+    const label = d.toLocaleDateString(dateLocale(), opts);
     topbarDate.textContent = anchor === dateStr ? label + " " + UI("todaySuffix") : label;
   } else {
     topbarDate.textContent = "";

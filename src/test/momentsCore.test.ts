@@ -23,7 +23,7 @@ import {
 } from "../moments/config";
 import { MomentsViewProvider } from "../moments/panel";
 import { shiftDate, todayDateString } from "../dateUtils";
-import { formatDate, formatDateTime } from "../i18n";
+import { buildWebviewI18nScript, formatDate, formatDateTime, localeTag } from "../i18n";
 
 function feedDates(anchor: string, dayCount: number): string[] {
   return Array.from({ length: dayCount }, (_, index) => shiftDate(anchor, -index));
@@ -163,6 +163,23 @@ suite("Moments Core Test Suite", () => {
     await withLocale("en", () => {
       assert.ok(renderMomentsWebviewHtml().includes('<html lang="en">'));
     });
+  });
+
+  test("webview dateLocale() follows localeTag() for every webview locale", async function () {
+    this.timeout(20000);
+    // The webview can only reach i18n through the injected script, so run it the
+    // way the webview does: dateLocale() must never drift from localeTag().
+    const dateLocaleFor = (locale: string) =>
+      new Function(
+        "locale",
+        `${buildWebviewI18nScript()}\ncurrentLocale = locale;\nreturn dateLocale();`,
+      )(locale);
+
+    for (const webviewLocale of ["zh", "en", "ja"]) {
+      await withLocale(webviewLocale === "ja" ? "ja" : "en", () => {
+        assert.strictEqual(dateLocaleFor(webviewLocale), localeTag());
+      });
+    }
   });
 
   test("Moments webview renders the composer before the timeline", () => {
