@@ -1,3 +1,4 @@
+import globals from "globals";
 import typescriptEslint from "typescript-eslint";
 import eslintConfigPrettier from "eslint-config-prettier";
 
@@ -57,5 +58,24 @@ export default [
       "no-console": "off",
     },
   },
+  {
+    files: ["webview/**/*.js"],
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: "module",
+      globals: {
+        ...globals.browser,
+        UI: "readonly",
+        currentLocale: "readonly",
+        dateLocale: "readonly",
+        acquireVsCodeApi: "readonly",
+        __MOMENT_TAG_PATTERN__: "readonly",
+      },
+    },
+    rules: {
+      "no-undef": "warn",
+    },
+  },
   eslintConfigPrettier,
 ];
+
