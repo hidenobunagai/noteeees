@@ -4,6 +4,29 @@ All notable changes to the "notes" extension will be documented in this file.
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## [0.17.4] - 2026-10-03
+
+A bug-fix and tooling release: four small correctness fixes in Moments and note
+filenames, plus lint/format coverage extended to the webview and build scripts.
+
+### Fixed
+
+- **Moments pins**: `pinEntry` dates are validated with `isValidMomentDate` (and the index required to be an integer) before the pin is persisted, so a malformed webview date can no longer create unresolvable pins.
+- **Moments line endings**: Appending a Moment now uses the file's own line endings, so a CRLF day file no longer gains an LF-only line on every append.
+- **Moments locale**: The webview `<html lang>` attribute is retargeted on every `update` message, so switching `notes.locale` while the panel stays open no longer leaves screen readers announcing the previous language.
+- **Note filenames**: `notes.defaultNoteTitle` tokens are substituted with a replacement function, so `$` sequences (`$&`, `$$`, `` $` ``, `$'`) in a note title stay literal instead of being reinterpreted.
+
+### Changed
+
+- **i18n**: The webview `dateLocale()` is now generated from the host `LOCALE_TAGS` table, removing the duplicated locale-to-BCP-47 mapping that could drift.
+- **CI**: The publish workflow fails before uploading when the packaged VSIX lacks `extension/changelog.md`, `extension/readme.md` or `extension/dist/extension.js`.
+
+### Internal
+
+- ESLint now covers `webview/` (with browser and injected webview globals for `no-undef`) and the build scripts (`esbuild.js`, `scripts/`); Prettier now gates `webview/**/*.js` and `webview/**/*.css` (reformatted in place).
+- Added the `test:headless` script (`xvfb-run -a bun run test`) for X-less hosts, and named the OS each test command is for in AGENTS.md.
+- Documented in `.vscodeignore` why the untracked-file excludes stay (vsce stops consulting `.gitignore` once `.vscodeignore` exists).
+
 ## [0.17.3] - 2026-10-02
 
 A stability release: deterministic note ordering, locale-aware date display,
