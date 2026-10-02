@@ -361,8 +361,8 @@
     "pretest": "bun run compile-tests && bun run compile && bun run lint",
     "check-types": "bun run embed:webview && tsc --noEmit",
     "lint": "eslint src shared --max-warnings=0",
-    "format": "prettier --write 'src/**/*.ts' 'shared/**/*.ts' 'scripts/**/*.mjs' 'esbuild.js' '*.json'",
-    "format:check": "prettier --check 'src/**/*.ts' 'shared/**/*.ts' 'scripts/**/*.mjs' 'esbuild.js' '*.json'",
+    "format": "prettier --write 'src/**/*.ts' 'shared/**/*.ts' 'webview/**/*.js' 'webview/**/*.css' 'scripts/**/*.mjs' 'esbuild.js' '*.json'",
+    "format:check": "prettier --check 'src/**/*.ts' 'shared/**/*.ts' 'webview/**/*.js' 'webview/**/*.css' 'scripts/**/*.mjs' 'esbuild.js' '*.json'",
     "test": "vscode-test",
     "test:headless": "xvfb-run -a bun run test"
   },
