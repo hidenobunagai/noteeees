@@ -57,6 +57,8 @@ docs/
 # CHANGELOG.md is deliberately NOT ignored: vsce ships it as extension/changelog.md,
 # which powers the Marketplace "Changelog" tab.
 vsc-extension-quickstart.md
+# vsce stops consulting .gitignore once .vscodeignore exists, so paths ignored
+# only by git must be repeated here or they leak into the published VSIX.
 webview_test.html
 excalidraw.log
 .gitignore
