@@ -49,5 +49,13 @@ export default [
       semi: "warn",
     },
   },
+  // Build scripts are CLIs: their stdout is the intended product, so the
+  // no-console rule (aimed at extension host noise in src/) does not apply.
+  {
+    files: ["esbuild.js", "scripts/**/*.mjs"],
+    rules: {
+      "no-console": "off",
+    },
+  },
   eslintConfigPrettier,
 ];
