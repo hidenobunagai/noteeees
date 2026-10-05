@@ -236,12 +236,27 @@ function extractFrontMatterTags(rawContent: string): string[] {
     return [];
   }
 
-  const tagsLine = fmMatch[1].match(/^tags\s*:\s*(.+)$/m);
+  // [ \t] instead of \s: \s would cross the newline and read a block list's "- item" as the value
+  const tagsLine = fmMatch[1].match(/^tags[ \t]*:[ \t]*(.*)$/m);
   if (!tagsLine) {
     return [];
   }
 
-  const raw = tagsLine[1].replace(/[\[\]]/g, "");
+  let raw = tagsLine[1].replace(/[\[\]]/g, "");
+  if (raw.trim() === "") {
+    // YAML block list (what the default note template writes): "tags:" then "  - item" lines
+    const following = fmMatch[1].slice((tagsLine.index ?? 0) + tagsLine[0].length).split("\n").slice(1);
+    const items: string[] = [];
+    for (const line of following) {
+      const item = line.match(/^[ \t]*-[ \t]*(.*?)[ \t]*$/);
+      if (!item) {
+        break;
+      }
+      items.push(item[1]);
+    }
+    raw = items.join(",");
+  }
+
   return raw
     .split(",")
     .map((tag) => tag.trim())

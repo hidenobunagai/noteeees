@@ -119,6 +119,21 @@ suite("Extension Test Suite", () => {
     assert.ok(detail.includes("roadmap milestones"));
   });
 
+  test("note metadata reads a YAML block list of tags (default note template)", () => {
+    const metadata = extractNoteMetadata(
+      "---\ntags:\n\t- retro\n  - Team\ntitle: Sprint Retro\ndate: 2026-10-05\n---\n\n## Summary\n",
+      "fallback-title",
+    );
+
+    assert.deepStrictEqual(metadata.tags, ["#retro", "#team"]);
+  });
+
+  test("note metadata ignores an empty tags key", () => {
+    const metadata = extractNoteMetadata("---\ntags:\ntitle: Empty\n---\n\nbody", "fallback-title");
+
+    assert.deepStrictEqual(metadata.tags, []);
+  });
+
   test("note metadata extracts Japanese inline hashtags", () => {
     const metadata = extractNoteMetadata(
       "# 週次レビュー\n日本語タグ #振り返り－設計 と #設計 を確認",
