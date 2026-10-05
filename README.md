@@ -2,6 +2,8 @@
 
 [![GitHub](https://img.shields.io/badge/github-%23121011.svg?style=for-the-badge&logo=github&logoColor=white)](https://github.com/hidenobunagai/noteeees)
 
+![Noteeees demo](https://raw.githubusercontent.com/hidenobunagai/noteeees/main/docs/demo.gif)
+
 Simple markdown notes extension built on two pillars: **Notes** — plain markdown files with a sidebar explorer, backlinks, wiki-links, templates, tags, and instant search (including via MCP) — and **Moments** — a timestamped daily capture feed you can pin, search, tag-filter, jump to a date in, and export to a note.
 
 ## Features

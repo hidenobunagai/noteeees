@@ -67,3 +67,4 @@ excalidraw.log
 
 # Keep snippets
 !snippets/
+tools/**

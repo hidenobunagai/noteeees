@@ -1,0 +1,12 @@
+// Runtime config for the demo scripts:
+//   bun --tsconfig-override=tools/demo/tsconfig.json tools/demo/harness.ts
+// Maps the bare `vscode` specifier to the stub so src/*.ts runs outside the
+// extension host; the repo's own tsconfig and esbuild build are unaffected.
+{
+  "compilerOptions": {
+    "baseUrl": "../..",
+    "paths": {
+      "vscode": ["./tools/demo/vscode-stub.ts"]
+    }
+  }
+}

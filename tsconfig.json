@@ -12,5 +12,5 @@
     "noUnusedParameters": true,
     "noUnusedLocals": true
   },
-  "exclude": ["dist", "node_modules", "out"]
+  "exclude": ["dist", "node_modules", "out", "tools"]
 }
