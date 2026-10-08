@@ -58,8 +58,8 @@ Moments are excluded from the regular Notes sidebar but are **fully searchable v
 Noteeees is designed as an offline-first, high-performance VS Code extension with a dedicated Moments webview panel and a sidebar explorer for plain markdown notes:
 
 <p align="center">
-  <img src="docs/architecture.visual-check.1440x900.light.png#gh-light-mode-only" alt="Noteeees Extension Architecture (Light)" width="100%" />
-  <img src="docs/architecture.visual-check.1440x900.dark.png#gh-dark-mode-only" alt="Noteeees Extension Architecture (Dark)" width="100%" />
+  <img src="docs/architecture.light.png#gh-light-mode-only" alt="Noteeees Extension Architecture (Light)" width="100%" />
+  <img src="docs/architecture.dark.png#gh-dark-mode-only" alt="Noteeees Extension Architecture (Dark)" width="100%" />
 </p>
 
 👉 **[Explore the Interactive Architecture Diagram (HTML)](docs/architecture.html)** *(Supports theme toggle, interactive guided views, pan/zoom, and export)*
