@@ -245,7 +245,10 @@ function extractFrontMatterTags(rawContent: string): string[] {
   let raw = tagsLine[1].replace(/[\[\]]/g, "");
   if (raw.trim() === "") {
     // YAML block list (what the default note template writes): "tags:" then "  - item" lines
-    const following = fmMatch[1].slice((tagsLine.index ?? 0) + tagsLine[0].length).split("\n").slice(1);
+    const following = fmMatch[1]
+      .slice((tagsLine.index ?? 0) + tagsLine[0].length)
+      .split("\n")
+      .slice(1);
     const items: string[] = [];
     for (const line of following) {
       const item = line.match(/^[ \t]*-[ \t]*(.*?)[ \t]*$/);
