@@ -732,6 +732,9 @@ function resetSearchQuery(refocus) {
   return hadQuery;
 }
 
+// The CSP ignores the inline style="display:none" in the HTML, so hide it here.
+clearSearch.style.display = "none";
+
 searchInput.addEventListener("input", () => {
   const query = searchInput.value;
   clearSearch.style.display = query ? "" : "none";
