@@ -393,6 +393,55 @@ suite("Extension Test Suite", () => {
     }
   });
 
+  test("resolveUniqueFilePath returns original path when every suffix is taken", async () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "noteeees-test-"));
+    try {
+      fs.writeFileSync(path.join(tmpDir, "note.md"), "");
+      for (let i = 2; i <= 99; i++) {
+        fs.writeFileSync(path.join(tmpDir, `note-${i}.md`), "");
+      }
+      const result = await resolveUniqueFilePath(tmpDir, "note.md");
+      // The caller (src/noteCommands.ts) detects the existing file and asks the
+      // user before overwriting.
+      assert.strictEqual(result, path.join(tmpDir, "note.md"));
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true });
+    }
+  });
+
+  test("resolveUniqueFilePath suffixes extensionless filenames", async () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "noteeees-test-"));
+    try {
+      fs.writeFileSync(path.join(tmpDir, "README"), "");
+      const result = await resolveUniqueFilePath(tmpDir, "README");
+      assert.strictEqual(result, path.join(tmpDir, "README-2"));
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true });
+    }
+  });
+
+  test("resolveUniqueFilePath suffixes dotfiles without treating the dot as an extension", async () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "noteeees-test-"));
+    try {
+      fs.writeFileSync(path.join(tmpDir, ".env"), "");
+      const result = await resolveUniqueFilePath(tmpDir, ".env");
+      assert.strictEqual(result, path.join(tmpDir, ".env-2"));
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true });
+    }
+  });
+
+  test("resolveUniqueFilePath splits the extension at the last dot", async () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "noteeees-test-"));
+    try {
+      fs.writeFileSync(path.join(tmpDir, "a.b.md"), "");
+      const result = await resolveUniqueFilePath(tmpDir, "a.b.md");
+      assert.strictEqual(result, path.join(tmpDir, "a.b-2.md"));
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true });
+    }
+  });
+
   test("buildQueryExcerpt returns empty string for empty input", () => {
     assert.strictEqual(buildQueryExcerpt("", "query", 100), "");
   });
