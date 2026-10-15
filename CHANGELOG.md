@@ -4,6 +4,19 @@ All notable changes to the "notes" extension will be documented in this file.
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## [0.17.5] - 2026-10-15
+
+A bug-fix release for the Moments panel and note tags, plus a README demo.
+
+### Fixed
+
+- **Moments**: The empty error banner no longer shows as a red bar above the input, and the search clear button stays hidden until a query is typed. The webview CSP lists a style nonce, so browsers ignore inline `style="display:none"` attributes; both elements are now hidden from the stylesheet / script instead.
+- **Tags**: Front matter tags written as a YAML block list (`tags:` followed by `- item` lines, as the default note template does) are now read as separate tags instead of a single `#- item` tag.
+
+### Documentation
+
+- Added a README demo GIF captured from the real Moments webview and Notes views, and switched the architecture diagram to a PNG export.
+
 ## [0.17.4] - 2026-10-03
 
 A bug-fix and tooling release: four small correctness fixes in Moments and note
