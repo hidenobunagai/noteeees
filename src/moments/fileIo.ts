@@ -2,7 +2,12 @@ import * as fs from "fs/promises";
 import * as path from "path";
 import { parseNoteBody } from "../../shared/frontMatter.js";
 import { MAX_CACHE_ENTRIES } from "../constants.js";
-import { formatDateString, formatTimeHM, todayDateString } from "../dateUtils.js";
+import {
+  formatDateString,
+  formatTimeHM,
+  isRealCalendarDate,
+  todayDateString,
+} from "../dateUtils.js";
 import { t } from "../i18n.js";
 import { getMomentsArchiveAfterDaysSetting, getMomentsSubfolderSetting } from "../notesConfig.js";
 import {
@@ -18,9 +23,14 @@ import type { MomentDaySection, MomentEntry } from "./types.js";
 
 const MOMENT_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
-/** Guards every date that reaches the filesystem — a webview can send any string. */
+/**
+ * Guards every date that reaches the filesystem — a webview can send any string.
+ * The shape check alone would let `2026-02-30` or `2026-13-01` through and
+ * create files for days that do not exist, so the date must also be a real
+ * calendar date.
+ */
 export function isValidMomentDate(date: unknown): date is string {
-  return typeof date === "string" && MOMENT_DATE_PATTERN.test(date);
+  return typeof date === "string" && MOMENT_DATE_PATTERN.test(date) && isRealCalendarDate(date);
 }
 
 export function getMomentsFilePath(notesDir: string, date: string): string {
@@ -49,7 +59,7 @@ async function listMomentFileDates(notesDir: string): Promise<string[]> {
   return entries
     .filter((entry) => entry.isFile())
     .map((entry) => entry.name.match(dateFilePattern)?.[1])
-    .filter((date): date is string => Boolean(date))
+    .filter((date): date is string => date !== undefined && isValidMomentDate(date))
     .sort((a, b) => b.localeCompare(a));
 }
 
@@ -433,6 +443,12 @@ export async function archiveMoments(
     }
 
     const fileDate = match[1];
+    // A date-shaped name for a day that does not exist (e.g. 2026-02-30.md
+    // placed by hand) is not a Moments file: leave it untouched, like any
+    // other non-date file, instead of archiving it under a bogus month.
+    if (!isValidMomentDate(fileDate)) {
+      continue;
+    }
     if (fileDate >= cutoffStr) {
       skipped++;
       continue;

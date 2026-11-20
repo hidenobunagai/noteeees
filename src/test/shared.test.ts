@@ -550,4 +550,33 @@ suite("Moments File IO Test Suite", () => {
       }
     });
   });
+
+  test("archiveMoments leaves files named for dates that do not exist untouched", async () => {
+    await withArchiveAfterDays(30, async () => {
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "noteeees-shared-"));
+      try {
+        const momentsDir = path.join(tmpDir, "moments");
+        fs.mkdirSync(momentsDir, { recursive: true });
+
+        // 2026-02-30 sorts before any realistic cutoff, so a shape-only
+        // check would archive it under archive/2026-02/.
+        const bogusFile = path.join(momentsDir, "2026-02-30.md");
+        fs.writeFileSync(
+          bogusFile,
+          `---\ntype: moments\ndate: 2026-02-30\n---\n\n- 09:00 Bogus\n`,
+          "utf8",
+        );
+
+        const result = await archiveMoments(tmpDir);
+        assert.deepStrictEqual(result, { archived: 0, skipped: 0 });
+        assert.ok(fs.existsSync(bogusFile), "Bogus-date file should remain untouched");
+        assert.ok(
+          !fs.existsSync(path.join(momentsDir, "archive")),
+          "No archive directory should be created for a bogus-date file",
+        );
+      } finally {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
+  });
 });

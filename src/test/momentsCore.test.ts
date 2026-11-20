@@ -10,6 +10,7 @@ import {
   collectMomentsFeed,
   deleteMomentEntry,
   getMomentsFilePath,
+  isValidMomentDate,
   mapMomentBodyIndexToFileLine,
   readMoments,
   saveMomentEdit,
@@ -626,6 +627,58 @@ suite("Moments Core Test Suite", () => {
       for (const date of ["../../x", "2026-1-1", ""]) {
         assert.throws(() => getMomentsFilePath(tmpDir, date), /Invalid Moments date/);
       }
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  test("calendar dates that do not exist are not valid Moments dates", () => {
+    // Real dates, including a leap day, pass.
+    assert.strictEqual(isValidMomentDate("2026-03-07"), true);
+    assert.strictEqual(isValidMomentDate("2024-02-29"), true);
+    assert.strictEqual(isValidMomentDate("2026-12-31"), true);
+
+    // Date-shaped strings for days that do not exist fail.
+    assert.strictEqual(isValidMomentDate("2026-02-29"), false);
+    assert.strictEqual(isValidMomentDate("2026-02-30"), false);
+    assert.strictEqual(isValidMomentDate("2026-04-31"), false);
+    assert.strictEqual(isValidMomentDate("2026-13-01"), false);
+    assert.strictEqual(isValidMomentDate("2026-00-10"), false);
+    assert.strictEqual(isValidMomentDate("2026-01-00"), false);
+    assert.strictEqual(isValidMomentDate("2026-01-32"), false);
+
+    // Non-strings and malformed strings still fail.
+    assert.strictEqual(isValidMomentDate(undefined), false);
+    assert.strictEqual(isValidMomentDate(null), false);
+    assert.strictEqual(isValidMomentDate(20260307), false);
+    assert.strictEqual(isValidMomentDate("2026-3-7"), false);
+
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "noteeees-moments-"));
+    try {
+      for (const date of ["2026-02-30", "2026-13-01", "2026-02-29"]) {
+        assert.throws(() => getMomentsFilePath(tmpDir, date), /Invalid Moments date/);
+      }
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  test("searchMomentsFeed ignores files named for dates that do not exist", async () => {
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "noteeees-moments-"));
+    try {
+      await appendMoment(tmpDir, "2026-03-07", "alpha real entry");
+      const bogusPath = path.join(tmpDir, "moments", "2026-02-30.md");
+      fs.writeFileSync(
+        bogusPath,
+        `---\ntype: moments\ndate: 2026-02-30\n---\n\n- 09:00 alpha bogus entry\n`,
+        "utf8",
+      );
+
+      const matches = await searchMomentsFeed(tmpDir, "alpha");
+      assert.deepStrictEqual(
+        matches.sections.map((s) => s.date),
+        ["2026-03-07"],
+      );
     } finally {
       fs.rmSync(tmpDir, { recursive: true, force: true });
     }
